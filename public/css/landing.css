@@ -1,0 +1,190 @@
+/* Landing Page Styles */
+.landing-page {
+    background: linear-gradient(135deg, var(--dark-color) 0%, var(--background-color) 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.landing-page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('../images/gaming-bg.jpg');
+    background-size: cover;
+    background-position: center;
+    opacity: 0.15;
+    z-index: -1;
+}
+
+.landing-container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem 2rem;
+    border-radius: var(--border-radius);
+    background-color: rgba(26, 26, 26, 0.85);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+}
+
+.landing-content {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.logo-icon {
+    font-size: 4rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    animation: pulse 2s infinite;
+}
+
+.logo-container h1 {
+    font-size: 3.5rem;
+    font-weight: 700;
+    background: linear-gradient(to right, var(--primary-color), var(--accent-color));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+}
+
+.tagline {
+    font-size: 1.5rem;
+    color: var(--light-color);
+    margin-bottom: 2.5rem;
+    font-weight: 300;
+}
+
+.auth-options {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+.auth-options .btn {
+    padding: 0.8rem 2rem;
+    font-size: 1.1rem;
+    min-width: 150px;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.auth-options .btn:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.landing-features {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+    gap: 2rem;
+}
+
+.feature {
+    flex: 1;
+    min-width: 250px;
+    text-align: center;
+    padding: 2rem;
+    background-color: rgba(45, 45, 45, 0.5);
+    border-radius: var(--border-radius);
+    transition: transform 0.3s, background-color 0.3s;
+}
+
+.feature:hover {
+    transform: translateY(-10px);
+    background-color: rgba(45, 45, 45, 0.8);
+}
+
+.feature i {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.feature h3 {
+    font-size: 1.3rem;
+    color: var(--light-color);
+    margin-bottom: 0.8rem;
+}
+
+.feature p {
+    color: var(--gray-color);
+    font-size: 0.95rem;
+}
+
+.landing-footer {
+    text-align: center;
+    padding: 1.5rem 0;
+    color: var(--gray-color);
+    font-size: 0.9rem;
+    width: 100%;
+    margin-top: auto;
+}
+
+/* Animations */
+@keyframes pulse {
+    0% {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .landing-features {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .feature {
+        width: 100%;
+    }
+    
+    .logo-container h1 {
+        font-size: 2.5rem;
+    }
+    
+    .tagline {
+        font-size: 1.2rem;
+    }
+    
+    .auth-options {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .auth-options .btn {
+        width: 100%;
+    }
+}

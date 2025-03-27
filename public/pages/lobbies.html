@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lobbies - GameSquad</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/lobby.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Additional styles specific to lobbies page */
+        .lobbies-container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .page-title {
+            color: var(--light-color);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .create-lobby-btn {
+            background-color: var(--accent-color);
+            color: var(--light-color);
+            padding: 10px 20px;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            transition: var(--transition);
+        }
+        
+        .create-lobby-btn:hover {
+            background-color: #3ca372;
+            color: var(--light-color);
+        }
+        
+        .filters-container {
+            background-color: var(--card-background);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin-bottom: 30px;
+        }
+        
+        .filters-title {
+            color: var(--light-color);
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .filters-title button {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .filters-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .filter-group {
+            margin-bottom: 15px;
+        }
+        
+        .filter-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--light-color);
+            font-size: 0.9rem;
+        }
+        
+        .filter-group select,
+        .filter-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--secondary-color);
+            border-radius: var(--border-radius);
+            background-color: var(--dark-color);
+            color: var(--light-color);
+        }
+        
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .filter-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            grid-column: 1 / -1;
+        }
+        
+        .filter-actions button {
+            padding: 10px 20px;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .apply-filters {
+            background-color: var(--primary-color);
+            color: var(--light-color);
+            border: none;
+        }
+        
+        .apply-filters:hover {
+            background-color: #5b6eae;
+        }
+        
+        .reset-filters {
+            background-color: transparent;
+            color: var(--light-color);
+            border: 1px solid var(--gray-color);
+        }
+        
+        .reset-filters:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .lobbies-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .lobby-card {
+            background-color: var(--card-background);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            transition: var(--transition);
+            box-shadow: var(--box-shadow);
+        }
+        
+        .lobby-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .lobby-header {
+            background-color: var(--dark-color);
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .lobby-game {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .lobby-game img {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .lobby-game span {
+            color: var(--light-color);
+            font-weight: 600;
+        }
+        
+        .lobby-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .status-open {
+            background-color: var(--accent-color);
+            color: var(--light-color);
+        }
+        
+        .status-full {
+            background-color: var(--danger-color);
+            color: var(--light-color);
+        }
+        
+        .lobby-body {
+            padding: 15px;
+        }
+        
+        .lobby-name {
+            color: var(--light-color);
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .lobby-info {
+            margin-bottom: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            color: var(--gray-color);
+        }
+        
+        .info-item i {
+            color: var(--primary-color);
+            width: 20px;
+            text-align: center;
+        }
+        
+        .lobby-members {
+            margin-bottom: 15px;
+        }
+        
+        .members-title {
+            color: var(--light-color);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        
+        .members-list {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .member {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: var(--dark-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--light-color);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .member.empty {
+            border: 1px dashed var(--gray-color);
+            color: var(--gray-color);
+        }
+        
+        .lobby-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .lobby-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            text-align: center;
+            transition: var(--transition);
+        }
+        
+        .join-btn {
+            background-color: var(--primary-color);
+            color: var(--light-color);
+        }
+        
+        .join-btn:hover {
+            background-color: #5b6eae;
+            color: var(--light-color);
+        }
+        
+        .details-btn {
+            background-color: transparent;
+            color: var(--light-color);
+            border: 1px solid var(--gray-color);
+        }
+        
+        .details-btn:hover {
+            background-color: var(--secondary-color);
+            color: var(--light-color);
+        }
+        
+        .no-lobbies {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px;
+            color: var(--gray-color);
+        }
+        
+        .no-lobbies i {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+            gap: 5px;
+        }
+        
+        .pagination-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--border-radius);
+            background-color: var(--card-background);
+            color: var(--light-color);
+            transition: var(--transition);
+        }
+        
+        .pagination-btn:hover,
+        .pagination-btn.active {
+            background-color: var(--primary-color);
+        }
+        
+        .pagination-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pagination-btn.disabled:hover {
+            background-color: var(--card-background);
+        }
+        
+        .loading {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px;
+            color: var(--gray-color);
+        }
+        
+        .notifications-container {
+            position: fixed;
+            top: 0;
+            right: 0;
+            padding: 20px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <h1><a href="../index.html">GameSquad</a></h1>
+            </div>
+            <ul class="nav-links">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lobbies.html" class="active">Lobbies</a></li>
+                <li><a href="players.html">Players</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+            <div class="user-profile">
+                <span class="username">Username</span>
+                <div class="profile-dropdown">
+                    <a href="profile.html">My Profile</a>
+                    <a href="my-lobbies.html">My Lobbies</a>
+                    <a href="messages.html">Messages</a>
+                    <a href="#" id="logout-btn">Logout</a>
+                </div>
+            </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="lobbies-container">
+            <div class="page-title">
+                <h1>Find a Lobby</h1>
+                <a href="create-lobby.html" class="create-lobby-btn">
+                    <i class="fas fa-plus"></i> Create Lobby
+                </a>
+            </div>
+            
+            <div class="filters-container">
+                <div class="filters-title">
+                    <h3>Filters</h3>
+                    <button id="toggle-filters">Show/Hide Filters</button>
+                </div>
+                
+                <form id="filters-form" class="filters-form">
+                    <div class="filter-group">
+                        <label for="game-filter">Game</label>
+                        <select id="game-filter" name="game">
+                            <option value="">All Games</option>
+                            <option value="CS:GO">CS:GO</option>
+                            <option value="Valorant">Valorant</option>
+                            <option value="League of Legends">League of Legends</option>
+                            <option value="Dota 2">Dota 2</option>
+                            <option value="Apex Legends">Apex Legends</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="rank-filter">Rank</label>
+                        <select id="rank-filter" name="rank">
+                            <option value="">Any Rank</option>
+                            <option value="Bronze">Bronze</option>
+                            <option value="Silver">Silver</option>
+                            <option value="Gold">Gold</option>
+                            <option value="Platinum">Platinum</option>
+                            <option value="Diamond">Diamond</option>
+                            <option value="Master">Master</option>
+                            <option value="Grandmaster">Grandmaster</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="language-filter">Language</label>
+                        <select id="language-filter" name="language">
+                            <option value="">Any Language</option>
+                            <option value="English">English</option>
+                            <option value="Spanish">Spanish</option>
+                            <option value="French">French</option>
+                            <option value="German">German</option>
+                            <option value="Russian">Russian</option>
+                            <option value="Chinese">Chinese</option>
+                            <option value="Japanese">Japanese</option>
+                            <option value="Korean">Korean</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="status-filter">Status</label>
+                        <select id="status-filter" name="status">
+                            <option value="">Any Status</option>
+                            <option value="open">Open</option>
+                            <option value="full">Full</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button type="button" class="reset-filters">Reset</button>
+                        <button type="submit" class="apply-filters">Apply Filters</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="lobbies-grid" id="lobbies-container">
+                <!-- Lobbies will be loaded here dynamically -->
+                <div class="loading">Loading lobbies...</div>
+            </div>
+            
+            <div class="pagination">
+                <a href="#" class="pagination-btn disabled">
+                    <i class="fas fa-angle-double-left"></i>
+                </a>
+                <a href="#" class="pagination-btn disabled">
+                    <i class="fas fa-angle-left"></i>
+                </a>
+                <a href="#" class="pagination-btn active">1</a>
+                <a href="#" class="pagination-btn">2</a>
+                <a href="#" class="pagination-btn">3</a>
+                <a href="#" class="pagination-btn">
+                    <i class="fas fa-angle-right"></i>
+                </a>
+                <a href="#" class="pagination-btn">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add notifications container -->
+    <div class="notifications-container"></div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <h2>GameSquad</h2>
+                <p>Find your perfect gaming team</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h3>Navigation</h3>
+                    <ul>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="lobbies.html">Lobbies</a></li>
+                        <li><a href="players.html">Players</a></li>
+                        <li><a href="about.html">About</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>Legal</h3>
+                    <ul>
+                        <li><a href="terms.html">Terms of Service</a></li>
+                        <li><a href="privacy.html">Privacy Policy</a></li>
+                        <li><a href="cookies.html">Cookie Policy</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>Connect</h3>
+                    <ul>
+                        <li><a href="#"><i class="fab fa-discord"></i> Discord</a></li>
+                        <li><a href="#"><i class="fab fa-twitter"></i> Twitter</a></li>
+                        <li><a href="#"><i class="fab fa-instagram"></i> Instagram</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 GameSquad. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Load configuration first -->
+    <script>
+        // Global configuration
+        window.APP_CONFIG = {
+            API_URL: 'http://localhost:8080/api'
+        };
+    </script>
+    <!-- Load page-specific scripts -->
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/lobbies.js"></script>
+</body>
+</html>

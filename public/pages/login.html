@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - GameSquad</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Additional styles specific to login page */
+        .auth-container {
+            max-width: 500px;
+            margin: 80px auto;
+            padding: 30px;
+            background-color: var(--card-background);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+        
+        .auth-container h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--light-color);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--light-color);
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--secondary-color);
+            border-radius: var(--border-radius);
+            background-color: var(--dark-color);
+            color: var(--light-color);
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .form-group input.error {
+            border-color: var(--danger-color);
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        
+        .error-message {
+            color: var(--danger-color);
+            font-size: 0.9rem;
+            margin-top: 5px;
+            min-height: 18px;
+        }
+        
+        #login-error {
+            font-weight: 500;
+            font-size: 1rem;
+        }
+        
+        .auth-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: var(--light-color);
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+        
+        .auth-btn:hover:not(:disabled) {
+            background-color: #5b6eae;
+        }
+        
+        .auth-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        .auth-links {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .auth-links a {
+            color: var(--primary-color);
+        }
+        
+        .auth-links a:hover {
+            text-decoration: underline;
+        }
+        
+        .auth-separator {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+        }
+        
+        .auth-separator hr {
+            flex: 1;
+            border: none;
+            height: 1px;
+            background-color: var(--secondary-color);
+        }
+        
+        .auth-separator span {
+            padding: 0 10px;
+            color: var(--gray-color);
+        }
+        
+        .social-login {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .social-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: var(--dark-color);
+            color: var(--light-color);
+            transition: var(--transition);
+        }
+        
+        .social-btn:hover {
+            transform: translateY(-3px);
+        }
+        
+        .social-btn i {
+            font-size: 1.5rem;
+        }
+        
+        .discord {
+            background-color: #7289da;
+        }
+        
+        .steam {
+            background-color: #171a21;
+        }
+        
+        .google {
+            background-color: #DB4437;
+        }
+        
+        /* Notifications styles */
+        .notifications-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 350px;
+            width: 100%;
+        }
+        
+        .notification {
+            padding: 15px;
+            border-radius: var(--border-radius);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            animation: slide-in 0.3s ease forwards;
+            cursor: pointer;
+        }
+        
+        .notification.success {
+            background-color: #4CAF50;
+        }
+        
+        .notification.error {
+            background-color: #f44336;
+        }
+        
+        .notification.info {
+            background-color: #2196F3;
+        }
+        
+        .notification.fade-out {
+            animation: fade-out 0.3s ease forwards;
+        }
+        
+        @keyframes slide-in {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fade-out {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <h1><a href="../index.html">GameSquad</a></h1>
+            </div>
+            <ul class="nav-links">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lobbies.html">Lobbies</a></li>
+                <li><a href="players.html">Players</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+            <div class="user-profile hidden">
+                <span class="username">Username</span>
+                <div class="profile-dropdown">
+                    <a href="profile.html">My Profile</a>
+                    <a href="my-lobbies.html">My Lobbies</a>
+                    <a href="messages.html">Messages</a>
+                    <a href="#" id="logout-btn">Logout</a>
+                </div>
+            </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </nav>
+    </header>
+
+    <div class="notifications-container"></div>
+
+    <main>
+        <div class="auth-container">
+            <h2>Login to GameSquad</h2>
+            
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                    <div class="error-message" id="email-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                    <div class="error-message" id="password-error"></div>
+                </div>
+                
+                <div class="error-message" id="login-error" style="margin-bottom: 15px; text-align: center;"></div>
+                
+                <button type="submit" class="auth-btn" id="login-btn">Login</button>
+            </form>
+            
+            <div class="auth-links">
+                <a href="#">Forgot password?</a>
+                <p>Don't have an account? <a href="register.html">Register</a></p>
+            </div>
+            
+            <div class="auth-separator">
+                <hr>
+                <span>OR</span>
+                <hr>
+            </div>
+            
+            <div class="social-login">
+                <a href="#" class="social-btn discord">
+                    <i class="fab fa-discord"></i>
+                </a>
+                <a href="#" class="social-btn steam">
+                    <i class="fab fa-steam"></i>
+                </a>
+                <a href="#" class="social-btn google">
+                    <i class="fab fa-google"></i>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <h2>GameSquad</h2>
+                <p>Find your perfect gaming team</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h3>Navigation</h3>
+                    <ul>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="lobbies.html">Lobbies</a></li>
+                        <li><a href="players.html">Players</a></li>
+                        <li><a href="about.html">About</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>Legal</h3>
+                    <ul>
+                        <li><a href="terms.html">Terms of Service</a></li>
+                        <li><a href="privacy.html">Privacy Policy</a></li>
+                        <li><a href="cookies.html">Cookie Policy</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>Support</h3>
+                    <ul>
+                        <li><a href="faq.html">FAQ</a></li>
+                        <li><a href="contact.html">Contact Us</a></li>
+                        <li><a href="report.html">Report a Bug</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 GameSquad. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Load configuration first -->
+    <script src="../js/config.js"></script>
+    <!-- Load page-specific scripts -->
+    <script src="../js/login.js"></script>
+</body>
+</html>

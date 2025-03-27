@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lobby - GameSquad</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/lobby.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="dark-theme">
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <h1><a href="../index.html">GameSquad</a></h1>
+            </div>
+            <ul class="nav-links">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lobbies.html">Lobbies</a></li>
+                <li><a href="create-lobby.html">Create Lobby</a></li>
+                <li><a href="players.html">Players</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+            <div class="nav-user">
+                <span class="username"></span>
+                <button class="btn btn-secondary logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="lobby-details">
+            <div class="lobby-header">
+                <h1 id="lobbyName">
+                    <i class="fas fa-gamepad"></i>
+                    <span>Loading...</span>
+                    <span class="loading"></span>
+                </h1>
+                <div class="lobby-status">
+                    <span id="lobbyStatus" class="status-badge">
+                        <i class="fas fa-circle"></i>
+                        <span>...</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="lobby-content">
+                <div class="lobby-info">
+                    <div class="info-section">
+                        <h2>
+                            <i class="fas fa-info-circle"></i>
+                            Game Details
+                        </h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <i class="fas fa-gamepad"></i>
+                                <span>Game: </span>
+                                <span id="gameType" class="info-value">Loading...</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-users"></i>
+                                <span>Players: </span>
+                                <span id="playerCount" class="info-value">0/0</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-crown"></i>
+                                <span>Host: </span>
+                                <span id="hostName" class="info-value">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-section">
+                        <h2>
+                            <i class="fas fa-users"></i>
+                            Players
+                        </h2>
+                        <div class="players-list">
+                            <!-- Players will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <!-- Add dedicated ready toggle button -->
+                    <div class="ready-toggle-container">
+                        <button id="readyToggleBtn" class="btn btn-primary">
+                            <i class="fas fa-check"></i> Mark as Ready
+                        </button>
+                        <div class="current-status">Your status: <span id="yourStatus" class="status-badge not-ready">Not Ready</span></div>
+                    </div>
+                </div>
+
+                <div class="lobby-chat">
+                    <h2>
+                        <i class="fas fa-comments"></i>
+                        Lobby Chat
+                    </h2>
+                    <div class="chat-messages">
+                        <!-- Chat messages will be dynamically added here -->
+                    </div>
+                    <div class="chat-input-container">
+                        <input type="text" id="chatInput" placeholder="Type your message...">
+                        <button class="btn btn-primary" id="sendMessage">
+                            <i class="fas fa-paper-plane"></i>
+                            Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="readyBtn" class="btn btn-primary">
+                    <i class="fas fa-check"></i>
+                    Ready
+                </button>
+                <button id="leaveBtn" class="btn btn-danger">
+                    <i class="fas fa-door-open"></i>
+                    Leave Lobby
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <div class="notifications-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js" integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4" crossorigin="anonymous"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/lobby.js"></script>
+    
+    <!-- Debug console -->
+    <script>
+        console.log('Lobby page loaded');
+        // Add debug info to console
+        setTimeout(() => {
+            console.log('Debug elements:', {
+                chatInput: document.getElementById('chatInput'),
+                sendButton: document.getElementById('sendMessage'),
+                chatMessages: document.querySelector('.chat-messages'),
+                socketScript: document.querySelector('script[src*="socket.io"]'),
+                appConfig: window.APP_CONFIG
+            });
+        }, 1000);
+    </script>
+</body>
+</html> 

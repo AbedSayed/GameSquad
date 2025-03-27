@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameSquad - Welcome</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/landing.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="landing-page">
+    <div class="landing-container">
+        <div class="landing-content">
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <h1>GameSquad</h1>
+            </div>
+            <div class="tagline">
+                <p>Find Your Perfect Gaming Team</p>
+            </div>
+            <div class="auth-options">
+                <a href="pages/login.html" class="btn btn-primary">Login</a>
+                <a href="pages/register.html" class="btn btn-secondary">Register</a>
+            </div>
+        </div>
+        
+        <div class="landing-features">
+            <div class="feature">
+                <i class="fas fa-users"></i>
+                <h3>Find Teammates</h3>
+                <p>Connect with players who match your skill level</p>
+            </div>
+            <div class="feature">
+                <i class="fas fa-comment-alt"></i>
+                <h3>Real-time Chat</h3>
+                <p>Communicate with your team instantly</p>
+            </div>
+            <div class="feature">
+                <i class="fas fa-trophy"></i>
+                <h3>Track Progress</h3>
+                <p>Monitor your gaming achievements</p>
+            </div>
+        </div>
+    </div>
+
+    <footer class="landing-footer">
+        <p>&copy; 2025 GameSquad. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Check if user is logged in
+        document.addEventListener('DOMContentLoaded', function() {
+            const isAuthenticated = localStorage.getItem('userInfo') !== null;
+            
+            // If user is already logged in, redirect to main page
+            if (isAuthenticated) {
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search - Gaming Squad Finder</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <a href="../index.html">Gaming Squad Finder</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lobbies.html">Lobbies</a></li>
+                <li><a href="search.html" class="active">Search</a></li>
+                <li class="auth-links logged-out"><a href="login.html">Login</a></li>
+                <li class="auth-links logged-out"><a href="register.html">Register</a></li>
+                <li class="auth-links logged-in"><a href="profile.html">Profile</a></li>
+                <li class="auth-links logged-in"><a href="#" id="logout-btn">Logout</a></li>
+            </ul>
+            <div class="burger">
+                <div class="line1"></div>
+                <div class="line2"></div>
+                <div class="line3"></div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="search-section">
+            <div class="container">
+                <h1>Find Players & Lobbies</h1>
+                
+                <div class="search-tabs">
+                    <button class="tab-btn active" data-tab="players">Players</button>
+                    <button class="tab-btn" data-tab="lobbies">Lobbies</button>
+                </div>
+                
+                <div class="tab-content active" id="players-tab">
+                    <div class="search-filters">
+                        <h2>Filter Players</h2>
+                        <form id="user-search-form" class="filter-form">
+                            <div class="filter-container">
+                                <div class="filter-group">
+                                    <label for="player-game">Game</label>
+                                    <select id="player-game" name="game" class="game-select">
+                                        <option value="">All Games</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="filter-group">
+                                    <label for="player-rank">Rank</label>
+                                    <select id="player-rank" name="rank" class="rank-select">
+                                        <option value="">All Ranks</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="filter-group">
+                                    <label for="player-language">Language</label>
+                                    <select id="player-language" name="language" class="language-select">
+                                        <option value="">All Languages</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="filter-group">
+                                    <label for="player-interest">Interest</label>
+                                    <select id="player-interest" name="interest" class="interest-select">
+                                        <option value="">All Interests</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="filter-group">
+                                    <label for="player-status">Status</label>
+                                    <select id="player-status" name="status">
+                                        <option value="">Any Status</option>
+                                        <option value="online">Online</option>
+                                        <option value="away">Away</option>
+                                        <option value="busy">Busy</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Search Players</button>
+                        </form>
+                    </div>
+                    
+                    <div class="search-results" id="user-search-results">
+                        <!-- User search results will be populated here -->
+                        <div class="loading">Loading players...</div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="lobbies-tab">
+                    <div class="search-filters">
+                        <h2>Filter Lobbies</h2>
+                        <form id="lobby-search-form" class="filter-form">
+                            <div class="filter-container">
+                                <div class="filter-group">
+                                    <label for="lobby-game">Game</label>
+                                    <select id="lobby-game" name="game" class="game-select">
+                                        <option value="">All Games</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="filter-group">
+                                    <label for="lobby-rank">Rank</label>
+                                    <select id="lobby-rank" name="rank" class="rank-select">
+                                        <option value="">All Ranks</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="filter-group">
+                                    <label for="lobby-language">Language</label>
+                                    <select id="lobby-language" name="language" class="language-select">
+                                        <option value="">All Languages</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="filter-group">
+                                    <label for="lobby-status">Status</label>
+                                    <select id="lobby-status" name="status">
+                                        <option value="">Any Status</option>
+                                        <option value="open">Open</option>
+                                        <option value="full">Full</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Search Lobbies</button>
+                        </form>
+                    </div>
+                    
+                    <div class="search-results" id="lobby-search-results">
+                        <!-- Lobby search results will be populated here -->
+                        <div class="loading">Loading lobbies...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Gaming Squad Finder. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Chat notification modal (will be shown when receiving messages) -->
+    <div id="chat-notification" class="notification">
+        <div class="notification-content">
+            <p id="notification-message"></p>
+            <button id="notification-close" class="btn btn-small">Close</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <script src="../js/main.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/profile.js"></script>
+    <script src="../js/lobby.js"></script>
+    <script src="../js/chat.js"></script>
+    <script src="../js/search.js"></script>
+    <script>
+        // Tab switching functionality
+        document.querySelectorAll('.tab-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons and content
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Show corresponding content
+                const tabId = this.dataset.tab + '-tab';
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

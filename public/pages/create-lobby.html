@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Lobby - GameSquad</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/lobby.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <h1><a href="../index.html">GameSquad</a></h1>
+            </div>
+            <ul class="nav-links">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lobbies.html">Lobbies</a></li>
+                <li><a href="create-lobby.html" class="active">Create Lobby</a></li>
+                <li><a href="players.html">Players</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+            <div class="nav-user">
+                <span class="username"></span>
+                <button class="btn btn-secondary logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="create-lobby-container">
+            <h1>Create a New Lobby</h1>
+            
+            <form id="create-lobby-form" class="lobby-form">
+                <div class="form-group">
+                    <label for="name">Lobby Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="game">Game</label>
+                    <select id="game" name="game" required>
+                        <option value="" disabled selected>Select a game</option>
+                        <option value="valorant">Valorant</option>
+                        <option value="csgo">CS:GO</option>
+                        <option value="lol">League of Legends</option>
+                        <option value="apex">Apex Legends</option>
+                        <option value="fortnite">Fortnite</option>
+                        <option value="dota2">Dota 2</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="min-rank">Minimum Rank</label>
+                        <select id="min-rank" name="minRank">
+                            <option value="any">Any Rank</option>
+                            <!-- Ranks will be populated by JavaScript -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="max-players">Maximum Players</label>
+                        <select id="max-players" name="maxPlayers" required>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5" selected>5</option>
+                            <option value="6">6</option>
+                            <option value="10">10</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="region">Region</label>
+                        <select id="region" name="region" required>
+                            <option value="na">North America</option>
+                            <option value="eu">Europe</option>
+                            <option value="asia">Asia</option>
+                            <option value="oceania">Oceania</option>
+                            <option value="sa">South America</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="language">Preferred Language</label>
+                        <select id="language" name="language" required>
+                            <option value="english">English</option>
+                            <option value="spanish">Spanish</option>
+                            <option value="french">French</option>
+                            <option value="german">German</option>
+                            <option value="chinese">Chinese</option>
+                            <option value="japanese">Japanese</option>
+                            <option value="korean">Korean</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Requirements</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="micRequired" name="micRequired">
+                            <label for="micRequired">Microphone Required</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="18plus" name="18plus">
+                            <label for="18plus">18+ Only</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="casual" name="casual" checked>
+                            <label for="casual">Casual Friendly</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="competitive" name="competitive">
+                            <label for="competitive">Competitive Focus</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="schedule">Play Schedule (Optional)</label>
+                    <input type="text" id="schedule" name="schedule" placeholder="e.g., Weeknights after 8pm EST, Weekends">
+                </div>
+
+                <div class="form-group">
+                    <label for="discord">Discord Link (Optional)</label>
+                    <input type="text" id="discord" name="discord" placeholder="Enter your Discord invite link">
+                </div>
+
+                <div id="form-error" class="error-message hidden"></div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Create Lobby</button>
+                    <a href="lobbies.html" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <div class="notifications-container"></div>
+
+    <!-- Scripts -->
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/create-lobby.js"></script>
+</body>
+</html>
