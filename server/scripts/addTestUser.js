@@ -18,7 +18,7 @@ async function createTestUser() {
     console.log('Connecting to database...');
     // Use the MongoDB URI directly if it's not in .env
     if (!process.env.MONGODB_URI) {
-      process.env.MONGODB_URI = 'mongodb+srv://daaberhane:Motdepasse123+@cluster0.kxktn.mongodb.net/gamesquad?retryWrites=true&w=majority';
+      process.env.MONGODB_URI = 'mongodb+srv://hamdiamish311:e1TRr1qZXtVn3dtg@cluster0.0me02pa.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
       console.log('Using hardcoded MongoDB URI');
     }
     

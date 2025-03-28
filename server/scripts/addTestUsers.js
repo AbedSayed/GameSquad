@@ -42,7 +42,7 @@ const bios = [
 async function addTestUsers() {
     try {
         // Connect to MongoDB
-        await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://daabe:daabe@cluster0.kxktn.mongodb.net/game-lobby?retryWrites=true&w=majority');
+        await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://hamdiamish311:e1TRr1qZXtVn3dtg@cluster0.0me02pa.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0');
         console.log('Connected to MongoDB');
 
         // Delete existing test users

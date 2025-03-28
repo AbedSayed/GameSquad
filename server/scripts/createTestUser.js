@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 // MongoDB URI - replace with your actual URI for testing
-const MONGODB_URI = 'mongodb+srv://daaberhane:Motdepasse123+@cluster0.kxktn.mongodb.net/gamesquad?retryWrites=true&w=majority';
+const MONGODB_URI = 'mongodb+srv://hamdiamish311:e1TRr1qZXtVn3dtg@cluster0.0me02pa.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
 // Connect to MongoDB
 mongoose.connect(MONGODB_URI, {
