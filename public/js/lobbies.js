@@ -1,5 +1,38 @@
 // Lobbies namespace
 window.Lobby = {
+    // Game name mappings to handle variations
+    gameNameMappings: {
+        'cs2': ['csgo', 'cs:go', 'counter-strike', 'counter strike','Counter-Strike 2'],
+        'csgo': ['cs2', 'cs:go', 'counter-strike', 'counter strike'],
+        'cs:go': ['cs2', 'csgo', 'counter-strike', 'counter strike'],
+        'counter-strike': ['cs2', 'csgo', 'cs:go', 'counter strike'],
+        'valorant': ['valorant'],
+        'lol': ['league of legends', 'league'],
+        'league of legends': ['lol', 'league'],
+        'apex': ['apex legends'],
+        'apex legends': ['apex'],
+        'dota 2': ['dota2', 'dota'],
+        'dota2': ['dota 2', 'dota']
+    },
+    
+    // Normalize game name to handle variations
+    normalizeGameName(gameName) {
+        if (!gameName) return '';
+        
+        const lowerGameName = gameName.toLowerCase();
+        
+        // Direct match check
+        for (const [key, aliases] of Object.entries(this.gameNameMappings)) {
+            if (key.toLowerCase() === lowerGameName || aliases.includes(lowerGameName)) {
+                // For direct matches, return the filter dropdown format (capitalize first letter of each word)
+                return key.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+            }
+        }
+        
+        // No match found, return original with first letter capitalized
+        return gameName.charAt(0).toUpperCase() + gameName.slice(1);
+    },
+    
     // Function to load lobbies with filters
     async loadLobbies(filters = {}) {
         try {
@@ -7,21 +40,63 @@ window.Lobby = {
             const container = document.querySelector('.lobbies-grid');
             container.innerHTML = '<div class="loading">Loading lobbies...</div>';
 
+            // Normalize game name if present
+            if (filters.game) {
+                const originalGameName = filters.game;
+                filters.game = this.normalizeGameName(filters.game);
+                console.log(`Normalized game filter: "${originalGameName}" → "${filters.game}"`);
+            }
+
             // Construct query parameters
             const queryParams = new URLSearchParams();
-            if (filters.game && filters.game !== 'All Games') queryParams.append('game', filters.game);
+            
+            // Only add params that are not empty or default values
+            if (filters.game && filters.game !== 'All Games' && filters.game !== '') {
+                // Use the original casing from the create-lobby form for more accurate matching
+                // This helps with case-sensitive databases
+                let gameValue = filters.game;
+                
+                // Convert well-known game names to the format used in the database
+                const gameNameLower = gameValue.toLowerCase();
+                
+                // Special handling for Counter-Strike variations
+                if (gameNameLower === 'cs:go' || gameNameLower === 'counter-strike' || 
+                    gameNameLower === 'cs2' || gameNameLower === 'counter-strike 2') {
+                    gameValue = 'csgo';
+                    console.log('Converted CS game name variation to database format:', gameValue);
+                } 
+                else if (gameNameLower === 'league of legends') {
+                    gameValue = 'lol';
+                } 
+                else if (gameNameLower === 'apex legends') {
+                    gameValue = 'apex';
+                }
+                
+                queryParams.append('game', gameValue);
+                console.log('Added game param:', gameValue);
+            }
+            
             if (filters.rank && filters.rank !== 'Any Rank') queryParams.append('rank', filters.rank);
             if (filters.language && filters.language !== 'Any Language') queryParams.append('language', filters.language);
             if (filters.status && filters.status !== 'Any Status') queryParams.append('status', filters.status);
 
+            // Log the request we're about to make
+            console.log(`Fetching lobbies from: ${APP_CONFIG.API_URL}/lobbies?${queryParams}`);
+            
             // Make API request
             const response = await fetch(`${APP_CONFIG.API_URL}/lobbies?${queryParams}`);
+            console.log('Response status:', response.status);
+            
             const result = await response.json();
+            console.log('API response:', result);
 
             if (!response.ok || !result.success) {
                 throw new Error(result.error || 'Failed to load lobbies');
             }
 
+            // Log how many lobbies were returned
+            console.log(`Loaded ${result.data.length} lobbies`);
+            
             // Display lobbies using the data property from the response
             this.displayLobbies(result.data);
         } catch (error) {
@@ -189,8 +264,79 @@ window.Lobby = {
 
 // Initialize when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    // Load initial lobbies
-    window.Lobby.loadLobbies();
+    // Check for URL parameters to apply filters
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialFilters = {};
+    
+    // Get game parameter from URL, if present
+    const gameParam = urlParams.get('game');
+    if (gameParam) {
+        // Store the original parameter value
+        const originalGameParam = gameParam;
+        
+        // Normalize the game name using our new helper function
+        const normalizedGameName = window.Lobby.normalizeGameName(gameParam);
+        initialFilters.game = normalizedGameName;
+        
+        console.log('Found game parameter in URL:', originalGameParam);
+        console.log('Normalized to:', normalizedGameName);
+        
+        // If we have a filter form, update the game filter dropdown to match
+        const gameFilter = document.getElementById('game-filter');
+        if (gameFilter) {
+            // Find the option that matches our normalized game name (case insensitive)
+            const gameOptions = Array.from(gameFilter.options);
+            const matchedOption = gameOptions.find(option => 
+                option.value.toLowerCase() === normalizedGameName.toLowerCase()
+            );
+            
+            if (matchedOption) {
+                gameFilter.value = matchedOption.value;
+                console.log('Set game filter dropdown to:', matchedOption.value);
+            } else {
+                console.log('No exact match found in dropdown for:', normalizedGameName);
+                
+                // If no perfect match is found, try all options by value and text
+                const fuzzyMatch = gameOptions.find(option => {
+                    const optionValue = option.value.toLowerCase();
+                    const optionText = option.textContent.toLowerCase();
+                    const normalized = normalizedGameName.toLowerCase();
+                    
+                    return optionValue.includes(normalized) || 
+                           normalized.includes(optionValue) ||
+                           optionText.includes(normalized) ||
+                           normalized.includes(optionText);
+                });
+                
+                if (fuzzyMatch) {
+                    gameFilter.value = fuzzyMatch.value;
+                    console.log('Set game filter to fuzzy match:', fuzzyMatch.value);
+                } else {
+                    console.log('No match found in dropdown, filter may not apply correctly');
+                }
+            }
+        }
+    }
+    
+    // Get additional filters from URL (rank, language, status) if present
+    ['rank', 'language', 'status'].forEach(param => {
+        const value = urlParams.get(param);
+        if (value) {
+            initialFilters[param] = value;
+            
+            // Update the corresponding form element if it exists
+            const filterElement = document.getElementById(`${param}-filter`);
+            if (filterElement) {
+                filterElement.value = value;
+            }
+        }
+    });
+    
+    // Log the initial filters 
+    console.log('Loading lobbies with initial filters:', initialFilters);
+    
+    // Load lobbies with URL parameters as filters
+    window.Lobby.loadLobbies(initialFilters);
 
     // Setup filter form
     const filterForm = document.getElementById('filters-form');

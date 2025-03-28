@@ -41,10 +41,17 @@ const getLobbies = asyncHandler(async (req, res) => {
     console.log('Filter params:', req.query);
     
     // Build the filter object based on query parameters
-    const filter = { status: 'waiting' }; // Base filter to only show waiting lobbies
+    const filter = {}; // Start with empty filter
+    
+    // Only add status filter if specifically requested
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
     
     if (req.query.game) {
-      filter.gameType = req.query.game;
+      // Use case-insensitive regex for game type matching
+      filter.gameType = new RegExp('^' + req.query.game + '$', 'i');
+      console.log('Game filter:', filter.gameType);
     }
     
     if (req.query.rank) {
@@ -56,13 +63,26 @@ const getLobbies = asyncHandler(async (req, res) => {
     }
     
     // Log the final filter being used
-    console.log('Using filter:', filter);
+    console.log('Using filter:', JSON.stringify(filter));
     
     const lobbies = await Lobby.find(filter)
       .populate('host players.user', 'username')
       .select('-password');
     
     console.log(`Found ${lobbies.length} lobbies`);
+    
+    // If no lobbies found, log some debug info from the database
+    if (lobbies.length === 0) {
+      // Get total count of lobbies to see if any exist
+      const totalCount = await Lobby.countDocuments({});
+      console.log(`Total lobbies in database: ${totalCount}`);
+      
+      if (totalCount > 0) {
+        // Get a sample of gameType values to help debug
+        const sampleLobbies = await Lobby.find({}).limit(5).select('gameType');
+        console.log('Sample game types in database:', sampleLobbies.map(l => l.gameType));
+      }
+    }
     
     // Return standardized response format
     res.status(200).json({
