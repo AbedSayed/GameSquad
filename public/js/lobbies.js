@@ -112,12 +112,29 @@ window.Lobby = {
     // Function to join a lobby
     async joinLobby(lobbyId) {
         try {
-            const token = localStorage.getItem('userToken');
+            // Use the Auth module if available
+            let token;
+            if (typeof window.Auth !== 'undefined' && typeof window.Auth.getCurrentUser === 'function') {
+                // Auth module exists, use it
+                if (!window.Auth.isLoggedIn()) {
+                    console.log('User not logged in according to Auth module');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                token = localStorage.getItem('token');
+            } else {
+                // Fallback to directly checking localStorage
+                token = localStorage.getItem('token');
+            }
+            
             if (!token) {
+                console.log('No token found in localStorage');
                 window.location.href = 'login.html';
                 return;
             }
 
+            console.log('Joining lobby with ID:', lobbyId);
             const response = await fetch(`${APP_CONFIG.API_URL}/lobbies/${lobbyId}/join`, {
                 method: 'POST',
                 headers: {

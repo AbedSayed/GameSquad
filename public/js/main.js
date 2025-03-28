@@ -44,47 +44,71 @@ document.addEventListener('DOMContentLoaded', function() {
  * Check if user is authenticated and update UI accordingly
  */
 function checkAuthState() {
-    // Check if user is authenticated using the correct localStorage key
-    const isAuthenticated = localStorage.getItem('userInfo') !== null;
-    
-    // Get current page path
+    // Don't redirect if on login/register/landing pages
     const currentPath = window.location.pathname;
     const isLandingPage = currentPath === '/' || currentPath === '/landing.html';
     const isAuthPage = currentPath.includes('/login.html') || currentPath.includes('/register.html');
     
-    // Handle redirects based on auth state
-    if (!isAuthenticated && !isLandingPage && !isAuthPage) {
-        // If not authenticated and not on landing or auth pages, redirect to landing
-        window.location.href = '/landing.html';
+    if (isLandingPage || isAuthPage) {
+        console.log('On landing or auth page, skipping redirection check');
         return;
     }
+
+    // Check if user is authenticated
+    let isAuthenticated = false;
     
-    // Update UI elements if they exist
+    // Use the auth.js isLoggedIn function if available
+    if (typeof window.Auth !== 'undefined' && typeof window.Auth.isLoggedIn === 'function') {
+        isAuthenticated = window.Auth.isLoggedIn();
+    } else {
+        // Fallback to basic check
+        try {
+            const userInfoStr = localStorage.getItem('userInfo');
+            const token = localStorage.getItem('token');
+            
+            isAuthenticated = !!(userInfoStr && token);
+        } catch (error) {
+            console.error('Error checking auth state:', error);
+            isAuthenticated = false;
+        }
+    }
+    
+    console.log('Auth state:', isAuthenticated ? 'Authenticated' : 'Not authenticated');
+    
+    // Update UI elements based on authentication state
+    updateUIForAuthState(isAuthenticated);
+    
+    // Only redirect to landing page if explicitly not authenticated
+    // and we're on a page that requires authentication
+    if (!isAuthenticated && !isLandingPage && !isAuthPage) {
+        console.log('Not authenticated, redirecting to landing page');
+        window.location.href = '/landing.html';
+    }
+}
+
+/**
+ * Update UI elements based on authentication state
+ * @param {boolean} isAuthenticated - Whether user is authenticated
+ */
+function updateUIForAuthState(isAuthenticated) {
     const authButtons = document.querySelector('.auth-buttons');
     const userProfile = document.querySelector('.user-profile');
     
     if (isAuthenticated) {
         // User is logged in
         if (authButtons) authButtons.classList.add('hidden');
-        if (userProfile) {
-            userProfile.classList.remove('hidden');
-            
-            // Update profile info
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-            const usernameElement = userProfile.querySelector('.username');
-            if (usernameElement && userInfo.username) {
-                usernameElement.textContent = userInfo.username;
-            }
-        }
+        if (userProfile) userProfile.classList.remove('hidden');
         
         // Show authenticated content
         document.querySelectorAll('.auth-only').forEach(el => {
+            el.classList.remove('hidden');
             el.classList.add('visible');
         });
         
         // Hide non-authenticated content
         document.querySelectorAll('.non-auth-only').forEach(el => {
             el.classList.add('hidden');
+            el.classList.remove('visible');
         });
     } else {
         // User is not logged in
@@ -93,13 +117,60 @@ function checkAuthState() {
         
         // Hide authenticated content
         document.querySelectorAll('.auth-only').forEach(el => {
+            el.classList.add('hidden');
             el.classList.remove('visible');
         });
         
         // Show non-authenticated content
         document.querySelectorAll('.non-auth-only').forEach(el => {
             el.classList.remove('hidden');
+            el.classList.add('visible');
         });
+    }
+}
+
+/**
+ * Validate the stored auth token with the server
+ * If token is invalid, logout the user
+ */
+async function validateTokenWithServer() {
+    try {
+        // Check if we should skip validation
+        const currentPath = window.location.pathname;
+        const isLandingPage = currentPath === '/' || currentPath === '/landing.html';
+        const isAuthPage = currentPath.includes('/login.html') || currentPath.includes('/register.html');
+        
+        if (isLandingPage || isAuthPage) {
+            console.log('On landing or auth page, skipping token validation');
+            return;
+        }
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.log('No token found, skipping validation');
+            return;
+        }
+
+        // Make a request to the server to validate the token
+        console.log('Validating token with server...');
+        const response = await fetch(`${window.APP_CONFIG.API_URL}/users/validate-token`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        // If response is not ok, token is invalid
+        if (!response.ok) {
+            console.log('Invalid token detected from server response, logging out');
+            logout();
+        } else {
+            console.log('Token validated successfully');
+        }
+    } catch (error) {
+        console.error('Error validating token:', error);
+        // Don't automatically logout on network errors
+        // This prevents logout loops when server is unreachable
     }
 }
 
@@ -134,7 +205,7 @@ function updateUsernameDisplay() {
         }
         
         const userInfo = JSON.parse(userInfoString);
-        console.log('User info loaded:', userInfo);
+        console.log('User info loaded for display:', userInfo);
         
         // Find all username elements and update them
         const usernameElements = document.querySelectorAll('.username');
@@ -145,11 +216,28 @@ function updateUsernameDisplay() {
         
         // Update all username elements to ensure consistency across different parts of the UI
         usernameElements.forEach(element => {
-            // Using the username from userInfo, or the username's name if available, or 'User' as fallback
-            const displayName = userInfo.username || (userInfo.user && userInfo.user.username) || 'User';
+            // Determine the correct username to display with clear fallbacks
+            let displayName = 'User'; // Default fallback
+            
+            // Check username directly on userInfo
+            if (userInfo.username && userInfo.username.trim() !== '') {
+                displayName = userInfo.username;
+            } 
+            // Check in nested user object if present
+            else if (userInfo.user && userInfo.user.username && userInfo.user.username.trim() !== '') {
+                displayName = userInfo.user.username;
+            }
+            
+            // Update the element
             element.textContent = displayName;
             console.log('Updated username element with:', displayName);
         });
+        
+        // Ensure the user profile container is visible
+        const userProfile = document.querySelector('.user-profile');
+        if (userProfile) {
+            userProfile.classList.remove('hidden');
+        }
     } catch (error) {
         console.error('Error updating username display:', error);
     }

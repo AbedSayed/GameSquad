@@ -159,8 +159,31 @@
             font-size: 0.9rem;
         }
     </style>
+    <script>
+        // Clear any existing auth data immediately when register page loads
+        (function() {
+            localStorage.removeItem('userInfo');
+            localStorage.removeItem('token');
+            console.log('Auth data cleared on register page load');
+            
+            // Make sure UI reflects logged out state when document loads
+            document.addEventListener('DOMContentLoaded', function() {
+                // Hide user profile in navbar
+                const userProfile = document.querySelector('.user-profile');
+                if (userProfile) {
+                    userProfile.classList.add('hidden');
+                }
+                
+                // Show auth buttons if they exist
+                const authButtons = document.querySelector('.auth-buttons');
+                if (authButtons) {
+                    authButtons.classList.remove('hidden');
+                }
+            });
+        })();
+    </script>
 </head>
-<body>
+<body class="auth-page">
     <header>
         <nav class="navbar">
             <div class="logo">
@@ -172,14 +195,9 @@
                 <li><a href="players.html">Players</a></li>
                 <li><a href="about.html">About</a></li>
             </ul>
-            <div class="user-profile hidden">
-                <span class="username">Username</span>
-                <div class="profile-dropdown">
-                    <a href="profile.html">My Profile</a>
-                    <a href="my-lobbies.html">My Lobbies</a>
-                    <a href="messages.html">Messages</a>
-                    <a href="#" id="logout-btn">Logout</a>
-                </div>
+            <div class="auth-buttons">
+                <a href="login.html" class="btn btn-secondary">Login</a>
+                <a href="register.html" class="btn btn-primary">Register</a>
             </div>
             <div class="hamburger">
                 <span class="bar"></span>
@@ -289,5 +307,6 @@
     <script src="../js/config.js"></script>
     <!-- Load page-specific scripts -->
     <script src="../js/register.js"></script>
+    <script src="../js/reset-ui.js"></script>
 </body>
 </html>

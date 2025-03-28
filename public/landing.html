@@ -50,13 +50,80 @@
     </footer>
 
     <script>
+        // Global configuration 
+        window.APP_CONFIG = {
+            API_URL: '/api'
+        };
+        
         // Check if user is logged in
         document.addEventListener('DOMContentLoaded', function() {
-            const isAuthenticated = localStorage.getItem('userInfo') !== null;
+            // More comprehensive authentication check
+            let hasValidUserInfo = false;
+            let hasToken = false;
             
-            // If user is already logged in, redirect to main page
-            if (isAuthenticated) {
-                window.location.href = 'index.html';
+            try {
+                const userInfoStr = localStorage.getItem('userInfo');
+                const token = localStorage.getItem('token');
+                
+                hasToken = token !== null && token !== undefined && token.trim() !== '';
+                
+                if (userInfoStr) {
+                    const userInfo = JSON.parse(userInfoStr);
+                    // Must have valid username
+                    hasValidUserInfo = userInfo && 
+                                      userInfo.username && 
+                                      userInfo.username !== 'Username' &&
+                                      userInfo.username.trim() !== '';
+                }
+            } catch (error) {
+                console.error('Error checking auth state:', error);
+                hasValidUserInfo = false;
+                // Clear corrupted data
+                localStorage.removeItem('userInfo');
+                localStorage.removeItem('token');
+            }
+            
+            const isAuthenticated = hasValidUserInfo && hasToken;
+            console.log('Auth check on landing page:', { hasValidUserInfo, hasToken });
+            
+            // If the auth state is inconsistent, clear it
+            if (hasValidUserInfo !== hasToken) {
+                console.log('Inconsistent auth state detected, clearing auth data');
+                localStorage.removeItem('userInfo');
+                localStorage.removeItem('token');
+            } else if (isAuthenticated) {
+                // If properly authenticated, redirect to main page
+                console.log('User is authenticated, redirecting to index page');
+                
+                // We'll first validate the token with the server
+                async function validateToken() {
+                    try {
+                        const token = localStorage.getItem('token');
+                        const response = await fetch(`${window.APP_CONFIG.API_URL}/users/validate-token`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            // Token is valid, redirect to main page
+                            window.location.href = 'index.html';
+                        } else {
+                            console.log('Token validation failed, clearing auth data');
+                            // Token is invalid, clear auth data
+                            localStorage.removeItem('userInfo');
+                            localStorage.removeItem('token');
+                        }
+                    } catch (error) {
+                        console.error('Error validating token:', error);
+                        // On error, clear auth data
+                        localStorage.removeItem('userInfo');
+                        localStorage.removeItem('token');
+                    }
+                }
+                
+                validateToken();
             }
         });
     </script>

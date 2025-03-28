@@ -204,12 +204,12 @@ app.get('/lobby/:id', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/pages/lobby.html'));
 });
 
-// Serve landing.html as the default page
+// Root path - serve landing for non-auth, index for auth
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/landing.html'));
 });
 
-// Default route handler to serve index.html for client-side routing
+// All other routes - send to index.html for client-side routing
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });

@@ -173,7 +173,47 @@
         window.APP_CONFIG = {
             API_URL: '/api'
         };
+        
+        // Immediate check for valid user data (runs before DOM is loaded)
+        (function() {
+            // Check if we have valid auth data with a proper username
+            let hasValidUserInfo = false;
+            let hasToken = false;
+            
+            try {
+                const userInfoStr = localStorage.getItem('userInfo');
+                const token = localStorage.getItem('token');
+                
+                hasToken = token !== null && token !== undefined;
+                
+                if (userInfoStr) {
+                    const userInfo = JSON.parse(userInfoStr);
+                    // Check if userInfo has a username property and it's not 'Username' 
+                    // (which might be the default value)
+                    hasValidUserInfo = userInfo && userInfo.username && 
+                        userInfo.username !== 'Username' && userInfo.username.trim() !== '';
+                }
+            } catch (e) {
+                console.error('Error parsing user info:', e);
+                hasValidUserInfo = false;
+            }
+            
+            // If auth data is missing, incomplete or invalid, clear and redirect
+            console.log("Auth check: Valid user info:", hasValidUserInfo, "Has token:", hasToken);
+            if (!hasValidUserInfo || !hasToken) {
+                console.log('Invalid or missing auth data detected, redirecting to landing page');
+                
+                // Clear any invalid auth data
+                localStorage.removeItem('userInfo');
+                localStorage.removeItem('token');
+                
+                // Redirect to landing page
+                window.location.href = '/landing.html';
+            }
+        })();
     </script>
     <script src="js/main.js"></script>
+    <script src="js/reset-ui.js"></script>
+    <script src="js/updateUsernameDisplay.js"></script>
 </body>
 </html>

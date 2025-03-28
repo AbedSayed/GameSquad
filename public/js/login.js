@@ -15,12 +15,17 @@ function showNotification(message, type = 'error') {
 
 // Function to store user data
 function storeUserData(userData) {
-    localStorage.setItem('userToken', userData.token);
-    localStorage.setItem('userInfo', JSON.stringify({
-        id: userData._id,
-        username: userData.username,
-        email: userData.email
-    }));
+    console.log('Storing user data:', userData);
+    
+    // Store token separately
+    localStorage.setItem('token', userData.token);
+    
+    // Store complete user info exactly as it comes from the server
+    localStorage.setItem('userInfo', JSON.stringify(userData));
+    
+    // Log the stored data
+    console.log('Token stored:', localStorage.getItem('token'));
+    console.log('User info stored:', localStorage.getItem('userInfo'));
 }
 
 // Handle form submission
@@ -30,8 +35,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
     
+    console.log('Attempting login with email:', email);
+    
     try {
-        const response = await fetch(`${APP_CONFIG.API_URL}/users/login`, {
+        const response = await fetch(`${window.APP_CONFIG.API_URL}/users/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -42,7 +49,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             })
         });
         
+        console.log('Login response status:', response.status);
+        
         const data = await response.json();
+        console.log('Login response data:', data);
         
         if (!response.ok) {
             throw new Error(data.message || data.error || 'Login failed');
@@ -57,6 +67,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         // Get the return URL if it exists
         const returnUrl = localStorage.getItem('returnUrl');
         
+        console.log('Will redirect to:', returnUrl || '../index.html');
+        
         // Redirect after a short delay
         setTimeout(() => {
             if (returnUrl) {
@@ -68,6 +80,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         }, 1000);
         
     } catch (error) {
+        console.error('Login error:', error);
         showNotification(error.message);
         // Also update the login error message in the form
         const loginError = document.getElementById('login-error');

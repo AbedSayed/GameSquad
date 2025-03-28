@@ -6,13 +6,23 @@ if (!window.APP_CONFIG) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if user is logged in
-    const token = localStorage.getItem('userToken');
-    if (!token) {
-        // Store the current URL before redirecting
-        localStorage.setItem('returnUrl', window.location.href);
-        window.location.href = 'login.html';
-        return;
+    // Check if user is logged in using the Auth module
+    if (typeof window.Auth !== 'undefined' && typeof window.Auth.isLoggedIn === 'function') {
+        if (!window.Auth.isLoggedIn()) {
+            // Store the current URL before redirecting
+            localStorage.setItem('returnUrl', window.location.href);
+            window.location.href = 'login.html';
+            return;
+        }
+    } else {
+        // Fallback to basic token check
+        const token = localStorage.getItem('token');
+        if (!token) {
+            // Store the current URL before redirecting
+            localStorage.setItem('returnUrl', window.location.href);
+            window.location.href = 'login.html';
+            return;
+        }
     }
 
     const createLobbyForm = document.getElementById('create-lobby-form');
@@ -136,8 +146,8 @@ async function handleLobbyCreation(e) {
     formError.textContent = '';
     formError.classList.add('hidden');
     
-    // Check authentication
-    const token = localStorage.getItem('userToken');
+    // Check authentication - using the correct token key
+    const token = localStorage.getItem('token');
     if (!token) {
         // Store the current URL before redirecting
         localStorage.setItem('returnUrl', window.location.href);

@@ -109,7 +109,7 @@ img {
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 .auth-only {
@@ -126,6 +126,11 @@ img {
 
 .non-auth-only.hidden {
   display: none;
+}
+
+/* Auth pages header fix */
+.auth-page .user-profile {
+    display: none !important;
 }
 
 /* Header & Navigation */

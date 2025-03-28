@@ -1,5 +1,8 @@
 // Authentication related JavaScript functions
 
+// Create the Auth namespace for global access
+window.Auth = window.Auth || {};
+
 // We'll access APP_CONFIG directly rather than declaring constants
 // to avoid redeclaration issues across multiple files
 
@@ -12,7 +15,7 @@ if (!window.APP_CONFIG?.API_URL) {
  * @param {Object} userData - User registration data
  * @returns {Promise} - Promise resolving to user data with token
  */
-async function registerUser(userData) {
+window.Auth.registerUser = async function(userData) {
   try {
     const response = await fetch(`${window.APP_CONFIG.API_URL}/users`, {
       method: 'POST',
@@ -45,7 +48,7 @@ async function registerUser(userData) {
  * @param {string} password - User password
  * @returns {Promise} - Promise resolving to user data with token
  */
-async function loginUser(email, password) {
+window.Auth.loginUser = async function(email, password) {
   try {
     const response = await fetch(`${window.APP_CONFIG.API_URL}/users/login`, {
       method: 'POST',
@@ -75,7 +78,7 @@ async function loginUser(email, password) {
 /**
  * Logout user
  */
-function logoutUser() {
+window.Auth.logoutUser = function() {
   // Remove user data and token from localStorage
   localStorage.removeItem('userInfo');
   localStorage.removeItem('token');
@@ -88,24 +91,71 @@ function logoutUser() {
  * Get current user info
  * @returns {Object|null} - User info or null if not logged in
  */
-function getCurrentUser() {
-  const userInfo = localStorage.getItem('userInfo');
-  return userInfo ? JSON.parse(userInfo) : null;
+window.Auth.getCurrentUser = function() {
+  try {
+    const userInfoStr = localStorage.getItem('userInfo');
+    if (!userInfoStr) {
+      return null;
+    }
+    
+    const userInfo = JSON.parse(userInfoStr);
+    
+    // Validate the user info has required fields
+    if (!userInfo || !userInfo.username || userInfo.username.trim() === '') {
+      console.warn('Invalid user info in localStorage, returning null');
+      return null;
+    }
+    
+    return userInfo;
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null;
+  }
 }
 
 /**
  * Check if user is logged in
  * @returns {boolean} - Whether user is logged in
  */
-function isLoggedIn() {
-  return localStorage.getItem('token') !== null;
+window.Auth.isLoggedIn = function() {
+  try {
+    const token = localStorage.getItem('token');
+    const userInfoStr = localStorage.getItem('userInfo');
+    
+    if (!token || !userInfoStr) {
+      return false;
+    }
+    
+    // Parse user info to check validity
+    try {
+      const userInfo = JSON.parse(userInfoStr);
+      
+      // Check if the userInfo has the expected structure
+      const isValid = userInfo && 
+                      userInfo.username && 
+                      typeof userInfo.username === 'string' &&
+                      userInfo.username.trim() !== '';
+      
+      if (!isValid) {
+        console.warn('Invalid user info structure detected in isLoggedIn');
+      }
+      
+      return isValid;
+    } catch (parseError) {
+      console.error('Error parsing userInfo in isLoggedIn:', parseError);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error checking login status:', error);
+    return false;
+  }
 }
 
 /**
  * Get user profile
  * @returns {Promise} - Promise resolving to user profile data
  */
-async function getUserProfile() {
+window.Auth.getUserProfile = async function() {
   try {
     const token = localStorage.getItem('token');
 
@@ -139,7 +189,7 @@ async function getUserProfile() {
  * @param {Object} profileData - Updated profile data
  * @returns {Promise} - Promise resolving to updated user data
  */
-async function updateUserProfile(profileData) {
+window.Auth.updateUserProfile = async function(profileData) {
   try {
     const token = localStorage.getItem('token');
 
@@ -163,12 +213,9 @@ async function updateUserProfile(profileData) {
     }
 
     // Update stored user info
-    localStorage.setItem('userInfo', JSON.stringify(data));
-    
-    // Update token if a new one is returned
-    if (data.token) {
-      localStorage.setItem('token', data.token);
-    }
+    const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+    const updatedUserInfo = { ...userInfo, ...data };
+    localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo));
 
     return data;
   } catch (error) {
@@ -179,10 +226,10 @@ async function updateUserProfile(profileData) {
 
 /**
  * Update user online status
- * @param {string} status - New status ('online', 'offline', 'away', 'busy')
- * @returns {Promise} - Promise resolving to status update result
+ * @param {string} status - New status
+ * @returns {Promise} - Promise resolving to updated user data
  */
-async function updateUserStatus(status) {
+window.Auth.updateUserStatus = async function(status) {
   try {
     const token = localStorage.getItem('token');
 
@@ -217,7 +264,7 @@ async function updateUserStatus(status) {
  * @param {string} userId - User ID
  * @returns {Promise} - Promise resolving to user data
  */
-async function getUserById(userId) {
+window.Auth.getUserById = async function(userId) {
   try {
     const response = await fetch(`${window.APP_CONFIG.API_URL}/users/${userId}`, {
       method: 'GET',
@@ -244,21 +291,17 @@ async function getUserById(userId) {
  * @param {Object} filters - Search filters
  * @returns {Promise} - Promise resolving to array of users
  */
-async function searchUsers(filters = {}) {
+window.Auth.searchUsers = async function(filters = {}) {
   try {
-    // Build query string from filters
+    // Construct query string from filters
     const queryParams = new URLSearchParams();
-    
-    if (filters.game) queryParams.append('game', filters.game);
-    if (filters.rank) queryParams.append('rank', filters.rank);
-    if (filters.language) queryParams.append('language', filters.language);
-    if (filters.interest) queryParams.append('interest', filters.interest);
-    if (filters.status) queryParams.append('status', filters.status);
-    
-    const queryString = queryParams.toString();
-    const url = `${window.APP_CONFIG.API_URL}/users${queryString ? `?${queryString}` : ''}`;
+    for (const [key, value] of Object.entries(filters)) {
+      if (value) {
+        queryParams.append(key, value);
+      }
+    }
 
-    const response = await fetch(url, {
+    const response = await fetch(`${window.APP_CONFIG.API_URL}/users?${queryParams}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -278,16 +321,5 @@ async function searchUsers(filters = {}) {
   }
 }
 
-// Export functions
-window.Auth = {
-  registerUser,
-  loginUser,
-  logoutUser,
-  getCurrentUser,
-  isLoggedIn,
-  getUserProfile,
-  updateUserProfile,
-  updateUserStatus,
-  getUserById,
-  searchUsers,
-};
+// Add a console log to confirm the Auth namespace is properly initialized
+console.log('Auth module loaded and namespace initialized');
