@@ -1,4 +1,0 @@
-POST http://localhost:8080/api/users/create-test
-Content-Type: application/json
-
-{}

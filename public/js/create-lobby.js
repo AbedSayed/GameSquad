@@ -452,35 +452,6 @@ async function handleLobbyCreation(e) {
     console.log('Creating lobby with data:', lobbyData);
     
     try {
-        // TEMPORARY: Skip the API call and store directly to localStorage
-        // This is useful until the backend API is properly configured
-        
-        console.log('DEVELOPMENT MODE: Storing lobby to localStorage');
-        
-        // Create a unique ID
-        lobbyData._id = 'local_lobby_' + Date.now();
-        
-        // Get existing lobbies or create empty array
-        const existingLobbies = JSON.parse(localStorage.getItem('lobbies') || '[]');
-        
-        // Add the new lobby
-        existingLobbies.push(lobbyData);
-        
-        // Save back to localStorage
-        localStorage.setItem('lobbies', JSON.stringify(existingLobbies));
-        
-        console.log('Lobby stored locally:', lobbyData);
-        console.log('Total lobbies in localStorage:', existingLobbies.length);
-        
-        // Show success notification
-        showNotification('Lobby created successfully!', 'success');
-        
-        // Redirect to the lobbies page on success
-        setTimeout(() => {
-            window.location.href = 'lobbies.html';
-        }, 1500);
-        
-        /* DISABLED UNTIL SERVER API IS CONFIGURED
         // Determine the API URL
         const baseApiUrl = window.APP_CONFIG && window.APP_CONFIG.API_URL 
             ? window.APP_CONFIG.API_URL
@@ -562,8 +533,6 @@ async function handleLobbyCreation(e) {
         setTimeout(() => {
             window.location.href = 'lobbies.html';
         }, 1500);
-        */
-        
     } catch (error) {
         console.error('Error creating lobby:', error);
         

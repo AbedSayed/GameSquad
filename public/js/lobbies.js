@@ -87,36 +87,6 @@ class LobbiesModule {
         }
         
         try {
-            // TEMPORARY: Skip the API call and use localStorage directly
-            // This is useful until the backend API is properly configured
-            console.log('DEVELOPMENT MODE: Loading lobbies from localStorage only');
-            
-            // Simulate network delay for testing UI
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Get lobbies from localStorage
-            let lobbies = JSON.parse(localStorage.getItem('lobbies') || '[]');
-            
-            // Ensure we have at least some demo data for a good user experience
-            if (!lobbies || lobbies.length === 0) {
-                lobbies = this.generateDemoLobbies();
-                localStorage.setItem('lobbies', JSON.stringify(lobbies));
-            }
-            
-            console.log('Loaded lobbies from localStorage:', lobbies);
-            
-            // Apply filters if any
-            if (Object.keys(filters).length > 0) {
-                console.log('Applying filters:', filters);
-                lobbies = this.filterLobbies(lobbies, filters);
-                console.log('Filtered lobbies:', lobbies);
-            }
-            
-            // Display the lobbies
-            this.displayLobbies(lobbies);
-            return lobbies;
-            
-            /* DISABLED UNTIL SERVER API IS CONFIGURED
             // Get the latest auth token
             const token = localStorage.getItem('authToken') || localStorage.getItem('token');
             
@@ -242,7 +212,6 @@ class LobbiesModule {
             // Display the lobbies
             this.displayLobbies(lobbies);
             return lobbies;
-            */
         } catch (error) {
             console.error('Error loading lobbies:', error);
             
@@ -295,7 +264,39 @@ class LobbiesModule {
         const otherLobbies = [];
         
         lobbies.forEach(lobby => {
-            if (lobby.host === userId || lobby.hostInfo?._id === userId) {
+            // Check if user is the host
+            let isUserHost = false;
+            // Handle string ID comparison or object ID comparison
+            if (typeof lobby.host === 'string') {
+                isUserHost = lobby.host === userId;
+            } else if (lobby.host && lobby.host._id) {
+                isUserHost = lobby.host._id === userId;
+            } else if (lobby.hostInfo && lobby.hostInfo._id) {
+                isUserHost = lobby.hostInfo._id === userId;
+            }
+            
+            // Check if user is a player in this lobby
+            let isUserPlayer = false;
+            if (lobby.players && Array.isArray(lobby.players)) {
+                console.log(`Checking if user ${userId} is a player in lobby ${lobby.name} with players:`, lobby.players);
+                
+                isUserPlayer = lobby.players.some(player => {
+                    if (typeof player === 'string') {
+                        return player === userId;
+                    } else if (player.user) {
+                        const isMatch = (typeof player.user === 'string' && player.user === userId) || 
+                               (player.user._id && player.user._id === userId);
+                        if (isMatch) {
+                            console.log(`Found user ${userId} as player in lobby ${lobby.name}`);
+                        }
+                        return isMatch;
+                    }
+                    return false;
+                });
+            }
+            
+            // Add to appropriate list
+            if (isUserHost || isUserPlayer) {
                 myLobbies.push(lobby);
             } else {
                 otherLobbies.push(lobby);
@@ -380,14 +381,53 @@ class LobbiesModule {
         
         // Set default image path for the game
         let gameLogo = '../resources/default-game.png';
-        if (lobby.gameImage) {
+        
+        // Map game types to their respective image paths
+        const gameImages = {
+            'valorant': '../resources/Valorant-Logo-PNG-Image.png',
+            'csgo': '../resources/counter-strike-png-.png',
+            'lol': '../resources/leageofLegend.png.png',
+            'apex': '../resources/apex.png.png',
+            'fortnite': '../resources/fortnite.png',
+            'minecraft': '../resources/minecraft.png',
+            'dota2': '../resources/dota2.png'
+        };
+        
+        // Check if we have a game type from the API
+        if (lobby.gameType && gameImages[lobby.gameType.toLowerCase()]) {
+            gameLogo = gameImages[lobby.gameType.toLowerCase()];
+            console.log(`Found image for game type: ${lobby.gameType} -> ${gameLogo}`);
+        } 
+        // Fallback to gameImage if defined
+        else if (lobby.gameImage) {
             gameLogo = lobby.gameImage;
-        } else if (lobby.game === 'FPS' && lobby.gameName === 'Valorant') {
-            gameLogo = '../resources/Valorant-Logo-PNG-Image.png';
+        }
+        // Final fallback to game name if it matches our image map
+        else if (lobby.gameName && gameImages[lobby.gameName.toLowerCase()]) {
+            gameLogo = gameImages[lobby.gameName.toLowerCase()];
         }
         
+        console.log(`Lobby ${lobby.name}: gameType = ${lobby.gameType}, using logo: ${gameLogo}`);
+        
         // Get the host name
-        const hostName = lobby.hostInfo?.username || 'Unknown Host';
+        let hostName = 'Unknown Host';
+        
+        // Handle different host representation formats from API
+        if (lobby.hostInfo && lobby.hostInfo.username) {
+            // Format from localStorage/demo data
+            hostName = lobby.hostInfo.username;
+        } else if (lobby.host) {
+            if (typeof lobby.host === 'string') {
+                // Just an ID string, can't display a name
+                hostName = 'Host ID: ' + lobby.host.substring(0, 6) + '...';
+            } else if (lobby.host.username) {
+                // Populated host object from API
+                hostName = lobby.host.username;
+            } else if (lobby.host._id) {
+                // Object with just ID
+                hostName = 'Host ID: ' + lobby.host._id.substring(0, 6) + '...';
+            }
+        }
         
         // Get status class
         let statusClass = 'status-open';
@@ -562,6 +602,7 @@ class LobbiesModule {
                 name: 'Apex Legends Squad',
                 game: 'FPS',
                 gameName: 'Apex Legends',
+                gameType: 'apex',
                 description: 'Looking for skilled players for ranked grind',
                 maxPlayers: 3,
                 currentPlayers: 1,
@@ -574,13 +615,14 @@ class LobbiesModule {
                     email: localStorage.getItem('email') || 'demo@example.com'
                 },
                 createdAt: new Date().toISOString(),
-                gameImage: '../resources/games/apex-legends.png'
+                gameImage: '../resources/apex.png.png'
             },
             {
                 _id: 'demo-lobby-2',
                 name: 'League of Legends Team',
                 game: 'MOBA',
                 gameName: 'League of Legends',
+                gameType: 'lol',
                 description: 'Casual gaming, all ranks welcome',
                 maxPlayers: 5,
                 currentPlayers: 3,
@@ -593,13 +635,14 @@ class LobbiesModule {
                     email: 'pro@example.com'
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
-                gameImage: '../resources/games/league-of-legends.png'
+                gameImage: '../resources/leageofLegend.png.png'
             },
             {
                 _id: 'demo-lobby-3',
                 name: 'Valorant Competitive',
                 game: 'FPS',
                 gameName: 'Valorant',
+                gameType: 'valorant',
                 description: 'Looking for Diamond+ players for competitive team',
                 maxPlayers: 5,
                 currentPlayers: 5,
@@ -619,6 +662,7 @@ class LobbiesModule {
                 name: 'Minecraft Building',
                 game: 'Other',
                 gameName: 'Minecraft',
+                gameType: 'minecraft',
                 description: 'Creative mode building project, bring your ideas!',
                 maxPlayers: 8,
                 currentPlayers: 3,
@@ -631,13 +675,14 @@ class LobbiesModule {
                     email: 'miner@example.com'
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
-                gameImage: '../resources/games/minecraft.png'
+                gameImage: '../resources/minecraft.png'
             },
             {
                 _id: 'demo-lobby-5',
                 name: 'Fortnite Squad',
                 game: 'FPS',
                 gameName: 'Fortnite',
+                gameType: 'fortnite',
                 description: 'Looking for a fourth for squads',
                 maxPlayers: 4,
                 currentPlayers: 3,
@@ -650,70 +695,9 @@ class LobbiesModule {
                     email: 'fortnite@example.com'
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(), // 8 hours ago
-                gameImage: '../resources/games/fortnite.png'
-            },
-            {
-                _id: 'demo-lobby-6',
-                name: 'Rocket League Tournament',
-                game: 'Sports',
-                gameName: 'Rocket League',
-                description: 'Tournament practice, Champion+ only',
-                maxPlayers: 3,
-                currentPlayers: 2,
-                status: 'open',
-                skillLevel: 5,
-                host: 'other-user-5',
-                hostInfo: {
-                    _id: 'other-user-5',
-                    username: 'AerialMaster',
-                    email: 'aerial@example.com'
-                },
-                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(), // 12 hours ago
-                gameImage: '../resources/games/rocket-league.png'
-            },
-            {
-                _id: 'demo-lobby-7',
-                name: 'Among Us Party',
-                game: 'Other',
-                gameName: 'Among Us',
-                description: 'Just for fun, voice chat required',
-                maxPlayers: 10,
-                currentPlayers: 5,
-                status: 'in-progress',
-                skillLevel: 1,
-                host: 'other-user-6',
-                hostInfo: {
-                    _id: 'other-user-6',
-                    username: 'Impostor',
-                    email: 'impostor@example.com'
-                },
-                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString(), // 1 hour ago
-                gameImage: '../resources/games/among-us.png'
+                gameImage: '../resources/fortnite.png'
             }
         ];
-        
-        // Also create a lobby hosted by the demo user
-        if (demoUserId && demoUserId !== 'demo-user') {
-            demoLobbies.push({
-                _id: 'demo-user-lobby',
-                name: 'My Demo Gaming Session',
-                game: 'RPG',
-                gameName: 'World of Warcraft',
-                description: 'Looking for guild members to do a raid',
-                maxPlayers: 6,
-                currentPlayers: 1,
-                status: 'open',
-                skillLevel: 3,
-                host: demoUserId,
-                hostInfo: {
-                    _id: demoUserId,
-                    username: localStorage.getItem('username') || 'DemoUser',
-                    email: localStorage.getItem('email') || 'demo@example.com'
-                },
-                createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 minutes ago
-                gameImage: '../resources/games/wow.png'
-            });
-        }
         
         return demoLobbies;
     }
@@ -722,7 +706,10 @@ class LobbiesModule {
     getUserId() {
         // Try to get user ID from local storage
         const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-        return userInfo._id || localStorage.getItem('userId') || null;
+        const userId = userInfo._id || localStorage.getItem('userId') || null;
+        console.log('Current user ID from storage:', userId);
+        console.log('Full userInfo:', userInfo);
+        return userId;
     }
     
     // Helper to load lobbies from localStorage (used as fallback)
