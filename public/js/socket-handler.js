@@ -419,15 +419,15 @@ const SocketHandler = {
                             
                             // For paths including /pages/, use a relative path
                             if (currentPath.includes('/pages/')) {
-                                window.location.href = `lobby.html?id=${lobbyId}&join=true`;
+                                window.location.href = `lobby.html?id=${lobbyId}&join=true&fromInvite=true`;
                             } else {
                                 // For other paths, use absolute path
-                                window.location.href = `/pages/lobby.html?id=${lobbyId}&join=true`;  
+                                window.location.href = `/pages/lobby.html?id=${lobbyId}&join=true&fromInvite=true`;  
                             }
                         } catch (err) {
                             console.error('Error during redirect:', err);
                             // Last resort absolute path
-                            window.location.href = '/pages/lobby.html?id=' + lobbyId + '&join=true';
+                            window.location.href = '/pages/lobby.html?id=' + lobbyId + '&join=true&fromInvite=true';
                         }
                     }, 500);
                 } else {
@@ -449,41 +449,73 @@ const SocketHandler = {
                 if (inviteId) {
                     // Show loading state
                     const originalText = button.innerHTML;
-                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Declining...';
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                     button.disabled = true;
                     
                     // Remove invite from storage
                     this.removeInvite(inviteId);
                     
-                    // Notify server that invite was rejected
+                    // Notify server that invite was declined
                     if (this.socket && this.isConnected) {
-                        console.log('Emitting reject-invite to server');
-                        this.socket.emit('reject-invite', { inviteId });
-                    } else {
-                        console.warn('Socket not connected, cannot notify server about rejection');
+                        this.socket.emit('decline-invite', { inviteId });
                     }
                     
-                    // Remove invite item from UI with animation
-                    if (inviteItem && inviteItem.parentNode) {
-                        inviteItem.classList.add('fade-out');
+                    // Create our own notification to avoid recursion
+                    console.log('[socket-handler.js] Invite declined:', inviteId);
+                    
+                    // Create a new notification directly
+                    const notificationContainer = document.getElementById('notification-container');
+                    if (notificationContainer) {
+                        const notification = document.createElement('div');
+                        notification.className = 'notification';
+                        notification.innerHTML = `
+                            <div class="notification-header">
+                                <span class="notification-title">Invite Declined</span>
+                                <button class="notification-close">&times;</button>
+                            </div>
+                            <div class="notification-body">
+                                The invitation has been declined
+                            </div>
+                        `;
                         
+                        notificationContainer.appendChild(notification);
+                        
+                        // Add close button functionality
+                        const closeButton = notification.querySelector('.notification-close');
+                        if (closeButton) {
+                            closeButton.addEventListener('click', () => {
+                                notification.remove();
+                            });
+                        }
+                        
+                        // Auto-remove after 5 seconds
                         setTimeout(() => {
-                            inviteItem.parentNode.removeChild(inviteItem);
+                            notification.remove();
+                        }, 5000);
+                    } else {
+                        console.log('Invite declined: The invitation has been declined');
+                    }
+                    
+                    // Remove the invite item from UI
+                    setTimeout(() => {
+                        if (inviteItem) {
+                            inviteItem.remove();
                             
                             // Check if there are no more invites
-                            const invitesContainer = document.getElementById('invites-container');
-                            if (invitesContainer && (!invitesContainer.children.length || invitesContainer.children.length === 0)) {
-                                invitesContainer.innerHTML = `
-                                    <div class="empty-state">
-                                        <i class="fas fa-envelope-open"></i>
-                                        <p>No invites</p>
-                                    </div>`;
+                            const remainingInvites = document.querySelectorAll('.invite-item');
+                            if (remainingInvites.length === 0) {
+                                const noInvitesMessage = document.querySelector('.no-invites-message');
+                                if (noInvitesMessage) {
+                                    noInvitesMessage.style.display = 'block';
+                                } else {
+                                    const invitesContainer = document.querySelector('.invites-list');
+                                    if (invitesContainer) {
+                                        invitesContainer.innerHTML = '<p class="no-invites-message">No invites to show</p>';
+                                    }
+                                }
                             }
-                        }, 500);
-                    }
-                    
-                    // Show notification
-                    this.showNotification('Invite Declined', 'The invitation has been declined');
+                        }
+                    }, 300);
                 } else {
                     console.error('Missing invite ID');
                 }

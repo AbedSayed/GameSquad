@@ -944,6 +944,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check if we're joining this lobby
     const isJoining = urlParams.get('join') === 'true';
+    const fromInvite = urlParams.get('fromInvite') === 'true';
+    
     if (isJoining) {
         console.log('Join parameter detected, will attempt to join the lobby');
         
@@ -958,6 +960,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 console.log('Joining lobby with ID:', lobbyId);
+                
+                // Add additional logging if joining from an invite
+                if (fromInvite) {
+                    console.log('User is joining from an invite');
+                    // Try to get invite info from localStorage
+                    try {
+                        const invitesString = localStorage.getItem('invites');
+                        if (invitesString) {
+                            const invites = JSON.parse(invitesString);
+                            const relevantInvite = invites.find(invite => invite.lobbyId === lobbyId);
+                            if (relevantInvite) {
+                                console.log('Found matching invite in localStorage:', relevantInvite);
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('Error checking invites in localStorage:', err);
+                    }
+                }
                 
                 // Call the joinLobby API function
                 const response = await fetch(`/api/lobbies/${lobbyId}/join`, {
@@ -978,15 +998,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const data = await response.json();
                 console.log('Successfully joined lobby:', data);
-                addSystemMessage('You have joined the lobby!');
+                
+                // Different messages based on join source
+                if (fromInvite) {
+                    addSystemMessage('You have joined the lobby from an invitation!');
+                } else {
+                    addSystemMessage('You have joined the lobby!');
+                }
                 
                 // Remove the join parameter from URL to avoid rejoining on page refresh
                 const newUrl = new URL(window.location.href);
                 newUrl.searchParams.delete('join');
+                newUrl.searchParams.delete('fromInvite');
                 window.history.replaceState({}, '', newUrl);
                 
                 // Refresh lobby details to show updated player list
                 await fetchLobbyDetails();
+                
+                // If we joined from an invite, also clean up that invite
+                if (fromInvite) {
+                    try {
+                        const invitesString = localStorage.getItem('invites');
+                        if (invitesString) {
+                            const invites = JSON.parse(invitesString);
+                            // Filter out the invite for this lobby
+                            const updatedInvites = invites.filter(invite => invite.lobbyId !== lobbyId);
+                            localStorage.setItem('invites', JSON.stringify(updatedInvites));
+                            console.log('Removed accepted invite from localStorage');
+                        }
+                    } catch (err) {
+                        console.warn('Error cleaning up invite from localStorage:', err);
+                    }
+                }
             } catch (error) {
                 console.error('Error in joinCurrentLobby:', error);
                 addSystemMessage(`Error joining lobby: ${error.message}`);
