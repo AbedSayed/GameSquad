@@ -255,57 +255,36 @@ class LobbiesModule {
             otherLobbiesContainer.innerHTML = '';
         }
         
-        // Get current user ID
+        // Get the current user ID
         const userId = this.getUserId();
-        console.log('Current user ID:', userId);
         
-        // Separate lobbies into my lobbies and other lobbies
+        console.log('Displaying lobbies with userID:', userId);
+        console.log('Total lobbies:', lobbies.length);
+        
+        // Separate my lobbies and other lobbies
         const myLobbies = [];
         const otherLobbies = [];
         
         lobbies.forEach(lobby => {
-            // Check if user is the host
-            let isUserHost = false;
-            // Handle string ID comparison or object ID comparison
-            if (typeof lobby.host === 'string') {
-                isUserHost = lobby.host === userId;
-            } else if (lobby.host && lobby.host._id) {
-                isUserHost = lobby.host._id === userId;
-            } else if (lobby.hostInfo && lobby.hostInfo._id) {
-                isUserHost = lobby.hostInfo._id === userId;
-            }
+            // Check if this lobby belongs to the current user
+            const isOwned = lobby.host === userId || 
+                           (typeof lobby.host === 'object' && lobby.host?._id === userId) ||
+                           lobby.host === 'current_user' ||
+                           (lobby.hostInfo && (lobby.hostInfo._id === userId || lobby.hostInfo._id === 'current_user'));
             
-            // Check if user is a player in this lobby
-            let isUserPlayer = false;
-            if (lobby.players && Array.isArray(lobby.players)) {
-                console.log(`Checking if user ${userId} is a player in lobby ${lobby.name} with players:`, lobby.players);
-                
-                isUserPlayer = lobby.players.some(player => {
-                    if (typeof player === 'string') {
-                        return player === userId;
-                    } else if (player.user) {
-                        const isMatch = (typeof player.user === 'string' && player.user === userId) || 
-                               (player.user._id && player.user._id === userId);
-                        if (isMatch) {
-                            console.log(`Found user ${userId} as player in lobby ${lobby.name}`);
-                        }
-                        return isMatch;
-                    }
-                    return false;
-                });
-            }
+            console.log(`Lobby ${lobby.name} - host: ${JSON.stringify(lobby.host)}, isOwned: ${isOwned}`);
             
-            // Add to appropriate list
-            if (isUserHost || isUserPlayer) {
+            if (isOwned) {
                 myLobbies.push(lobby);
             } else {
                 otherLobbies.push(lobby);
             }
         });
         
-        console.log(`Found ${myLobbies.length} of my lobbies and ${otherLobbies.length} other lobbies`);
+        console.log('My lobbies:', myLobbies.length);
+        console.log('Other lobbies:', otherLobbies.length);
         
-        // Display my lobbies if container exists
+        // Display my lobbies
         if (myLobbiesContainer) {
             if (myLobbies.length > 0) {
                 myLobbies.forEach(lobby => {
@@ -314,18 +293,18 @@ class LobbiesModule {
                 });
             } else {
                 myLobbiesContainer.innerHTML = `
-                    <div class="no-lobbies">
-                        <i class="fas fa-info-circle"></i>
+                    <div class="empty-state">
+                        <i class="fas fa-gamepad"></i>
                         <p>You haven't created any lobbies yet</p>
-                        <a href="pages/create-lobby.html" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Create Lobby
+                        <a href="create-lobby.html" class="btn btn-primary btn-hover-fx">
+                            <i class="fas fa-plus"></i> Create a Lobby
                         </a>
                     </div>
                 `;
             }
         }
         
-        // Display other lobbies if container exists
+        // Display other lobbies
         if (otherLobbiesContainer) {
             if (otherLobbies.length > 0) {
                 otherLobbies.forEach(lobby => {
@@ -334,25 +313,13 @@ class LobbiesModule {
                 });
             } else {
                 otherLobbiesContainer.innerHTML = `
-                    <div class="no-lobbies">
-                        <i class="fas fa-info-circle"></i>
-                        <p>No lobbies available</p>
-                        <p class="sub-message">Check back later or try different filters</p>
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <p>No lobbies available right now</p>
+                        <p class="subtext">Try adjusting your filters or create your own lobby!</p>
                     </div>
                 `;
             }
-        }
-        
-        // Update lobby counts in the section headers
-        const myLobbiesCount = document.getElementById('myLobbiesCount');
-        const otherLobbiesCount = document.getElementById('otherLobbiesCount');
-        
-        if (myLobbiesCount) {
-            myLobbiesCount.textContent = myLobbies.length;
-        }
-        
-        if (otherLobbiesCount) {
-            otherLobbiesCount.textContent = otherLobbies.length;
         }
     }
     
@@ -704,12 +671,22 @@ class LobbiesModule {
     
     // Helper to get current user ID
     getUserId() {
-        // Try to get user ID from local storage
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-        const userId = userInfo._id || localStorage.getItem('userId') || null;
-        console.log('Current user ID from storage:', userId);
-        console.log('Full userInfo:', userInfo);
-        return userId;
+        try {
+            // Try to get user ID from local storage
+            const userInfoStr = localStorage.getItem('userInfo');
+            if (!userInfoStr) {
+                return 'current_user'; // Default ID for demo mode
+            }
+            
+            const userInfo = JSON.parse(userInfoStr);
+            const userId = userInfo._id || 'current_user';
+            console.log('Current user ID:', userId);
+            console.log('User info:', userInfo);
+            return userId;
+        } catch (e) {
+            console.error('Error getting user ID:', e);
+            return 'current_user'; // Fallback ID for demo mode
+        }
     }
     
     // Helper to load lobbies from localStorage (used as fallback)

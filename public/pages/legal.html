@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Information - GameSquad</title>
+    
+    <!-- Unified Theme System -->
+    <link rel="stylesheet" href="../css/gamesquad-theme.css">
+    <link rel="stylesheet" href="../css/animations.css">
+    <link rel="stylesheet" href="../css/style.css">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Google fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        .legal-container {
+            display: flex;
+            flex-direction: column;
+            background-color: rgba(16, 16, 28, 0.95);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(126, 34, 206, 0.5);
+            border: 1px solid;
+            border-image: linear-gradient(to right, #7e22ce, #22d3ee) 1;
+            margin: 20px auto;
+            padding: 0;
+            max-width: 1200px;
+        }
+        
+        .page-header {
+            padding: 15px 25px;
+            border-bottom: 1px solid rgba(126, 34, 206, 0.3);
+            display: flex;
+            align-items: center;
+        }
+        
+        .page-header .fa-balance-scale {
+            margin-right: 15px;
+            font-size: 1.2em;
+            color: #22d3ee;
+        }
+        
+        .page-title {
+            font-size: 2em;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .legal-content {
+            padding: 30px;
+            line-height: 1.8;
+        }
+        
+        .legal-intro {
+            margin-bottom: 30px;
+            color: #dcddde;
+            font-size: 1.1em;
+        }
+        
+        .legal-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .legal-card {
+            background-color: rgba(16, 16, 28, 0.7);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(126, 34, 206, 0.3);
+            transition: all 0.3s ease;
+            animation: fadeIn 0.5s ease-in-out;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .legal-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            border-color: rgba(126, 34, 206, 0.8);
+        }
+        
+        .legal-card-header {
+            background-color: rgba(126, 34, 206, 0.2);
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(126, 34, 206, 0.3);
+        }
+        
+        .legal-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7e22ce, #22d3ee);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            color: #fff;
+            font-size: 1.2em;
+        }
+        
+        .legal-card-title {
+            color: #fff;
+            font-size: 1.3em;
+            margin: 0;
+        }
+        
+        .legal-card-body {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .legal-card-description {
+            color: #dcddde;
+            font-size: 1em;
+            margin-bottom: 20px;
+            flex-grow: 1;
+        }
+        
+        .legal-card-updated {
+            font-size: 0.9em;
+            color: rgba(220, 221, 222, 0.7);
+            margin-bottom: 15px;
+        }
+        
+        .btn-read {
+            background: linear-gradient(90deg, #7e22ce, #22d3ee);
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: none;
+            display: inline-block;
+        }
+        
+        .btn-read:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(126, 34, 206, 0.5);
+        }
+        
+        .legal-note {
+            background-color: rgba(16, 16, 28, 0.7);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid rgba(126, 34, 206, 0.2);
+            margin-top: 30px;
+        }
+        
+        .legal-note p {
+            color: #dcddde;
+            margin: 0;
+        }
+        
+        .contact-info {
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .contact-info a {
+            color: #22d3ee;
+            margin-left: 10px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .contact-info a:hover {
+            text-decoration: underline;
+            color: #7e22ce;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @media (max-width: 768px) {
+            .legal-content {
+                padding: 20px;
+            }
+            
+            .legal-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <h1 class="sheen"><a href="../index.html">GameSquad</a></h1>
+            </div>
+            <ul class="nav-links">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lobbies.html">Lobbies</a></li>
+                <li><a href="create-lobby.html">Create Lobby</a></li>
+                <li><a href="players.html">Players</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+            <div class="user-profile">
+                <span class="username">Username <i class="fas fa-chevron-down"></i></span>
+                <div class="profile-dropdown">
+                    <a href="profile.html"><i class="fas fa-user"></i> My Profile</a>
+                    <a href="messages.html"><i class="fas fa-envelope"></i> Messages</a>
+                    <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="legal-container pulse-glow">
+            <div class="page-header">
+                <i class="fas fa-balance-scale neon-text"></i>
+                <h1 class="page-title neon-text">LEGAL INFORMATION</h1>
+            </div>
+            
+            <div class="legal-content">
+                <div class="legal-intro">
+                    <p>At GameSquad, we are committed to transparency and compliance with applicable laws and regulations. The following documents outline our legal policies and terms that govern your use of our platform.</p>
+                </div>
+                
+                <div class="legal-cards">
+                    <div class="legal-card">
+                        <div class="legal-card-header">
+                            <div class="legal-card-icon">
+                                <i class="fas fa-gavel"></i>
+                            </div>
+                            <h3 class="legal-card-title">Terms of Service</h3>
+                        </div>
+                        <div class="legal-card-body">
+                            <p class="legal-card-description">Our Terms of Service outline the rules and guidelines that govern your use of GameSquad. This includes user responsibilities, account management, and our service limitations.</p>
+                            <p class="legal-card-updated">Last updated: April 2024</p>
+                            <a href="terms.html" class="btn-read">Read Terms of Service</a>
+                        </div>
+                    </div>
+                    
+                    <div class="legal-card">
+                        <div class="legal-card-header">
+                            <div class="legal-card-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h3 class="legal-card-title">Privacy Policy</h3>
+                        </div>
+                        <div class="legal-card-body">
+                            <p class="legal-card-description">Our Privacy Policy explains how we collect, use, and protect your personal information when you use our platform. Learn about your privacy rights and how we safeguard your data.</p>
+                            <p class="legal-card-updated">Last updated: April 2024</p>
+                            <a href="privacy.html" class="btn-read">Read Privacy Policy</a>
+                        </div>
+                    </div>
+                    
+                    <div class="legal-card">
+                        <div class="legal-card-header">
+                            <div class="legal-card-icon">
+                                <i class="fas fa-cookie-bite"></i>
+                            </div>
+                            <h3 class="legal-card-title">Cookie Policy</h3>
+                        </div>
+                        <div class="legal-card-body">
+                            <p class="legal-card-description">Our Cookie Policy provides information about the cookies and tracking technologies we use on our website. Learn how to manage your preferences and control your data.</p>
+                            <p class="legal-card-updated">Last updated: April 2024</p>
+                            <a href="cookies.html" class="btn-read">Read Cookie Policy</a>
+                        </div>
+                    </div>
+                    
+                    <div class="legal-card">
+                        <div class="legal-card-header">
+                            <div class="legal-card-icon">
+                                <i class="fas fa-copyright"></i>
+                            </div>
+                            <h3 class="legal-card-title">Copyright Policy</h3>
+                        </div>
+                        <div class="legal-card-body">
+                            <p class="legal-card-description">Our Copyright Policy outlines how we respect intellectual property rights and handle copyright claims. Learn about our DMCA procedures and how to report infringement.</p>
+                            <p class="legal-card-updated">Last updated: April 2024</p>
+                            <a href="#" class="btn-read">Coming Soon</a>
+                        </div>
+                    </div>
+                    
+                    <div class="legal-card">
+                        <div class="legal-card-header">
+                            <div class="legal-card-icon">
+                                <i class="fas fa-user-shield"></i>
+                            </div>
+                            <h3 class="legal-card-title">Community Guidelines</h3>
+                        </div>
+                        <div class="legal-card-body">
+                            <p class="legal-card-description">Our Community Guidelines outline the standards of behavior we expect from all users on GameSquad. These rules help us maintain a positive and inclusive gaming environment.</p>
+                            <p class="legal-card-updated">Last updated: April 2024</p>
+                            <a href="#" class="btn-read">Coming Soon</a>
+                        </div>
+                    </div>
+                    
+                    <div class="legal-card">
+                        <div class="legal-card-header">
+                            <div class="legal-card-icon">
+                                <i class="fas fa-credit-card"></i>
+                            </div>
+                            <h3 class="legal-card-title">Payment Terms</h3>
+                        </div>
+                        <div class="legal-card-body">
+                            <p class="legal-card-description">Our Payment Terms cover subscriptions, refunds, and payment processing. This document outlines your financial rights and responsibilities when using premium features.</p>
+                            <p class="legal-card-updated">Last updated: April 2024</p>
+                            <a href="#" class="btn-read">Coming Soon</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="legal-note">
+                    <p>If you have any questions about our legal policies or need further clarification, please contact our legal team at:</p>
+                    <div class="contact-info">
+                        <i class="fas fa-envelope" style="color: #22d3ee;"></i>
+                        <a href="mailto:legal@gamesquad.com">legal@gamesquad.com</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>GameSquad</h3>
+                <p>Find your perfect gaming team</p>
+            </div>
+            <div class="footer-section">
+                <h3>Legal</h3>
+                <ul>
+                    <li><a href="terms.html">Terms of Service</a></li>
+                    <li><a href="privacy.html">Privacy Policy</a></li>
+                    <li><a href="cookies.html">Cookie Policy</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Support</h3>
+                <ul>
+                    <li><a href="faq.html">FAQ</a></li>
+                    <li><a href="contact.html">Contact Us</a></li>
+                    <li><a href="report-bug.html">Report a Bug</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Follow Us</h3>
+                <div class="social-icons">
+                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-facebook"></i></a>
+                    <a href="#"><i class="fab fa-instagram"></i></a>
+                    <a href="#"><i class="fab fa-discord"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 GameSquad. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="../js/config.js"></script>
+    <script src="../js/main.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animation for cards
+            const cards = document.querySelectorAll('.legal-card');
+            cards.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+            });
+        });
+    </script>
+</body>
+</html> 

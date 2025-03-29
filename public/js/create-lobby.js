@@ -511,9 +511,11 @@ async function handleLobbyCreation(e) {
             
             // Add host details if missing
             if (!lobbyData.host) {
-                lobbyData.host = { 
-                    _id: userInfo ? userInfo._id : 'current_user',
-                    username: userInfo ? userInfo.username : 'You'
+                lobbyData.host = 'current_user';
+                lobbyData.hostInfo = {
+                    _id: 'current_user',
+                    username: userInfo ? userInfo.username || 'You' : 'You',
+                    email: userInfo ? userInfo.email : 'you@example.com'
                 };
             }
             
