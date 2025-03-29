@@ -82,12 +82,12 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // Game image mapping
-    const gameImageMap = {
-        'valorant': '../recources/Valorant-Logo-PNG-Image.png',
-        'csgo': '../recources/counter-strike-png-.png',
-        'lol': '../recources/leageofLegend.png.png',
-        'apex': '../recources/apex.png.png',
-        'default': '../recources/default-game.png'
+    const GAME_IMAGES = {
+        'val': '../resources/valorant.png',
+        'cs': '../resources/CS2.png',
+        'lol': '../resources/leageofLegend.png.png',
+        'apex': '../resources/apex.png.png',
+        'default': '../resources/default-game.png'
     };
     
     // Game badge class mapping
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
         gameBadge.classList.add(badgeClass);
         
         // Update game image
-        previewImage.src = gameImageMap[gameValue] || gameImageMap.default;
+        previewImage.src = GAME_IMAGES[gameValue] || GAME_IMAGES.default;
         previewImage.alt = this.options[this.selectedIndex].text;
     });
     
@@ -715,12 +715,12 @@ function setupPreviewFunctionality() {
     };
     
     // Game image mapping
-    const gameImageMap = {
-        'valorant': '../recources/Valorant-Logo-PNG-Image.png',
-        'csgo': '../recources/counter-strike-png-.png',
-        'lol': '../recources/leageofLegend.png.png',
-        'apex': '../recources/apex.png.png',
-        'default': '../recources/default-game.png'
+    const GAME_IMAGES = {
+        'val': '../resources/valorant.png',
+        'cs': '../resources/CS2.png',
+        'lol': '../resources/leageofLegend.png.png',
+        'apex': '../resources/apex.png.png',
+        'default': '../resources/default-game.png'
     };
     
     // Get form elements
@@ -752,7 +752,7 @@ function setupPreviewFunctionality() {
             gameBadge.textContent = gameType;
             
             // Update game image
-            previewImage.src = gameImageMap[gameValue] || gameImageMap.default;
+            previewImage.src = GAME_IMAGES[gameValue] || GAME_IMAGES.default;
             previewImage.alt = this.options[this.selectedIndex].text;
         });
     }
