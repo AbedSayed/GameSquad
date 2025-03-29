@@ -101,23 +101,38 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new Error('Please provide both email and password');
   }
 
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    res.status(400);
+    throw new Error('Please provide a valid email address');
+  }
+
   // Check for user email
   const user = await User.findOne({ email });
 
-  if (user && (await bcrypt.compare(password, user.password))) {
-    res.json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      friends: user.friends || [],
-      friendRequests: user.friendRequests || { sent: [], received: [] },
-      token: generateToken(user._id),
-      isAdmin: user.isAdmin,
-    });
-  } else {
+  if (!user) {
     res.status(401);
-    throw new Error('Invalid credentials');
+    throw new Error('Invalid email or password');
   }
+
+  // Check if password matches
+  const isPasswordMatch = await bcrypt.compare(password, user.password);
+  if (!isPasswordMatch) {
+    res.status(401);
+    throw new Error('Invalid email or password');
+  }
+
+  // Authentication successful
+  res.json({
+    _id: user._id,
+    username: user.username,
+    email: user.email,
+    friends: user.friends || [],
+    friendRequests: user.friendRequests || { sent: [], received: [] },
+    token: generateToken(user._id),
+    isAdmin: user.isAdmin,
+  });
 });
 
 // @desc    Get user data

@@ -279,8 +279,10 @@
             // Apply filters when the button is clicked
             if (applyFilterBtn) {
                 applyFilterBtn.addEventListener('click', function() {
+                    const gameValue = gameFilter ? gameFilter.value : '';
+                    
                     const filters = {
-                        game: gameFilter ? gameFilter.value : '',
+                        game: gameValue,
                         rank: rankFilter ? rankFilter.value : '',
                         region: regionFilter ? regionFilter.value : '',
                         status: statusFilter ? statusFilter.value : ''

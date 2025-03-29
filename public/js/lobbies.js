@@ -13,6 +13,51 @@ class LobbiesModule {
         this.createLobbyCard = this.createLobbyCard.bind(this);
         this.filterLobbies = this.filterLobbies.bind(this);
         this.loadLocalLobbies = this.loadLocalLobbies.bind(this);
+        this.normalizeGameName = this.normalizeGameName.bind(this);
+    }
+    
+    // Normalize game names for consistency
+    normalizeGameName(gameName) {
+        if (!gameName) return '';
+        
+        // Map of common variations to standardized names
+        const gameNameMap = {
+            'cs': 'CS2',
+            'cs2': 'CS2',
+            'counter-strike': 'CS2',
+            'counter strike': 'CS2',
+            'counterstrike': 'CS2',
+            'counter-strike 2': 'CS2',
+            'lol': 'League of Legends',
+            'league': 'League of Legends',
+            'valorant': 'VALORANT',
+            'val': 'VALORANT',
+            'apex': 'Apex Legends',
+            'fortnite': 'Fortnite',
+            'fn': 'Fortnite',
+            'cod': 'Call of Duty',
+            'call of duty': 'Call of Duty',
+            'warzone': 'Call of Duty: Warzone',
+            'wz': 'Call of Duty: Warzone',
+            'overwatch': 'Overwatch 2',
+            'ow': 'Overwatch 2',
+            'overwatch2': 'Overwatch 2',
+            'ow2': 'Overwatch 2',
+            'dota': 'Dota 2',
+            'dota2': 'Dota 2',
+            'rl': 'Rocket League',
+            'rocket league': 'Rocket League',
+            'pubg': 'PUBG: BATTLEGROUNDS',
+            'roblox': 'Roblox',
+            'minecraft': 'Minecraft',
+            'mc': 'Minecraft'
+        };
+        
+        // Try to match the input to a standardized name
+        const normalizedName = gameNameMap[gameName.toLowerCase()];
+        
+        // Return the standardized name if found, otherwise return the original with first letter capitalized
+        return normalizedName || (gameName.charAt(0).toUpperCase() + gameName.slice(1));
     }
     
     // Function to load lobbies from localStorage only (demo mode)
@@ -334,11 +379,11 @@ class LobbiesModule {
         }
         
         // Set default image path for the game
-        let gameLogo = 'recources/default-game.png';
+        let gameLogo = '../resources/default-game.png';
         if (lobby.gameImage) {
             gameLogo = lobby.gameImage;
         } else if (lobby.game === 'FPS' && lobby.gameName === 'Valorant') {
-            gameLogo = 'recources/Valorant-Logo-PNG-Image.png';
+            gameLogo = '../resources/Valorant-Logo-PNG-Image.png';
         }
         
         // Get the host name
@@ -356,7 +401,7 @@ class LobbiesModule {
         card.innerHTML = `
             <div class="game-card-header">
                 <div class="game-logo">
-                    <img src="${gameLogo}" alt="${lobby.game || 'Game'}" onerror="this.src='recources/default-game.png'">
+                    <img src="${gameLogo}" alt="${lobby.game || 'Game'}" onerror="this.src='../resources/default-game.png'">
                 </div>
                 <div class="game-type">
                     <span class="badge badge-${lobby.game?.toLowerCase() || 'default'}">${lobby.game || 'Game'}</span>
@@ -529,7 +574,7 @@ class LobbiesModule {
                     email: localStorage.getItem('email') || 'demo@example.com'
                 },
                 createdAt: new Date().toISOString(),
-                gameImage: 'recources/games/apex-legends.png'
+                gameImage: '../resources/games/apex-legends.png'
             },
             {
                 _id: 'demo-lobby-2',
@@ -548,7 +593,7 @@ class LobbiesModule {
                     email: 'pro@example.com'
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
-                gameImage: 'recources/games/league-of-legends.png'
+                gameImage: '../resources/games/league-of-legends.png'
             },
             {
                 _id: 'demo-lobby-3',
@@ -567,7 +612,7 @@ class LobbiesModule {
                     email: 'tactical@example.com'
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-                gameImage: 'recources/Valorant-Logo-PNG-Image.png'
+                gameImage: '../resources/Valorant-Logo-PNG-Image.png'
             },
             {
                 _id: 'demo-lobby-4',
@@ -586,7 +631,7 @@ class LobbiesModule {
                     email: 'miner@example.com'
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
-                gameImage: 'recources/games/minecraft.png'
+                gameImage: '../resources/games/minecraft.png'
             },
             {
                 _id: 'demo-lobby-5',
@@ -605,7 +650,7 @@ class LobbiesModule {
                     email: 'fortnite@example.com'
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(), // 8 hours ago
-                gameImage: 'recources/games/fortnite.png'
+                gameImage: '../resources/games/fortnite.png'
             },
             {
                 _id: 'demo-lobby-6',
@@ -624,7 +669,7 @@ class LobbiesModule {
                     email: 'aerial@example.com'
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(), // 12 hours ago
-                gameImage: 'recources/games/rocket-league.png'
+                gameImage: '../resources/games/rocket-league.png'
             },
             {
                 _id: 'demo-lobby-7',
@@ -643,7 +688,7 @@ class LobbiesModule {
                     email: 'impostor@example.com'
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString(), // 1 hour ago
-                gameImage: 'recources/games/among-us.png'
+                gameImage: '../resources/games/among-us.png'
             }
         ];
         
@@ -666,7 +711,7 @@ class LobbiesModule {
                     email: localStorage.getItem('email') || 'demo@example.com'
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 minutes ago
-                gameImage: 'recources/games/wow.png'
+                gameImage: '../resources/games/wow.png'
             });
         }
         
@@ -760,6 +805,9 @@ class LobbiesModule {
 
 // Attach to window object for global access
 window.LobbiesModule = LobbiesModule;
+
+// Create and initialize a global Lobby instance
+window.Lobby = new LobbiesModule();
 
 // Initialize when the page loads
 document.addEventListener('DOMContentLoaded', () => {

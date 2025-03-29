@@ -16,6 +16,87 @@
     
     <!-- Google fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Error message styling */
+        .form-error {
+            color: #ff3e3e;
+            background-color: rgba(255, 62, 62, 0.1);
+            border-left: 3px solid #ff3e3e;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 0 4px 4px 0;
+            font-size: 0.9rem;
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        .error-message {
+            color: #ff3e3e;
+            font-size: 0.9rem;
+            margin-top: 5px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        /* Notifications styling */
+        .notifications-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+        
+        .notification {
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 300px;
+            animation: slideIn 0.3s ease-out forwards;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .notification.success {
+            background-color: #2ecc71;
+        }
+        
+        .notification.error {
+            background-color: #e74c3c;
+        }
+        
+        .notification.warning {
+            background-color: #f39c12;
+        }
+        
+        .notification.info {
+            background-color: #3498db;
+        }
+        
+        .notification.fade-out {
+            animation: fadeOut 0.3s ease-out forwards;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -166,6 +247,7 @@
     <!-- Scripts -->
     <script src="../js/gamesquad-ui.js"></script>
     <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Apply particle effect to auth section
@@ -207,6 +289,7 @@
                     // Clear previous error messages
                     if (registerError) {
                         registerError.textContent = '';
+                        registerError.style.display = 'none';
                     }
                     
                     // Get form data
@@ -221,6 +304,7 @@
                     if (password !== confirmPassword) {
                         if (registerError) {
                             registerError.textContent = 'Passwords do not match';
+                            registerError.style.display = 'block';
                         }
                         showNotification('Passwords do not match', 'error');
                         return;
@@ -229,45 +313,57 @@
                     if (!termsAgree) {
                         if (registerError) {
                             registerError.textContent = 'You must agree to the Terms of Service and Privacy Policy';
+                            registerError.style.display = 'block';
                         }
                         showNotification('You must agree to the Terms of Service', 'error');
                         return;
+                    }
+                    
+                    // Show loading state
+                    const registerBtn = document.querySelector('button[type="submit"]');
+                    if (registerBtn) {
+                        registerBtn.disabled = true;
+                        registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating account...';
                     }
                     
                     try {
                         // Show loading notification
                         showNotification('Creating your account...', 'info');
                         
-                        // Demo mode - simulate successful registration
-                        // In a real app, you would make an API call here
+                        // Use Auth.registerUser method for registration
+                        const userData = {
+                            username,
+                            email,
+                            password,
+                            newsletter
+                        };
+                        
+                        const user = await window.Auth.registerUser(userData);
+                        
+                        // Show success notification
+                        showNotification('Account created successfully! Redirecting...', 'success');
+                        
+                        // Redirect to home page
                         setTimeout(() => {
-                            // Save mock user data to localStorage
-                            const userInfo = {
-                                id: '123456',
-                                username: username,
-                                email: email,
-                                avatar: '../recources/avatar-placeholder.jpg'
-                            };
-                            
-                            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                            localStorage.setItem('token', 'mock-jwt-token-for-demo');
-                            
-                            // Show success notification
-                            showNotification('Account created successfully!', 'success');
-                            
-                            // Redirect to home page
-                            setTimeout(() => {
-                                window.location.href = '../home.html';
-                            }, 1000);
+                            window.location.href = '../home.html';
                         }, 1500);
                     } catch (error) {
+                        console.error('Registration error:', error);
+                        
                         // Show error message
                         if (registerError) {
                             registerError.textContent = error.message || 'Failed to create account. Please try again.';
+                            registerError.style.display = 'block';
                         }
                         
                         // Show error notification
-                        showNotification('Registration failed. Please try again.', 'error');
+                        showNotification(error.message || 'Registration failed. Please try again.', 'error');
+                        
+                        // Reset button state
+                        if (registerBtn) {
+                            registerBtn.disabled = false;
+                            registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> <span>Create Account</span>';
+                        }
                     }
                 });
             }
@@ -282,6 +378,26 @@
                         showNotification('Social registration is not implemented in this demo version.', 'info');
                     });
                 });
+            }
+            
+            // Simple notification function
+            function showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.innerHTML = `
+                    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 
+                                       type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                `;
+
+                const container = document.querySelector('.notifications-container');
+                container.appendChild(notification);
+
+                // Remove notification after 5 seconds
+                setTimeout(() => {
+                    notification.classList.add('fade-out');
+                    setTimeout(() => notification.remove(), 300);
+                }, 5000);
             }
         });
     </script>

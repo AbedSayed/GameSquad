@@ -23,16 +23,17 @@
             color: #ff3e3e;
             background-color: rgba(255, 62, 62, 0.1);
             border-left: 3px solid #ff3e3e;
-            padding: 10px;
-            margin-top: 15px;
+            padding: 10px 15px;
+            margin: 15px 0;
             border-radius: 0 4px 4px 0;
             font-size: 0.9rem;
             display: none;
+            animation: fadeIn 0.3s ease-in-out;
         }
         
         .error-message {
             color: #ff3e3e;
-            font-size: 0.8rem;
+            font-size: 0.9rem;
             margin-top: 5px;
             animation: fadeIn 0.3s ease-in-out;
         }
@@ -267,8 +268,10 @@
                     
                     // Simple validation
                     if (!email || !password) {
-                        if (loginError) loginError.textContent = "Please enter both email and password";
-                        loginError.style.display = "block";
+                        if (loginError) {
+                            loginError.textContent = "Please enter both email and password";
+                            loginError.style.display = "block";
+                        }
                         return;
                     }
                     
@@ -280,14 +283,14 @@
                     }
                     
                     try {
-                        // Use the Auth.loginUser method which now has proper validation
+                        // Use the Auth.loginUser method
                         console.log('Attempting to login with Auth.loginUser...');
                         const user = await window.Auth.loginUser(email, password);
                         
                         console.log('Login successful:', user);
                         
                         // Show success notification
-                        showNotification('Login successful!', 'success');
+                        showNotification('Login successful! Redirecting you...', 'success');
                         
                         // Redirect to lobbies page after short delay
                         setTimeout(() => {
@@ -298,7 +301,7 @@
                                 localStorage.removeItem('returnUrl');
                                 window.location.href = returnUrl;
                             } else {
-                                window.location.href = 'lobbies.html';
+                                window.location.href = '../home.html';
                             }
                         }, 1500);
                     } catch (error) {

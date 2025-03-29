@@ -35,6 +35,16 @@ app.use(cors({
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, '../public')));
 
+// Import routes
+const userRoutes = require('./routes/userRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+const lobbyRoutes = require('./routes/lobbyRoutes');
+
+// API Routes
+app.use('/api/users', userRoutes);
+app.use('/api/profiles', profileRoutes);
+app.use('/api/lobbies', lobbyRoutes);
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
@@ -273,11 +283,6 @@ io.on('connection', (socket) => {
         console.log('Client disconnected:', socket.id);
     });
 });
-
-// API Routes
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/profiles', require('./routes/profileRoutes'));
-app.use('/api/lobbies', require('./routes/lobbyRoutes'));
 
 // Handle routes for the pages directory
 app.get('/pages/*', (req, res) => {

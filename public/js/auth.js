@@ -40,33 +40,65 @@ window.Auth.registerUser = async function(userData) {
       throw new Error('Username must be at least 3 characters');
     }
     
-    // Check if email is already registered
-    const registeredEmails = [
-      'user@example.com',
-      'admin@example.com',
-      'demo@example.com'
-    ];
-    
-    if (registeredEmails.includes(userData.email)) {
-      throw new Error('Email is already registered');
+    // Try to register with the API first
+    try {
+      const response = await fetch(`${window.APP_CONFIG.API_URL}/users/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: userData.username,
+          email: userData.email,
+          password: userData.password
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+      
+      // Store user data in localStorage
+      localStorage.setItem('userInfo', JSON.stringify(data));
+      localStorage.setItem('token', data.token);
+      
+      return data;
+    } catch (apiError) {
+      console.error('API registration error:', apiError);
+      
+      // Fallback to demo mode if API is not available
+      console.log('Falling back to demo mode registration');
+      
+      // Check if email is already registered in demo mode
+      const registeredEmails = [
+        'user@example.com',
+        'admin@example.com',
+        'demo@example.com'
+      ];
+      
+      if (registeredEmails.includes(userData.email)) {
+        throw new Error('Email is already registered');
+      }
+      
+      console.log('Demo registration successful');
+      
+      // Create user object
+      const mockUser = {
+        _id: 'user_' + Math.random().toString(36).substring(2),
+        username: userData.username,
+        email: userData.email,
+        createdAt: new Date().toISOString(),
+        token: 'auth_token_' + Math.random().toString(36).substring(2)
+      };
+      
+      // Store user data in localStorage
+      localStorage.setItem('userInfo', JSON.stringify(mockUser));
+      localStorage.setItem('token', mockUser.token);
+      
+      return mockUser;
     }
-    
-    console.log('Registration successful');
-    
-    // Create user object
-    const mockUser = {
-      _id: 'user_' + Math.random().toString(36).substring(2),
-      username: userData.username,
-      email: userData.email,
-      createdAt: new Date().toISOString(),
-      token: 'auth_token_' + Math.random().toString(36).substring(2)
-    };
-    
-    // Store user data in localStorage
-    localStorage.setItem('userInfo', JSON.stringify(mockUser));
-    localStorage.setItem('token', mockUser.token);
-    
-    return mockUser;
   } catch (error) {
     console.error('Registration error:', error);
     throw error;
@@ -81,7 +113,6 @@ window.Auth.registerUser = async function(userData) {
  */
 window.Auth.loginUser = async function(email, password) {
     try {
-        // Demo mode is explicitly disabled now
         console.log('Validating login credentials');
         
         // Basic validation
@@ -100,38 +131,65 @@ window.Auth.loginUser = async function(email, password) {
             throw new Error('Password must be at least 6 characters');
         }
         
-        // Hardcoded valid credentials for demo purposes
-        // In a real app, this would be a database check
-        const validCredentials = [
-            { email: 'user@example.com', password: 'password123' },
-            { email: 'admin@example.com', password: 'admin123' },
-            { email: 'demo@example.com', password: 'demo123' }
-        ];
-        
-        // Check if credentials match any valid user
-        const validUser = validCredentials.find(user => 
-            user.email === email && user.password === password
-        );
-        
-        if (!validUser) {
-            throw new Error('Invalid email or password');
+        // Try to login with the API first
+        try {
+            const response = await fetch(`${window.APP_CONFIG.API_URL}/users/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || 'Login failed');
+            }
+            
+            // Store user data in localStorage
+            localStorage.setItem('userInfo', JSON.stringify(data));
+            localStorage.setItem('token', data.token);
+            
+            return data;
+        } catch (apiError) {
+            console.error('API login error:', apiError);
+            
+            // Fallback to demo mode if API is not available
+            console.log('Falling back to demo mode login');
+            
+            // Hardcoded valid credentials for demo purposes
+            const validCredentials = [
+                { email: 'user@example.com', password: 'password123' },
+                { email: 'admin@example.com', password: 'admin123' },
+                { email: 'demo@example.com', password: 'demo123' }
+            ];
+            
+            // Check if credentials match any valid user
+            const validUser = validCredentials.find(user => 
+                user.email === email && user.password === password
+            );
+            
+            if (!validUser) {
+                throw new Error('Invalid email or password');
+            }
+            
+            console.log('Demo login successful');
+            
+            // Create user object for the valid user
+            const mockUser = {
+                _id: 'user_' + Math.random().toString(36).substring(2),
+                username: email.split('@')[0],
+                email: email,
+                token: 'auth_token_' + Math.random().toString(36).substring(2)
+            };
+            
+            // Store mock user data in localStorage
+            localStorage.setItem('userInfo', JSON.stringify(mockUser));
+            localStorage.setItem('token', mockUser.token);
+            
+            return mockUser;
         }
-        
-        console.log('Login successful');
-        
-        // Create user object for the valid user
-        const mockUser = {
-            _id: 'user_' + Math.random().toString(36).substring(2),
-            username: email.split('@')[0],
-            email: email,
-            token: 'auth_token_' + Math.random().toString(36).substring(2)
-        };
-        
-        // Store mock user data in localStorage
-        localStorage.setItem('userInfo', JSON.stringify(mockUser));
-        localStorage.setItem('token', mockUser.token);
-        
-        return mockUser;
     } catch (error) {
         console.error('Login error:', error);
         throw error;
