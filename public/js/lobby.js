@@ -699,64 +699,145 @@ function formatGameDetail(value, type) {
     }
 }
 
-// Update the createLobbyCard function
+/**
+ * Create a lobby card element
+ * @param {Object} lobby - Lobby data
+ * @returns {HTMLElement} - The lobby card element
+ */
 function createLobbyCard(lobby) {
+    // Create the card element
     const card = document.createElement('div');
     card.className = 'lobby-card';
+    card.dataset.id = lobby._id;
     
+    // Format the game type and create game icon
+    const gameType = lobby.gameType || 'Unknown';
+    const gameIcon = `<img src="../assets/${gameType.toLowerCase()}-icon.png" alt="${gameType}" class="game-icon" onerror="this.src='../assets/default-game-icon.png';">`;
+    
+    // Format other details
+    const playerCount = `${lobby.currentPlayers || 0}/${lobby.maxPlayers || 5}`;
+    const hostName = lobby.host ? lobby.host.username : 'Unknown';
+    
+    // Format the rank
+    let rankDisplay = 'Any Rank';
+    if (lobby.rank && lobby.rank !== 'any') {
+        rankDisplay = formatGameDetail(lobby.rank, 'rank');
+    } else {
+        // Set a data attribute to update the rank later
+        card.dataset.needsHostRank = 'true';
+        card.dataset.hostId = lobby.host?._id;
+        card.dataset.gameType = gameType;
+    }
+    
+    // Format the region
+    const regionDisplay = (lobby.region && lobby.region !== 'any') 
+        ? formatGameDetail(lobby.region, 'region') 
+        : 'Any Region';
+    
+    // Format the language
+    const languageDisplay = (lobby.language && lobby.language !== 'any')
+        ? formatGameDetail(lobby.language, 'language')
+        : 'Any Language';
+    
+    // Set the card HTML content
     card.innerHTML = `
         <div class="lobby-header">
-            <div class="lobby-game">
-                <img src="../assets/${lobby.gameType.toLowerCase()}-icon.png" alt="${lobby.gameType}">
-                <span>${lobby.gameType}</span>
+            <div class="game-info">
+                ${gameIcon}
+                <h3 class="lobby-name">${lobby.name || 'Unnamed Lobby'}</h3>
             </div>
-            <div class="lobby-status status-${lobby.status.toLowerCase()}">${lobby.status}</div>
+            <div class="lobby-status ${lobby.status || 'waiting'}">
+                ${formatGameDetail(lobby.status || 'waiting', 'status')}
+            </div>
         </div>
-        <div class="lobby-body">
-            <h3 class="lobby-name">${lobby.name}</h3>
-            
-            <div class="game-details">
-                <div class="game-detail-item">
-                    <i class="fas fa-trophy"></i>
-                    <span>Rank: ${formatGameDetail(lobby.rank, 'rank')}</span>
-                </div>
-                <div class="game-detail-item">
-                    <i class="fas fa-globe"></i>
-                    <span>Region: ${formatGameDetail(lobby.region, 'region')}</span>
-                </div>
-                <div class="game-detail-item">
-                    <i class="fas fa-language"></i>
-                    <span>Language: ${formatGameDetail(lobby.language, 'language')}</span>
-                </div>
-                <div class="game-detail-item">
-                    <i class="fas fa-users"></i>
-                    <span>Players: ${lobby.currentPlayers}/${lobby.maxPlayers}</span>
-                </div>
+        <div class="lobby-details">
+            <div class="detail-item">
+                <i class="fas fa-users"></i>
+                <span>${playerCount}</span>
             </div>
-            
-            <div class="lobby-info">
-                <div class="info-item">
-                    <i class="fas fa-user"></i>
-                    <span>Host: ${lobby.host.username}</span>
-                </div>
-                <div class="info-item">
-                    <i class="fas fa-clock"></i>
-                    <span>Created: ${getTimeAgo(new Date(lobby.createdAt))}</span>
-                </div>
+            <div class="detail-item">
+                <i class="fas fa-crown"></i>
+                <span>${hostName}</span>
             </div>
-            
-            <div class="lobby-actions">
-                <button class="btn btn-primary join-lobby-btn" data-lobby-id="${lobby._id}">
-                    <i class="fas fa-sign-in-alt"></i> Join
-                </button>
-                <button class="btn btn-secondary details-btn" onclick="window.location.href='lobby-details.html?id=${lobby._id}'">
-                    <i class="fas fa-info-circle"></i> Details
-                </button>
+            <div class="detail-item">
+                <i class="fas fa-trophy"></i>
+                <span class="rank-display">${rankDisplay}</span>
             </div>
+            <div class="detail-item">
+                <i class="fas fa-globe"></i>
+                <span>${regionDisplay}</span>
+            </div>
+            <div class="detail-item">
+                <i class="fas fa-language"></i>
+                <span>${languageDisplay}</span>
+            </div>
+        </div>
+        <div class="lobby-actions">
+            <button class="join-lobby-btn">Join</button>
         </div>
     `;
     
+    // Add event listener to join button
+    const joinButton = card.querySelector('.join-lobby-btn');
+    joinButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.location.href = `lobby-details.html?id=${lobby._id}`;
+    });
+    
+    // Add event listener to the card itself
+    card.addEventListener('click', () => {
+        window.location.href = `lobby-details.html?id=${lobby._id}`;
+    });
+    
+    // If we need to fetch the host rank, do it
+    if (card.dataset.needsHostRank === 'true' && lobby.host?._id) {
+        fetchHostGameRank(lobby.host._id, gameType)
+            .then(rank => {
+                if (rank) {
+                    const rankDisplay = card.querySelector('.rank-display');
+                    if (rankDisplay) {
+                        rankDisplay.textContent = formatGameDetail(rank, 'rank');
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching host rank:', err);
+            });
+    }
+    
     return card;
+}
+
+/**
+ * Fetch a user's game rank
+ * @param {string} userId - The user ID
+ * @param {string} gameType - The game type
+ * @returns {Promise<string>} - The user's rank for the game
+ */
+async function fetchHostGameRank(userId, gameType) {
+    try {
+        const response = await fetch(`/api/profiles/user/${userId}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch host profile');
+        }
+        
+        const profile = await response.json();
+        
+        // Check if the user has a rank for the specified game
+        if (profile.gameRanks && profile.gameRanks.length > 0) {
+            const gameRank = profile.gameRanks.find(gr => 
+                gr.game.toLowerCase() === gameType.toLowerCase());
+            
+            if (gameRank) {
+                return gameRank.rank;
+            }
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error fetching host game rank:', error);
+        return null;
+    }
 }
 
 // ONLY ONE DOMContentLoaded EVENT LISTENER in the entire file
@@ -897,25 +978,62 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update new fields: Rank
             const rankElement = document.getElementById('lobbyRank');
             if (rankElement) {
-                rankElement.textContent = lobby.rank || 'Any';
+                // If lobby has a specific rank set
+                if (lobby.rank && lobby.rank !== 'any' && lobby.rank !== 'Any') {
+                    rankElement.textContent = formatGameDetail(lobby.rank, 'rank');
+                } 
+                // If lobby host has a rank for this game, use that instead
+                else if (lobby.host && lobby.host._id) {
+                    fetchHostGameRank(lobby.host._id, lobby.gameType)
+                        .then(hostRank => {
+                            if (hostRank) {
+                                rankElement.textContent = formatGameDetail(hostRank, 'rank');
+                            } else {
+                                rankElement.textContent = 'Any';
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error fetching host rank:', err);
+                            rankElement.textContent = 'Any';
+                        });
+                } else {
+                    rankElement.textContent = 'Any';
+                }
             }
             
             // Update new fields: Language
             const languageElement = document.getElementById('lobbyLanguage');
             if (languageElement) {
-                languageElement.textContent = lobby.language || 'Any';
+                if (lobby.language && lobby.language !== 'any' && lobby.language !== 'Any') {
+                    languageElement.textContent = formatGameDetail(lobby.language, 'language');
+                } else if (lobby.host && lobby.host.profile && lobby.host.profile.language) {
+                    // Use host's preferred language if available
+                    languageElement.textContent = formatGameDetail(lobby.host.profile.language, 'language');
+                } else {
+                    languageElement.textContent = 'Any';
+                }
             }
             
             // Update new fields: Status Detail
             const statusDetailElement = document.getElementById('lobbyStatusDetail');
             if (statusDetailElement) {
-                statusDetailElement.textContent = lobby.status || 'Waiting';
+                const statusText = lobby.status || 'waiting';
+                statusDetailElement.textContent = formatGameDetail(statusText, 'status');
+                // Add status-specific styling
+                statusDetailElement.className = `info-value status-${statusText.toLowerCase()}`;
             }
             
             // Update new fields: Region
             const regionElement = document.getElementById('lobbyRegion');
             if (regionElement) {
-                regionElement.textContent = lobby.region || 'Any';
+                if (lobby.region && lobby.region !== 'any' && lobby.region !== 'Any') {
+                    regionElement.textContent = formatGameDetail(lobby.region, 'region');
+                } else if (lobby.host && lobby.host.profile && lobby.host.profile.region) {
+                    // Use host's region if available
+                    regionElement.textContent = formatGameDetail(lobby.host.profile.region, 'region');
+                } else {
+                    regionElement.textContent = 'Any';
+                }
             }
             
             // Update players list

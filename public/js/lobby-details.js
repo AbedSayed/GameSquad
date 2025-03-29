@@ -87,13 +87,31 @@ async function loadLobbyDetails(lobbyId) {
  * Update the lobby details in the UI and determine user membership status
  */
 function updateLobbyDetails(lobby) {
+    console.log('Updating lobby details with data:', lobby);
+    
     // Update game details section
     document.getElementById('game-type').textContent = `Game: ${lobby.gameType || 'Unknown'}`;
     document.getElementById('player-count').textContent = `Players: ${lobby.currentPlayers || 0}/${lobby.maxPlayers || 5}`;
     document.getElementById('host-name').textContent = `Host: ${lobby.host?.username || 'Unknown'}`;
-    document.getElementById('rank-info').textContent = `Rank: ${formatRank(lobby.rank, lobby.gameType) || 'Any'}`;
-    document.getElementById('region-info').textContent = `Region: ${formatRegion(lobby.region) || 'Any'}`;
-    document.getElementById('language-info').textContent = `Language: ${formatLanguage(lobby.language) || 'Any'}`;
+    
+    // Set rank information - check for null, undefined, empty string, or 'any'
+    const rankValue = (!lobby.rank || lobby.rank === 'any' || lobby.rank === '') 
+        ? 'Any' 
+        : formatRank(lobby.rank, lobby.gameType);
+    document.getElementById('rank-info').textContent = `Rank: ${rankValue}`;
+    
+    // Set region information - check for null, undefined, empty string, or 'any'
+    const regionValue = (!lobby.region || lobby.region === 'any' || lobby.region === '') 
+        ? 'Any' 
+        : formatRegion(lobby.region);
+    document.getElementById('region-info').textContent = `Region: ${regionValue}`;
+    
+    // Set language information - check for null, undefined, empty string, or 'any'
+    const languageValue = (!lobby.language || lobby.language === 'any' || lobby.language === '') 
+        ? 'Any' 
+        : formatLanguage(lobby.language);
+    document.getElementById('language-info').textContent = `Language: ${languageValue}`;
+    
     document.getElementById('status-info').textContent = `Status: ${formatStatus(lobby.status) || 'Unknown'}`;
 
     // Update other UI elements
@@ -174,10 +192,33 @@ function updateMembersList(lobby) {
                 <div class="member-status ${isHost ? 'host' : (player.ready ? 'ready' : 'not-ready')}">
                     ${isHost ? 'Host' : (player.ready ? 'Ready' : 'Not Ready')}
                 </div>
+                <div class="player-rank" data-playerid="${player.user._id}" data-game="${lobby.gameType}">
+                    <i class="fas fa-spinner fa-spin"></i> Loading rank...
+                </div>
             </div>
         `;
         
         membersList.appendChild(memberItem);
+        
+        // Fetch and display player rank
+        fetchPlayerRank(player.user._id, lobby.gameType)
+            .then(rank => {
+                const rankElement = document.querySelector(`.player-rank[data-playerid="${player.user._id}"]`);
+                if (rankElement) {
+                    if (rank) {
+                        rankElement.innerHTML = `<i class="fas fa-trophy"></i> ${formatRank(rank, lobby.gameType)}`;
+                    } else {
+                        rankElement.innerHTML = '<i class="fas fa-question-circle"></i> No rank';
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching player rank:', err);
+                const rankElement = document.querySelector(`.player-rank[data-playerid="${player.user._id}"]`);
+                if (rankElement) {
+                    rankElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Rank unavailable';
+                }
+            });
     });
     
     // Add empty slots
@@ -610,4 +651,69 @@ function formatLanguage(language) {
 function formatStatus(status) {
     if (!status) return 'Unknown';
     return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+}
+
+/**
+ * Fetch host's rank for a specific game
+ * @param {string} hostId - Host user ID
+ * @param {string} gameType - Game type
+ * @returns {Promise<string>} - Promise resolving to the rank
+ */
+async function fetchHostRank(hostId, gameType) {
+    try {
+        const response = await fetch(`/api/profiles/user/${hostId}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch host profile');
+        }
+        
+        const profile = await response.json();
+        
+        // Check if the user has a rank for the specified game
+        if (profile.gameRanks && profile.gameRanks.length > 0) {
+            const gameRank = profile.gameRanks.find(gr => 
+                gr.game.toLowerCase() === gameType.toLowerCase());
+            
+            if (gameRank) {
+                return gameRank.rank;
+            }
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error fetching host rank:', error);
+        return null;
+    }
+}
+
+/**
+ * Fetch player's rank for a specific game
+ * This is a duplicate of fetchHostRank but with a more generic name for clarity
+ * @param {string} playerId - Player user ID
+ * @param {string} gameType - Game type
+ * @returns {Promise<string>} - Promise resolving to the rank
+ */
+async function fetchPlayerRank(playerId, gameType) {
+    try {
+        const response = await fetch(`/api/profiles/user/${playerId}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch player profile');
+        }
+        
+        const profile = await response.json();
+        
+        // Check if the user has a rank for the specified game
+        if (profile.gameRanks && profile.gameRanks.length > 0) {
+            const gameRank = profile.gameRanks.find(gr => 
+                gr.game.toLowerCase() === gameType.toLowerCase());
+            
+            if (gameRank) {
+                return gameRank.rank;
+            }
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error fetching player rank:', error);
+        return null;
+    }
 }

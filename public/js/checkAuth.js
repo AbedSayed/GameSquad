@@ -5,6 +5,11 @@
 (function() {
     console.log('Running checkAuth.js');
     
+    // Make sure Auth namespace is accessible
+    if (!window.Auth) {
+        console.warn('Auth namespace not found. Authentication checks may fail.');
+    }
+    
     // Check if we're on landing.html or login/register pages
     const currentPath = window.location.pathname;
     const isLandingPage = currentPath === '/' || 

@@ -6,15 +6,20 @@ const Message = require('../models/Message');
 // @route   POST /api/lobbies
 // @access  Private
 const createLobby = asyncHandler(async (req, res) => {
-  const { name, maxPlayers, gameType, password } = req.body;
+  const { name, maxPlayers, gameType, password, rank, language, region } = req.body;
   const userId = req.user._id;
 
+  console.log('Creating lobby with data:', { name, maxPlayers, gameType, rank, language, region });
+  
   const lobby = await Lobby.create({
     name,
     host: userId,
     maxPlayers: parseInt(maxPlayers),
     gameType,
     password,
+    rank: rank === undefined || rank === '' ? 'any' : rank,
+    language: language === undefined || language === '' ? 'any' : language, 
+    region: region === undefined || region === '' ? 'any' : region,
     status: 'waiting',
     players: [{ user: userId, ready: false }],
     currentPlayers: 1
@@ -24,6 +29,8 @@ const createLobby = asyncHandler(async (req, res) => {
     { path: 'host', select: 'username' },
     { path: 'players.user', select: 'username' }
   ]);
+
+  console.log('Created lobby:', populatedLobby);
 
   res.status(201).json({
     success: true,

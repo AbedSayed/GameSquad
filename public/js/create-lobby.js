@@ -34,11 +34,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update game-specific rank options when game changes
         const gameSelect = document.getElementById('game');
         const minRankSelect = document.getElementById('min-rank');
+        const regionSelect = document.getElementById('region');
+        const languageSelect = document.getElementById('language');
 
         if (gameSelect && minRankSelect) {
             gameSelect.addEventListener('change', () => {
                 updateRankOptions(gameSelect.value, minRankSelect);
             });
+            
+            // Setup preview updates for game details
+            minRankSelect.addEventListener('change', updatePreview);
+            regionSelect.addEventListener('change', updatePreview);
+            languageSelect.addEventListener('change', updatePreview);
+            
+            // Initialize preview
+            updatePreview();
         }
     }
 });
@@ -117,6 +127,36 @@ function updateRankOptions(game, rankSelect) {
 }
 
 /**
+ * Update the preview display with current selections
+ */
+function updatePreview() {
+    const minRankSelect = document.getElementById('min-rank');
+    const regionSelect = document.getElementById('region');
+    const languageSelect = document.getElementById('language');
+    
+    // Update rank preview
+    const rankPreview = document.getElementById('rank-preview');
+    if (rankPreview && minRankSelect) {
+        const rankOption = minRankSelect.options[minRankSelect.selectedIndex];
+        rankPreview.textContent = `Rank: ${rankOption.textContent}`;
+    }
+    
+    // Update region preview
+    const regionPreview = document.getElementById('region-preview');
+    if (regionPreview && regionSelect) {
+        const regionOption = regionSelect.options[regionSelect.selectedIndex];
+        regionPreview.textContent = `Region: ${regionOption.textContent}`;
+    }
+    
+    // Update language preview
+    const languagePreview = document.getElementById('language-preview');
+    if (languagePreview && languageSelect) {
+        const languageOption = languageSelect.options[languageSelect.selectedIndex];
+        languagePreview.textContent = `Language: ${languageOption.textContent}`;
+    }
+}
+
+/**
  * Show notification message
  */
 function showNotification(message, type = 'error') {
@@ -174,6 +214,8 @@ async function handleLobbyCreation(e) {
         discord: formData.get('discord') || null,
         status: 'open'
     };
+    
+    console.log('Sending lobby data:', lobbyData);
     
     try {
         console.log('Creating lobby with data:', lobbyData);

@@ -36,18 +36,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function setupEventListeners() {
     // Game filter
-    document.getElementById('game-filter').addEventListener('change', filterPlayers);
+    const gameFilter = document.getElementById('game-filter');
+    if (gameFilter) {
+        gameFilter.addEventListener('change', filterPlayers);
+    }
     
     // Rank filter
-    document.getElementById('rank-filter').addEventListener('change', filterPlayers);
+    const rankFilter = document.getElementById('rank-filter');
+    if (rankFilter) {
+        rankFilter.addEventListener('change', filterPlayers);
+    }
     
     // Search input
-    document.getElementById('player-search').addEventListener('input', filterPlayers);
+    const playerSearch = document.getElementById('player-search');
+    if (playerSearch) {
+        playerSearch.addEventListener('input', filterPlayers);
+    } else {
+        // Try alternative ID that might be in the HTML
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', filterPlayers);
+        }
+    }
     
     // Reset filters button
     const resetBtn = document.getElementById('reset-filters');
     if (resetBtn) {
         resetBtn.addEventListener('click', resetFilters);
+    } else {
+        // Try alternative ID that might be in the HTML
+        const resetFiltersBtn = document.getElementById('resetFilters');
+        if (resetFiltersBtn) {
+            resetFiltersBtn.addEventListener('click', resetFilters);
+        }
+    }
+    
+    // Toggle filters button
+    const toggleFiltersBtn = document.getElementById('toggleFilters');
+    if (toggleFiltersBtn) {
+        toggleFiltersBtn.addEventListener('click', function() {
+            const filtersForm = document.querySelector('.filters-form');
+            if (filtersForm) {
+                const isVisible = filtersForm.style.display !== 'none';
+                filtersForm.style.display = isVisible ? 'none' : 'block';
+                this.textContent = isVisible ? 'Show Filters' : 'Hide Filters';
+            }
+        });
     }
 }
 
@@ -218,7 +252,8 @@ async function addFriend(playerId, playerName) {
     
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/users/friends/request/${playerId}`, {
+        // Use the correct endpoint that exists on the server
+        const response = await fetch(`/api/users/friends/add/${playerId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -229,25 +264,39 @@ async function addFriend(playerId, playerName) {
         const data = await response.json();
         
         if (response.ok) {
-            // Update the button to show pending request
+            // Update the button to show added friend
             const addFriendBtn = document.querySelector(`.add-friend-btn[data-id="${playerId}"]`);
             if (addFriendBtn) {
-                addFriendBtn.className = 'btn friend-requested';
-                addFriendBtn.style.backgroundColor = '#ffc107'; // Yellow for pending
-                addFriendBtn.innerHTML = '<i class="fas fa-clock"></i> Pending';
+                addFriendBtn.className = 'btn friend-added';
+                addFriendBtn.style.backgroundColor = '#28a745'; // Green for added
+                addFriendBtn.innerHTML = '<i class="fas fa-check"></i> Friend';
                 addFriendBtn.style.cursor = 'default';
                 // Remove click event listeners
                 const newBtn = addFriendBtn.cloneNode(true);
                 addFriendBtn.parentNode.replaceChild(newBtn, addFriendBtn);
             }
             
-            showNotification(`Friend request sent to ${playerName}!`, 'success');
+            showNotification(`Added ${playerName} as a friend!`, 'success');
+            
+            // Update local storage to reflect the new friend
+            try {
+                const userInfo = getCurrentUser();
+                if (userInfo && userInfo.friends) {
+                    // Add the new friend ID if it's not already in the list
+                    if (!userInfo.friends.includes(playerId)) {
+                        userInfo.friends.push(playerId);
+                        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                    }
+                }
+            } catch (err) {
+                console.error('Error updating local user info:', err);
+            }
         } else {
-            showNotification(data.message || 'Failed to send friend request', 'error');
+            showNotification(data.message || 'Failed to add friend', 'error');
         }
     } catch (error) {
-        console.error('Error sending friend request:', error);
-        showNotification('Failed to send friend request. Please try again later.', 'error');
+        console.error('Error adding friend:', error);
+        showNotification('Failed to add friend. Please try again later.', 'error');
     }
 }
 
@@ -257,15 +306,38 @@ function checkIfFriend(playerId) {
         const currentUser = getCurrentUser();
         if (!currentUser) return false;
         
-        // Check if they're already friends
-        if (currentUser.friends && currentUser.friends.some(friend => friend === playerId)) {
-            return 'friend';
+        // Check if they're already friends - check the friends array directly
+        if (currentUser.friends && Array.isArray(currentUser.friends)) {
+            // Friends might be stored as strings or objects with _id
+            const isFriend = currentUser.friends.some(friend => {
+                if (typeof friend === 'string') {
+                    return friend === playerId;
+                } else if (friend && friend._id) {
+                    return friend._id === playerId;
+                }
+                return false;
+            });
+            
+            if (isFriend) {
+                return 'friend';
+            }
         }
         
-        // Check if there's a pending friend request
-        if (currentUser.friendRequests && currentUser.friendRequests.sent && 
-            currentUser.friendRequests.sent.some(request => request.recipient === playerId)) {
-            return 'pending';
+        // This app might not have friend requests feature implemented,
+        // so skip this check if the structure doesn't exist
+        if (currentUser.friendRequests) {
+            // Check if there's a pending friend request
+            if (currentUser.friendRequests.sent && 
+                currentUser.friendRequests.sent.some(request => {
+                    if (typeof request.recipient === 'string') {
+                        return request.recipient === playerId;
+                    } else if (request.recipient && request.recipient._id) {
+                        return request.recipient._id === playerId;
+                    }
+                    return false;
+                })) {
+                return 'pending';
+            }
         }
         
         return false;
@@ -384,7 +456,17 @@ function showLobbySelectionModal(playerId, playerName) {
 async function fetchUserLobbies() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/lobbies/my-lobbies', {
+        if (!token) {
+            throw new Error('Authentication required');
+        }
+
+        const currentUser = getCurrentUser();
+        if (!currentUser || !currentUser._id) {
+            throw new Error('User information not available');
+        }
+
+        // Use the standard lobbies endpoint with a filter for the current user's lobbies
+        const response = await fetch(`/api/lobbies?host=${currentUser._id}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -395,7 +477,9 @@ async function fetchUserLobbies() {
         }
         
         const data = await response.json();
-        return data;
+        
+        // If the response is in a different format, adapt accordingly
+        return data.data || data; // Some APIs return { data: [...] }, others return the array directly
     } catch (error) {
         console.error('Error fetching lobbies:', error);
         return [];
@@ -440,40 +524,104 @@ function viewProfile(playerId) {
 }
 
 function filterPlayers() {
-    const searchInput = document.getElementById('player-search').value.toLowerCase();
-    const gameFilter = document.getElementById('game-filter').value;
-    const rankFilter = document.getElementById('rank-filter').value;
+    // Get search input from either element ID
+    let searchTerm = '';
+    const playerSearch = document.getElementById('player-search');
+    const searchInput = document.getElementById('searchInput');
     
+    if (playerSearch) {
+        searchTerm = playerSearch.value.toLowerCase();
+    } else if (searchInput) {
+        searchTerm = searchInput.value.toLowerCase();
+    }
+    
+    // Get filter values if they exist
+    let gameFilter = '';
+    const gameFilterElem = document.getElementById('game-filter');
+    if (gameFilterElem) {
+        gameFilter = gameFilterElem.value;
+    }
+    
+    let rankFilter = '';
+    const rankFilterElem = document.getElementById('rank-filter');
+    if (rankFilterElem) {
+        rankFilter = rankFilterElem.value;
+    }
+    
+    // Apply filters to player cards
     const playerCards = document.querySelectorAll('.player-card');
+    if (playerCards.length === 0) {
+        return; // No cards to filter
+    }
+    
+    let cardsVisible = 0;
     
     playerCards.forEach(card => {
-        const playerName = card.querySelector('.player-name').textContent.toLowerCase();
-        const playerLevel = card.querySelector('.player-level').textContent;
+        const playerNameElem = card.querySelector('.player-name');
+        if (!playerNameElem) return;
+        
+        const playerName = playerNameElem.textContent.toLowerCase();
         
         // Apply filters
-        let matchesSearch = playerName.includes(searchInput);
-        let matchesGame = true; // We'll implement this with data attributes later
-        let matchesRank = true; // We'll implement this with data attributes later
+        let matchesSearch = !searchTerm || playerName.includes(searchTerm);
+        let matchesGame = !gameFilter || card.getAttribute('data-game') === gameFilter || gameFilter === '';
+        let matchesRank = !rankFilter || card.getAttribute('data-rank') === rankFilter || rankFilter === '';
         
         // Show/hide based on filter results
         if (matchesSearch && matchesGame && matchesRank) {
-            card.style.display = 'flex';
+            card.style.display = '';
+            cardsVisible++;
         } else {
             card.style.display = 'none';
         }
     });
+    
+    // Show/hide no results message
+    const noPlayersMessage = document.getElementById('noPlayersMessage');
+    if (noPlayersMessage) {
+        if (cardsVisible === 0) {
+            noPlayersMessage.classList.remove('d-none');
+        } else {
+            noPlayersMessage.classList.add('d-none');
+        }
+    }
 }
 
 function resetFilters() {
-    document.getElementById('player-search').value = '';
-    document.getElementById('game-filter').value = '';
-    document.getElementById('rank-filter').value = '';
+    // Reset search input
+    const playerSearch = document.getElementById('player-search');
+    if (playerSearch) {
+        playerSearch.value = '';
+    }
+    
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // Reset game filter
+    const gameFilter = document.getElementById('game-filter');
+    if (gameFilter) {
+        gameFilter.value = '';
+    }
+    
+    // Reset rank filter
+    const rankFilter = document.getElementById('rank-filter');
+    if (rankFilter) {
+        rankFilter.value = '';
+    }
     
     // Show all players
     const playerCards = document.querySelectorAll('.player-card');
     playerCards.forEach(card => {
-        card.style.display = 'flex';
+        card.style.display = '';
     });
+    
+    // Hide no players message
+    const noPlayersMessage = document.getElementById('noPlayersMessage');
+    if (noPlayersMessage) {
+        noPlayersMessage.classList.add('d-none');
+    }
 }
 
 function showLoadingIndicator() {

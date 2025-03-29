@@ -458,9 +458,9 @@ console.log('Auth module loaded and namespace initialized');
 window.getCurrentUser = getCurrentUser;
 window.isLoggedIn = isLoggedIn;
 window.AUTH = {
-  loginUser,
-  registerUser,
-  logoutUser,
+  loginUser: window.Auth.loginUser,
+  registerUser: window.Auth.registerUser,
+  logoutUser: window.Auth.logoutUser,
   isLoggedIn,
   getCurrentUser,
   updateUserInfo,

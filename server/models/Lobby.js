@@ -32,15 +32,15 @@ const lobbySchema = new mongoose.Schema({
   },
   rank: {
     type: String,
-    default: 'Any'
+    default: 'any'
   },
   language: {
     type: String,
-    default: 'Any'
+    default: 'any'
   },
   region: {
     type: String,
-    default: 'Any'
+    default: 'any'
   },
   password: {
     type: String,
