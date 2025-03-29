@@ -384,8 +384,15 @@ class LobbiesModule {
         // Try all available methods to find the game image
         let game = null;
         
+        // Special case for League of Legends
+        if ((lobby.game && lobby.game.toLowerCase() === 'lol') || 
+            (lobby.gameType && lobby.gameType.toLowerCase() === 'lol') ||
+            (lobby.gameName && lobby.gameName.toLowerCase().includes('league of legends'))) {
+            game = 'lol';
+            console.log(`Found League of Legends lobby: ${lobby.name}`);
+        }
         // 1. First check gameType as it's most reliable
-        if (lobby.gameType && typeof lobby.gameType === 'string') {
+        else if (lobby.gameType && typeof lobby.gameType === 'string') {
             game = lobby.gameType.toLowerCase();
         }
         // 2. Check direct game property
@@ -834,7 +841,19 @@ class LobbiesModule {
             if (fixedLobby.game && ['valorant', 'csgo', 'lol', 'apex', 'fortnite', 'dota2', 'overwatch', 'rocketleague'].includes(fixedLobby.game.toLowerCase())) {
                 console.log(`Fixing game value in lobby: ${fixedLobby.name}, current game=${fixedLobby.game}`);
                 // This is a direct game value from the form, we need to set gameType to match
-                fixedLobby.gameType = fixedLobby.game;
+                fixedLobby.gameType = fixedLobby.game.toLowerCase();
+                hasChanges = true;
+            }
+            
+            // Special handling for League of Legends
+            if (fixedLobby.game === 'League of Legends' || 
+                fixedLobby.gameName === 'League of Legends' || 
+                fixedLobby.game === 'LoL' || 
+                (fixedLobby.gameType && fixedLobby.gameType.toLowerCase() === 'lol')) {
+                console.log(`Fixing League of Legends lobby: ${fixedLobby.name}`);
+                fixedLobby.game = 'MOBA'; // Game category
+                fixedLobby.gameName = 'League of Legends'; // Full game name
+                fixedLobby.gameType = 'lol'; // Game identifier for images
                 hasChanges = true;
             }
             

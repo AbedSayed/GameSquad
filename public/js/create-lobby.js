@@ -456,12 +456,13 @@ async function handleLobbyCreation(e) {
     
     // Get region value and ensure it's normalized
     const regionValue = formData.get('region');
-    console.log('Original region value:', regionValue);
+    const gameValue = formData.get('game');
+    console.log('Creating lobby with game:', gameValue);
     
     const lobbyData = {
         name: formData.get('name'),
         game: formData.get('game'),
-        gameType: formData.get('game'), // Use exactly the same value as game, not the derived game type
+        gameType: formData.get('game').toLowerCase(), // Use lowercase value for consistency
         maxPlayers: parseInt(formData.get('maxPlayers')) || 5,
         currentPlayers: 1, // Start with the host
         region: regionValue, // This is already the correct code (na, eu, asia, etc.)
@@ -502,6 +503,7 @@ async function handleLobbyCreation(e) {
     }
     
     console.log('Creating lobby with data:', lobbyData);
+    console.log('Game image would be:', GAME_IMAGES[lobbyData.gameType.toLowerCase()] || GAME_IMAGES.default);
     
     try {
         // Determine the API URL
@@ -512,6 +514,15 @@ async function handleLobbyCreation(e) {
         const apiUrl = `${window.location.origin}${baseApiUrl}/lobbies`;
             
         console.log('Using API URL:', apiUrl);
+        
+        // Add additional debug data for League of Legends
+        if (lobbyData.game === 'lol') {
+            console.log('Creating League of Legends lobby with data:', {
+                game: lobbyData.game,
+                gameType: lobbyData.gameType,
+                image: GAME_IMAGES[lobbyData.game]
+            });
+        }
         
         // Send API request to create lobby with proper authorization
         const response = await fetch(apiUrl, {
