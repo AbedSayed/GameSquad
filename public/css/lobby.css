@@ -1140,3 +1140,89 @@ select {
   background-color: #4a5568;
   transform: translateY(-2px);
 }
+
+/* My Lobbies Page Styles */
+.page-header {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.page-header h1 {
+  font-size: 2rem;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.page-header p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.filter-tabs {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+  gap: 10px;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.tab-btn.active {
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.game-details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.game-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.game-detail-item i {
+  color: var(--accent-primary);
+}
+
+.lobby-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.info-item i {
+  color: var(--accent-primary);
+}
+
+.hidden {
+  display: none !important;
+}

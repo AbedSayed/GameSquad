@@ -14,7 +14,8 @@ const {
   addFriend,
   getFriends,
   removeFriend,
-  inviteToLobby
+  inviteToLobby,
+  getUserLobbies
 } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 const mongoose = require('mongoose');
@@ -42,6 +43,9 @@ router.delete('/friends/:id', protect, removeFriend);
 
 // Lobby invitation route
 router.post('/invite/:userId/lobby/:lobbyId', protect, inviteToLobby);
+
+// Get user's lobbies (both hosting and joined)
+router.get('/lobbies', protect, getUserLobbies);
 
 // Token validation endpoint
 router.get('/validate-token', protect, (req, res) => {

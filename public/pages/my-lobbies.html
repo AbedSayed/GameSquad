@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Lobbies - GameSquad</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/lobby.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <h1><a href="../index.html">GameSquad</a></h1>
+            </div>
+            <ul class="nav-links">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lobbies.html">Lobbies</a></li>
+                <li><a href="my-lobbies.html" class="active">My Lobbies</a></li>
+                <li><a href="create-lobby.html">Create Lobby</a></li>
+                <li><a href="players.html">Players</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+            <div class="nav-user">
+                <span class="username"></span>
+                <button class="btn btn-secondary logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h1>My Lobbies</h1>
+            <p>View and manage all lobbies you've created or joined</p>
+        </div>
+
+        <div class="filter-tabs">
+            <button class="tab-btn active" data-filter="all">All Lobbies</button>
+            <button class="tab-btn" data-filter="hosted">Hosting</button>
+            <button class="tab-btn" data-filter="joined">Joined</button>
+        </div>
+
+        <div class="lobbies-grid">
+            <!-- Lobbies will be loaded here dynamically -->
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading your lobbies...</p>
+            </div>
+        </div>
+
+        <div class="no-lobbies hidden">
+            <i class="fas fa-users-slash"></i>
+            <h3>No Lobbies Found</h3>
+            <p>You haven't created or joined any lobbies yet.</p>
+            <a href="create-lobby.html" class="create-lobby-btn">
+                <i class="fas fa-plus"></i> Create Lobby
+            </a>
+        </div>
+    </main>
+
+    <div class="notifications-container"></div>
+
+    <!-- Scripts -->
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/lobbies.js"></script>
+    <script src="../js/my-lobbies.js"></script>
+</body>
+</html> 

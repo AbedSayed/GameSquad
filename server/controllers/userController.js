@@ -1,4 +1,5 @@
 const { User, Profile } = require('../models');
+const Lobby = require('../models/Lobby');
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('../middleware/asyncHandler');
 const bcrypt = require('bcrypt');
@@ -648,6 +649,38 @@ const inviteToLobby = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get user's lobbies (both hosting and joined)
+// @route   GET /api/users/lobbies
+// @access  Private
+const getUserLobbies = asyncHandler(async (req, res) => {
+  try {
+    const userId = req.user._id;
+    console.log('Getting lobbies for user:', userId);
+
+    // Get all lobbies where user is either host or a player
+    const lobbies = await Lobby.find({
+      $or: [
+        { host: userId },
+        { 'players.user': userId }
+      ]
+    }).populate('host', 'username').populate('players.user', 'username');
+
+    console.log(`Found ${lobbies.length} lobbies for this user`);
+
+    res.status(200).json({
+      success: true,
+      data: lobbies
+    });
+  } catch (error) {
+    console.error('Error fetching user lobbies:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user lobbies',
+      error: error.message
+    });
+  }
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -662,5 +695,6 @@ module.exports = {
   addFriend,
   getFriends,
   removeFriend,
-  inviteToLobby
+  inviteToLobby,
+  getUserLobbies
 };
