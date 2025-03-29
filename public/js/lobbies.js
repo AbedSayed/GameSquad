@@ -86,6 +86,16 @@ class LobbiesModule {
             `;
         }
         
+        // Normalize and clean up filters
+        Object.keys(filters).forEach(key => {
+            // Convert empty strings to null/undefined
+            if (filters[key] === '') {
+                delete filters[key];
+            }
+        });
+        
+        console.log('Normalized filters:', filters);
+        
         try {
             // Get the latest auth token
             const token = localStorage.getItem('authToken') || localStorage.getItem('token');
@@ -330,6 +340,9 @@ class LobbiesModule {
         card.className = 'game-card';
         card.setAttribute('data-lobby-id', lobby._id);
         
+        // Debug - log entire lobby object to see what's available
+        console.log(`Creating lobby card for: ${lobby.name}`, lobby);
+        
         // Format the creation date
         let createdDate = 'Recently';
         if (lobby.createdAt) {
@@ -355,23 +368,59 @@ class LobbiesModule {
             'csgo': '../resources/counter-strike-png-.png',
             'lol': '../resources/leageofLegend.png.png',
             'apex': '../resources/apex.png.png',
-            'fortnite': '../resources/fortnite.png',
-            'minecraft': '../resources/minecraft.png',
-            'dota2': '../resources/dota2.png'
+            'fortnite': '../resources/default-game.png',
+            'dota2': '../resources/default-game.png',
+            'overwatch': '../resources/default-game.png',
+            'rocketleague': '../resources/default-game.png',
+            'default': '../resources/default-game.png'
         };
         
-        // Check if we have a game type from the API
-        if (lobby.gameType && gameImages[lobby.gameType.toLowerCase()]) {
-            gameLogo = gameImages[lobby.gameType.toLowerCase()];
-            console.log(`Found image for game type: ${lobby.gameType} -> ${gameLogo}`);
-        } 
+        console.log(`Lobby ${lobby.name} - debug values:
+           game: ${lobby.game}
+           gameType: ${lobby.gameType}
+           gameName: ${lobby.gameName}
+        `);
+        
+        // Try all available methods to find the game image
+        let game = null;
+        
+        // 1. First check gameType as it's most reliable
+        if (lobby.gameType && typeof lobby.gameType === 'string') {
+            game = lobby.gameType.toLowerCase();
+        }
+        // 2. Check direct game property
+        else if (lobby.game && typeof lobby.game === 'string') {
+            // Only use game if it's a known game identifier and not a category like "FPS"
+            if (['valorant', 'csgo', 'lol', 'apex', 'fortnite', 'dota2', 'overwatch', 'rocketleague'].includes(lobby.game.toLowerCase())) {
+                game = lobby.game.toLowerCase();
+            }
+        }
+        // 3. Check gameName property
+        else if (lobby.gameName && typeof lobby.gameName === 'string') {
+            // Map common names to game identifiers
+            const gameNameMap = {
+                'valorant': 'valorant',
+                'counter-strike 2': 'csgo',
+                'cs2': 'csgo',
+                'league of legends': 'lol',
+                'apex legends': 'apex',
+                'fortnite': 'fortnite',
+                'dota 2': 'dota2',
+                'overwatch 2': 'overwatch',
+                'rocket league': 'rocketleague'
+            };
+            game = gameNameMap[lobby.gameName.toLowerCase()];
+        }
+        
+        // Now use the determined game to find the image
+        if (game && gameImages[game]) {
+            gameLogo = gameImages[game];
+            console.log(`Using image for ${game}: ${gameLogo}`);
+        }
         // Fallback to gameImage if defined
         else if (lobby.gameImage) {
             gameLogo = lobby.gameImage;
-        }
-        // Final fallback to game name if it matches our image map
-        else if (lobby.gameName && gameImages[lobby.gameName.toLowerCase()]) {
-            gameLogo = gameImages[lobby.gameName.toLowerCase()];
+            console.log(`Using direct gameImage: ${gameLogo}`);
         }
         
         console.log(`Lobby ${lobby.name}: gameType = ${lobby.gameType}, using logo: ${gameLogo}`);
@@ -404,14 +453,35 @@ class LobbiesModule {
             statusClass = 'status-in-progress';
         }
         
+        // Determine the game display name
+        let gameDisplayName = 'Game';
+        if (game) {
+            // Map game identifiers to display names
+            const gameDisplayMap = {
+                'valorant': 'Valorant',
+                'csgo': 'Counter-Strike 2',
+                'lol': 'League of Legends',
+                'apex': 'Apex Legends',
+                'fortnite': 'Fortnite',
+                'dota2': 'Dota 2',
+                'overwatch': 'Overwatch 2',
+                'rocketleague': 'Rocket League'
+            };
+            gameDisplayName = gameDisplayMap[game] || game.charAt(0).toUpperCase() + game.slice(1);
+        } else if (lobby.gameName) {
+            gameDisplayName = lobby.gameName;
+        } else if (typeof lobby.game === 'string' && !['fps', 'moba', 'battle royale', 'rpg', 'sports'].includes(lobby.game.toLowerCase())) {
+            gameDisplayName = lobby.game;
+        }
+        
         // Create the HTML content for the card
         card.innerHTML = `
             <div class="game-card-header">
                 <div class="game-logo">
-                    <img src="${gameLogo}" alt="${lobby.game || 'Game'}" onerror="this.src='../resources/default-game.png'">
+                    <img src="${gameLogo}" alt="${gameDisplayName}" onerror="this.src='../resources/default-game.png'">
                 </div>
                 <div class="game-type">
-                    <span class="badge badge-${lobby.game?.toLowerCase() || 'default'}">${lobby.game || 'Game'}</span>
+                    <span class="badge badge-${game || 'default'}">${gameDisplayName}</span>
                 </div>
                 <div class="game-status">
                     <span class="badge ${statusClass}">${lobby.status || 'Open'}</span>
@@ -495,67 +565,75 @@ class LobbiesModule {
         return card;
     }
     
+    // Clear localStorage lobbies and start fresh to fix filtering issues
+    clearAndReinitLobbies() {
+        console.log('Clearing and reinitializing lobbies in localStorage');
+        localStorage.removeItem('lobbies');
+        const freshDemoLobbies = this.generateDemoLobbies();
+        localStorage.setItem('lobbies', JSON.stringify(freshDemoLobbies));
+        return freshDemoLobbies;
+    }
+    
     // Filter lobbies based on selected filters
     filterLobbies(lobbies, filters) {
-        return lobbies.filter(lobby => {
-            // Filter by game type if selected
-            if (filters.game && filters.game !== 'all' && lobby.game !== filters.game) {
+        console.log('Filtering lobbies with filters:', filters);
+        console.log('Total lobbies before filtering:', lobbies.length);
+        
+        // Pre-process filters to avoid null/undefined issues
+        const cleanFilters = {};
+        for (const [key, value] of Object.entries(filters)) {
+            if (value && value !== '' && value !== 'all' && value !== 'any') {
+                cleanFilters[key] = value.toLowerCase();
+            }
+        }
+        
+        console.log('Using clean filters:', cleanFilters);
+        
+        // Debug - log all lobbies with their region and rank values 
+        lobbies.forEach(lobby => {
+            console.log(`Lobby "${lobby.name}": game=${lobby.game}, region=${lobby.region}, rank=${lobby.rank}`);
+        });
+        
+        const filteredLobbies = lobbies.filter(lobby => {
+            // Game filter
+            if (cleanFilters.game && lobby.game && lobby.game.toLowerCase() !== cleanFilters.game) {
+                console.log(`Filtering out "${lobby.name}" - game mismatch: ${lobby.game} vs ${cleanFilters.game}`);
                 return false;
             }
             
-            // Filter by status if selected
-            if (filters.status && filters.status !== 'all') {
-                if (filters.status === 'open' && lobby.status !== 'open') {
-                    return false;
-                }
-                if (filters.status === 'full' && lobby.status !== 'full') {
-                    return false;
-                }
-                if (filters.status === 'in-progress' && lobby.status !== 'in-progress') {
+            // Region filter
+            if (cleanFilters.region && lobby.region) {
+                const lobbyRegion = lobby.region.toLowerCase();
+                if (lobbyRegion !== cleanFilters.region) {
+                    console.log(`Filtering out "${lobby.name}" - region mismatch: ${lobbyRegion} vs ${cleanFilters.region}`);
                     return false;
                 }
             }
             
-            // Filter by skill level if selected
-            if (filters.skillLevel && filters.skillLevel !== 'all') {
-                const skillLevel = parseInt(filters.skillLevel);
-                const lobbySkillLevel = parseInt(lobby.skillLevel || 0);
-                
-                if (lobbySkillLevel !== skillLevel) {
+            // Rank filter
+            if (cleanFilters.rank && lobby.rank) {
+                const lobbyRank = lobby.rank.toLowerCase();
+                if (lobbyRank !== cleanFilters.rank && !lobbyRank.includes(cleanFilters.rank)) {
+                    console.log(`Filtering out "${lobby.name}" - rank mismatch: ${lobbyRank} vs ${cleanFilters.rank}`);
                     return false;
                 }
             }
             
-            // Filter by search text if provided
-            if (filters.search && filters.search.trim() !== '') {
-                const searchTerm = filters.search.toLowerCase().trim();
-                const lobbyName = (lobby.name || '').toLowerCase();
-                const lobbyDescription = (lobby.description || '').toLowerCase();
-                const hostName = (lobby.hostInfo?.username || '').toLowerCase();
-                
-                // Check if search term is in the name, description or host name
-                if (!lobbyName.includes(searchTerm) && 
-                    !lobbyDescription.includes(searchTerm) && 
-                    !hostName.includes(searchTerm)) {
+            // Status filter
+            if (cleanFilters.status && lobby.status) {
+                const lobbyStatus = lobby.status.toLowerCase();
+                if (lobbyStatus !== cleanFilters.status) {
+                    console.log(`Filtering out "${lobby.name}" - status mismatch: ${lobbyStatus} vs ${cleanFilters.status}`);
                     return false;
                 }
             }
             
-            // Filter by 'my lobbies' if specified
-            if (filters.myLobbies === true) {
-                const userId = this.getUserId();
-                return lobby.host === userId || lobby.hostInfo?._id === userId;
-            }
-            
-            // Filter by 'other lobbies' if specified
-            if (filters.otherLobbies === true) {
-                const userId = this.getUserId();
-                return lobby.host !== userId && lobby.hostInfo?._id !== userId;
-            }
-            
-            // If lobby passed all filters
+            // All filters passed
             return true;
         });
+        
+        console.log(`Filtering complete: ${filteredLobbies.length} of ${lobbies.length} lobbies matched filters`);
+        return filteredLobbies;
     }
     
     // Generate demo lobbies for testing when no real lobbies exist
@@ -696,11 +774,14 @@ class LobbiesModule {
         // Get lobbies from localStorage
         let lobbies = JSON.parse(localStorage.getItem('lobbies') || '[]');
         
-        // Create demo lobbies if none exist
-        if (!lobbies || lobbies.length === 0) {
-            lobbies = this.generateDemoLobbies();
-            localStorage.setItem('lobbies', JSON.stringify(lobbies));
+        // Clear and recreate lobbies if needed - fixing potential data issues
+        if (!lobbies || lobbies.length === 0 || localStorage.getItem('reset_lobbies') === 'true') {
+            localStorage.removeItem('reset_lobbies');
+            lobbies = this.clearAndReinitLobbies();
         }
+        
+        // Fix any inconsistent region values
+        lobbies = this.fixLobbyData(lobbies);
         
         // Apply filters if any
         if (Object.keys(filters).length > 0) {
@@ -710,6 +791,63 @@ class LobbiesModule {
         // Display the lobbies
         this.displayLobbies(lobbies);
         return lobbies;
+    }
+    
+    // Fix any issues with lobby data
+    fixLobbyData(lobbies) {
+        console.log('Checking for inconsistent lobby data...');
+        let hasChanges = false;
+        
+        const fixedLobbies = lobbies.map(lobby => {
+            const fixedLobby = {...lobby};
+            
+            // Check for missing or incorrect region
+            if (!fixedLobby.region || typeof fixedLobby.region !== 'string') {
+                console.log(`Fixing missing region in lobby: ${fixedLobby.name}`);
+                fixedLobby.region = 'na'; // Default to North America
+                hasChanges = true;
+            }
+            
+            // Make sure region is stored as the correct code
+            if (fixedLobby.region === 'North America') fixedLobby.region = 'na';
+            if (fixedLobby.region === 'Europe') fixedLobby.region = 'eu';
+            if (fixedLobby.region === 'Asia') fixedLobby.region = 'asia';
+            if (fixedLobby.region === 'South America') fixedLobby.region = 'sa';
+            if (fixedLobby.region === 'Oceania') fixedLobby.region = 'oceania';
+            
+            // Check for missing or incorrect rank
+            if (!fixedLobby.rank || typeof fixedLobby.rank !== 'string') {
+                console.log(`Fixing missing rank in lobby: ${fixedLobby.name}`);
+                fixedLobby.rank = 'any'; // Default to any rank
+                hasChanges = true;
+            }
+            
+            // Make sure skill level is numeric
+            if (typeof fixedLobby.skillLevel !== 'number') {
+                console.log(`Fixing skillLevel in lobby: ${fixedLobby.name}`);
+                fixedLobby.skillLevel = 3; // Default to middle
+                hasChanges = true;
+            }
+            
+            // Fix game/gameType inconsistencies
+            // If we have a game value that looks like a game identifier (not a category)
+            if (fixedLobby.game && ['valorant', 'csgo', 'lol', 'apex', 'fortnite', 'dota2', 'overwatch', 'rocketleague'].includes(fixedLobby.game.toLowerCase())) {
+                console.log(`Fixing game value in lobby: ${fixedLobby.name}, current game=${fixedLobby.game}`);
+                // This is a direct game value from the form, we need to set gameType to match
+                fixedLobby.gameType = fixedLobby.game;
+                hasChanges = true;
+            }
+            
+            return fixedLobby;
+        });
+        
+        // If any fixes were applied, update localStorage
+        if (hasChanges) {
+            console.log('Saving fixed lobby data to localStorage');
+            localStorage.setItem('lobbies', JSON.stringify(fixedLobbies));
+        }
+        
+        return fixedLobbies;
     }
     
     // Generate skill level dots

@@ -94,13 +94,24 @@
                         <option value="eu">Europe</option>
                         <option value="asia">Asia</option>
                         <option value="sa">South America</option>
-                        <option value="oce">Oceania</option>
+                        <option value="oceania">Oceania</option>
                     </select>
                 </div>
                 <div class="filter-group">
                     <label for="rankFilter">Skill Level</label>
                     <select id="rankFilter" class="filter-input" style="background-color: rgba(30, 30, 40, 0.7) !important; color: #fff !important; border: 1px solid rgba(87, 70, 175, 0.3) !important;">
                         <option value="">Any rank</option>
+                        <option value="iron">Iron</option>
+                        <option value="bronze">Bronze</option>
+                        <option value="silver">Silver</option>
+                        <option value="gold">Gold</option>
+                        <option value="platinum">Platinum</option>
+                        <option value="diamond">Diamond</option>
+                        <option value="master">Master</option>
+                        <option value="grandmaster">Grandmaster</option>
+                        <option value="challenger">Challenger</option>
+                        <option value="immortal">Immortal</option>
+                        <option value="radiant">Radiant</option>
                         <option value="beginner">Beginner</option>
                         <option value="intermediate">Intermediate</option>
                         <option value="advanced">Advanced</option>
@@ -218,6 +229,9 @@
     <script src="../js/auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // TEMPORARY FIX: Force reset of lobbies to fix filtering issues
+            localStorage.setItem('reset_lobbies', 'true');
+            
             // Apply particle effect to header
             applyParticleEffect('.page-header');
             

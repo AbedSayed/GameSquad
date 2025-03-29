@@ -5,6 +5,19 @@ if (!window.APP_CONFIG) {
     console.error('Configuration not loaded. Please make sure config.js is loaded first.');
 }
 
+// Game image mapping
+const GAME_IMAGES = {
+    'valorant': '../resources/Valorant-Logo-PNG-Image.png',
+    'csgo': '../resources/counter-strike-png-.png',
+    'lol': '../resources/leageofLegend.png.png',
+    'apex': '../resources/apex.png.png',
+    'fortnite': '../resources/default-game.png',
+    'dota2': '../resources/default-game.png',
+    'overwatch': '../resources/default-game.png',
+    'rocketleague': '../resources/default-game.png',
+    'default': '../resources/default-game.png'
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Create lobby page loaded');
 
@@ -45,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             // Setup preview updates for game details
+            gameSelect.addEventListener('change', updatePreview);
             minRankSelect.addEventListener('change', updatePreview);
             regionSelect.addEventListener('change', updatePreview);
             languageSelect.addEventListener('change', updatePreview);
@@ -79,15 +93,6 @@ document.addEventListener('DOMContentLoaded', function() {
         'fortnite': 'Battle Royale',
         'overwatch': 'FPS',
         'rocketleague': 'Sports'
-    };
-    
-    // Game image mapping
-    const GAME_IMAGES = {
-        'val': '../resources/valorant.png',
-        'cs': '../resources/CS2.png',
-        'lol': '../resources/leageofLegend.png.png',
-        'apex': '../resources/apex.png.png',
-        'default': '../resources/default-game.png'
     };
     
     // Game badge class mapping
@@ -195,6 +200,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const rankSelect = document.getElementById('min-rank');
         rankSelect.innerHTML = '<option value="any">Any Rank</option>';
         
+        // If no game is selected, just leave with default "Any Rank" option
+        if (!game) {
+            return;
+        }
+        
         let ranks = [];
         
         switch(game) {
@@ -233,8 +243,8 @@ document.addEventListener('DOMContentLoaded', function() {
         populateRanks(this.value);
     });
     
-    // Initial population
-    populateRanks('valorant');
+    // Initial population with empty ranks
+    populateRanks('');
     
     // Form submission
     document.getElementById('create-lobby-form').addEventListener('submit', function(e) {
@@ -347,9 +357,37 @@ function updateRankOptions(game, rankSelect) {
  * Update the preview display with current selections
  */
 function updatePreview() {
+    const gameSelect = document.getElementById('game');
     const minRankSelect = document.getElementById('min-rank');
     const regionSelect = document.getElementById('region');
     const languageSelect = document.getElementById('language');
+    const previewImage = document.getElementById('preview-image');
+    const gameBadge = document.querySelector('.game-badge');
+    
+    // Update game image if game is selected
+    if (gameSelect && previewImage) {
+        const gameValue = gameSelect.value;
+        if (gameValue) {
+            // A game is selected, update the image
+            previewImage.src = GAME_IMAGES[gameValue] || GAME_IMAGES.default;
+            previewImage.alt = gameSelect.options[gameSelect.selectedIndex].text;
+            
+            // Update the game badge if it exists
+            if (gameBadge) {
+                const gameType = gameTypeMap[gameValue] || 'Game';
+                gameBadge.textContent = gameType;
+            }
+        } else {
+            // No game selected, use default image
+            previewImage.src = GAME_IMAGES.default;
+            previewImage.alt = "Game";
+            
+            // Update the game badge if it exists
+            if (gameBadge) {
+                gameBadge.textContent = "Game";
+            }
+        }
+    }
     
     // Update rank preview
     const rankPreview = document.getElementById('rank-preview');
@@ -415,13 +453,18 @@ async function handleLobbyCreation(e) {
     
     // Get form data
     const formData = new FormData(e.target);
+    
+    // Get region value and ensure it's normalized
+    const regionValue = formData.get('region');
+    console.log('Original region value:', regionValue);
+    
     const lobbyData = {
         name: formData.get('name'),
         game: formData.get('game'),
-        gameType: getGameType(formData.get('game')),
+        gameType: formData.get('game'), // Use exactly the same value as game, not the derived game type
         maxPlayers: parseInt(formData.get('maxPlayers')) || 5,
         currentPlayers: 1, // Start with the host
-        region: formData.get('region'),
+        region: regionValue, // This is already the correct code (na, eu, asia, etc.)
         language: formData.get('language'),
         skillLevel: getRankLevel(formData.get('minRank')),
         rank: formData.get('minRank'),
@@ -437,6 +480,15 @@ async function handleLobbyCreation(e) {
         status: 'waiting',
         createdAt: new Date().toISOString()
     };
+    
+    // Log the key data for debugging
+    console.log('Creating lobby with key data:', {
+        name: lobbyData.name,
+        game: lobbyData.game,
+        region: lobbyData.region,  // Should be the code like "na", "eu", "asia"
+        rank: lobbyData.rank,
+        skillLevel: lobbyData.skillLevel
+    });
     
     // Add host ID if available
     if (userInfo && userInfo._id) {
@@ -518,6 +570,9 @@ async function handleLobbyCreation(e) {
                     email: userInfo ? userInfo.email : 'you@example.com'
                 };
             }
+            
+            // Log the final lobby data before saving
+            console.log('Final lobby data being saved to localStorage:', JSON.stringify(lobbyData));
             
             // Add to existing lobbies
             existingLobbies.push(lobbyData);
@@ -666,107 +721,5 @@ function showLoginError(message) {
     } else {
         // Fallback to alert if error element not found
         alert(message);
-    }
-}
-
-/**
- * Set up the preview functionality for the form
- */
-function setupPreviewFunctionality() {
-    // Game type mapping
-    const gameTypeMap = {
-        'valorant': 'FPS',
-        'csgo': 'FPS',
-        'lol': 'MOBA',
-        'dota2': 'MOBA',
-        'apex': 'Battle Royale',
-        'fortnite': 'Battle Royale',
-        'overwatch': 'FPS',
-        'rocketleague': 'Sports'
-    };
-    
-    // Game image mapping
-    const GAME_IMAGES = {
-        'val': '../resources/valorant.png',
-        'cs': '../resources/CS2.png',
-        'lol': '../resources/leageofLegend.png.png',
-        'apex': '../resources/apex.png.png',
-        'default': '../resources/default-game.png'
-    };
-    
-    // Get form elements
-    const lobbyNameInput = document.getElementById('name');
-    const gameSelect = document.getElementById('game');
-    const regionSelect = document.getElementById('region');
-    const languageSelect = document.getElementById('language');
-    
-    // Get preview elements
-    const previewName = document.getElementById('preview-name');
-    const previewImage = document.getElementById('preview-image');
-    const regionPreview = document.getElementById('region-preview');
-    const languagePreview = document.getElementById('language-preview');
-    const gameBadge = document.querySelector('.game-badge');
-    
-    // If we have the required elements, set up live preview
-    if (lobbyNameInput && previewName) {
-        lobbyNameInput.addEventListener('input', function() {
-            previewName.textContent = this.value || 'Your Lobby Name';
-        });
-    }
-    
-    if (gameSelect && previewImage && gameBadge) {
-        gameSelect.addEventListener('change', function() {
-            const gameValue = this.value;
-            const gameType = gameTypeMap[gameValue] || 'Game';
-            
-            // Update game badge
-            gameBadge.textContent = gameType;
-            
-            // Update game image
-            previewImage.src = GAME_IMAGES[gameValue] || GAME_IMAGES.default;
-            previewImage.alt = this.options[this.selectedIndex].text;
-        });
-    }
-    
-    if (regionSelect && regionPreview) {
-        regionSelect.addEventListener('change', function() {
-            const regionMap = {
-                'na': 'North America',
-                'eu': 'Europe',
-                'asia': 'Asia',
-                'oceania': 'Oceania',
-                'sa': 'South America'
-            };
-            
-            regionPreview.textContent = regionMap[this.value] || this.options[this.selectedIndex].text;
-        });
-    }
-    
-    if (languageSelect && languagePreview) {
-        languageSelect.addEventListener('change', function() {
-            languagePreview.textContent = this.options[this.selectedIndex].text;
-        });
-    }
-    
-    // Apply 3D effect to preview card
-    const previewCard = document.querySelector('.preview-card');
-    if (previewCard) {
-        previewCard.addEventListener('mousemove', function(e) {
-            const rect = this.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            
-            const angleX = (y - centerY) / 20;
-            const angleY = (centerX - x) / 20;
-            
-            this.style.transform = `perspective(1000px) rotateX(${angleX}deg) rotateY(${angleY}deg) scale3d(1.02, 1.02, 1.02)`;
-        });
-        
-        previewCard.addEventListener('mouseleave', function() {
-            this.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
-        });
     }
 }

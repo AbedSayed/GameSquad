@@ -69,6 +69,11 @@ const getLobbies = asyncHandler(async (req, res) => {
       filter.language = req.query.language;
     }
     
+    if (req.query.region) {
+      filter.region = req.query.region;
+      console.log('Region filter:', filter.region);
+    }
+    
     // Log the final filter being used
     console.log('Using filter:', JSON.stringify(filter));
     
