@@ -183,39 +183,8 @@
                 playersList.appendChild(emptyState);
             }
             
-            // Set up the ready toggle button
-            const readyToggleBtn = document.getElementById('readyToggleBtn');
-            const yourStatus = document.getElementById('yourStatus');
-            
-            if (readyToggleBtn && yourStatus) {
-                readyToggleBtn.addEventListener('click', function() {
-                    const isReady = readyToggleBtn.classList.contains('ready');
-                    
-                    if (isReady) {
-                        // Toggle to not ready
-                        readyToggleBtn.classList.remove('ready');
-                        readyToggleBtn.classList.add('not-ready');
-                        readyToggleBtn.innerHTML = '<i class="fas fa-check"></i> <span>Mark as Ready</span>';
-                        yourStatus.textContent = 'Not Ready';
-                        yourStatus.className = 'status-badge not-ready';
-                        
-                        // Show notification
-                        showNotification('You are no longer ready', 'info');
-                    } else {
-                        // Toggle to ready
-                        readyToggleBtn.classList.remove('not-ready');
-                        readyToggleBtn.classList.add('ready');
-                        readyToggleBtn.innerHTML = '<i class="fas fa-times"></i> <span>Not Ready</span>';
-                        yourStatus.textContent = 'Ready';
-                        yourStatus.className = 'status-badge ready';
-                        
-                        // Show notification
-                        showNotification('You are now ready!', 'success');
-                    }
-                    
-                    // Here you would also send this status to your backend
-                });
-            }
+            // Note: Ready toggle button functionality is now handled in lobby.js
+            // Do not add event listeners here to avoid conflicts
         });
     </script>
 </body>
