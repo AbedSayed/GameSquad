@@ -371,7 +371,7 @@ class LobbiesModule {
             'fortnite': '../resources/default-game.png',
             'dota2': '../resources/default-game.png',
             'overwatch': '../resources/default-game.png',
-            'rocketleague': '../resources/default-game.png',
+            'rocketleague': '../assets/images/games/RL.png',
             'default': '../resources/default-game.png'
         };
         
