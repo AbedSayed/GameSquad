@@ -259,64 +259,144 @@
   color: #fff !important;
   padding: 20px !important;
   margin-bottom: 25px !important;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.3s ease;
+}
+
+.filters-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(87, 70, 175, 0.3);
+}
+
+.filters-title h2 {
+  font-size: 1.5rem;
+  margin: 0;
+  color: #a794ff;
+}
+
+.toggle-filters-btn {
+  background-color: rgba(87, 70, 175, 0.3) !important;
+  border: 1px solid rgba(87, 70, 175, 0.5) !important;
+  color: #fff !important;
+  padding: 8px 16px !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-filters-btn:hover {
+  background-color: rgba(87, 70, 175, 0.5) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-filters-btn i {
+  font-size: 1rem;
 }
 
 .filters-form {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
+  padding-top: 10px;
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
+  margin-bottom: 10px;
 }
 
 .filter-group label {
   font-weight: 500;
-  margin-bottom: 4px;
-  color: #555;
+  margin-bottom: 8px;
+  color: #a794ff;
+  font-size: 0.9rem;
 }
 
 .filter-group select {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background-color: white;
+  padding: 10px 12px;
+  border: 1px solid rgba(87, 70, 175, 0.3) !important;
+  border-radius: 8px;
+  background-color: rgba(30, 30, 40, 0.7) !important;
+  color: #fff !important;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
 }
 
-.filters-buttons {
+.filter-group select:focus {
+  border-color: rgba(87, 70, 175, 0.8) !important;
+  box-shadow: 0 0 0 2px rgba(87, 70, 175, 0.2);
+  outline: none;
+}
+
+.filter-actions {
+  grid-column: 1 / -1;
   display: flex;
-  gap: 10px;
-  margin-top: 16px;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 10px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(87, 70, 175, 0.2);
 }
 
 .apply-filters, .reset-filters {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-weight: 500;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .apply-filters {
-  background-color: #3f51b5;
+  background-color: rgba(87, 70, 175, 0.8);
   color: white;
+  border: none;
 }
 
 .apply-filters:hover {
-  background-color: #303f9f;
+  background-color: rgba(87, 70, 175, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
 }
 
 .reset-filters {
-  background-color: #f5f5f5;
-  color: #555;
-  border: 1px solid #ddd;
+  background-color: rgba(30, 30, 40, 0.7);
+  color: #fff;
+  border: 1px solid rgba(87, 70, 175, 0.3);
 }
 
 .reset-filters:hover {
-  background-color: #eeeeee;
+  background-color: rgba(40, 40, 50, 0.9);
+  transform: translateY(-2px);
+}
+
+/* Responsive layout for filters */
+@media (max-width: 768px) {
+  .filters-form {
+    grid-template-columns: 1fr;
+  }
+  
+  .filters-title {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .filter-actions {
+    justify-content: space-between;
+  }
 }
 
 /* Enhanced create-lobby page styles */
@@ -1299,22 +1379,15 @@ div[style*="background:#fff"] {
 
 /* Skill level dots */
 .skill-level {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 10px;
+    display: none;
 }
 
-.skill-level-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.2);
-    transition: all 0.3s ease;
+.skill-dots {
+    display: none;
 }
 
-.skill-level-dot.active {
-    background-color: #6c5ce7;
-    box-shadow: 0 0 8px #6c5ce7;
+.skill-dot {
+    display: none;
 }
 
 /* Make sure game cards display properly */
@@ -1419,4 +1492,163 @@ div[style*="background:#fff"] {
     margin-top: 15px;
     display: flex;
     gap: 10px;
+}
+
+/* Rank Badges */
+.rank-level {
+    display: flex;
+    align-items: center;
+    margin-top: 12px;
+    margin-bottom: 8px;
+}
+
+.rank-level span:first-child {
+    font-weight: 600;
+    margin-right: 10px;
+    color: #a794ff;
+}
+
+.rank-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background-color: rgba(30, 30, 40, 0.7);
+    border: 1px solid rgba(87, 70, 175, 0.5);
+    color: #ffffff;
+    box-shadow: 0 0 5px rgba(120, 100, 255, 0.2);
+    transition: all 0.2s ease;
+}
+
+/* Rank-specific colors for Valorant */
+.rank-iron {
+    background-color: rgba(90, 90, 90, 0.5);
+    border-color: #6e6e6e;
+    color: #b0b0b0;
+}
+
+.rank-bronze {
+    background-color: rgba(120, 80, 40, 0.5);
+    border-color: #b17e45;
+    color: #cd9b67;
+}
+
+.rank-silver {
+    background-color: rgba(100, 120, 140, 0.5);
+    border-color: #96a9b7;
+    color: #c4d0da;
+}
+
+.rank-gold {
+    background-color: rgba(160, 120, 40, 0.5);
+    border-color: #d4af37;
+    color: #ffd700;
+}
+
+.rank-platinum {
+    background-color: rgba(60, 170, 170, 0.5);
+    border-color: #58c6c6;
+    color: #7be3e3;
+}
+
+.rank-diamond {
+    background-color: rgba(80, 130, 190, 0.5);
+    border-color: #4d91e0;
+    color: #83b4ff;
+}
+
+.rank-ascendant {
+    background-color: rgba(20, 150, 100, 0.5);
+    border-color: #0fbb78;
+    color: #4dffc0;
+}
+
+.rank-immortal {
+    background-color: rgba(150, 60, 150, 0.5);
+    border-color: #cf5dcf;
+    color: #ff8aff;
+}
+
+.rank-radiant {
+    background-color: rgba(240, 150, 40, 0.5);
+    border-color: #ffb74d;
+    color: #ffda9e;
+    text-shadow: 0 0 5px rgba(255, 220, 160, 0.5);
+}
+
+/* CS2 Ranks */
+.rank-silver1, .rank-silver2, .rank-silverelite, .rank-silverelitefm {
+    background-color: rgba(100, 120, 140, 0.5);
+    border-color: #96a9b7;
+    color: #c4d0da;
+}
+
+.rank-goldnova1, .rank-goldnova2, .rank-goldnova3, .rank-goldnovam {
+    background-color: rgba(160, 120, 40, 0.5);
+    border-color: #d4af37;
+    color: #ffd700;
+}
+
+.rank-mg1, .rank-mg2, .rank-mge {
+    background-color: rgba(150, 60, 0, 0.5);
+    border-color: #d98c45;
+    color: #ffac69;
+}
+
+.rank-dmg, .rank-le, .rank-lem {
+    background-color: rgba(180, 30, 30, 0.5);
+    border-color: #d93636;
+    color: #ff6f6f;
+}
+
+.rank-supreme, .rank-global {
+    background-color: rgba(240, 150, 40, 0.5);
+    border-color: #ffb74d;
+    color: #ffd78e;
+    text-shadow: 0 0 5px rgba(255, 200, 130, 0.5);
+}
+
+/* Apex Legends Ranks */
+.rank-predator {
+    background-color: rgba(200, 30, 40, 0.5);
+    border-color: #e03b4a;
+    color: #ff5e6d;
+    text-shadow: 0 0 5px rgba(255, 100, 110, 0.5);
+}
+
+/* League of Legends & Other Games */
+.rank-master {
+    background-color: rgba(140, 40, 140, 0.5);
+    border-color: #bf3fbf;
+    color: #ff7aff;
+}
+
+.rank-grandmaster {
+    background-color: rgba(190, 50, 50, 0.5);
+    border-color: #e84e4e;
+    color: #ff9090;
+}
+
+.rank-challenger {
+    background-color: rgba(40, 150, 200, 0.5);
+    border-color: #4cb5e8;
+    color: #7dd3ff;
+    text-shadow: 0 0 5px rgba(125, 200, 255, 0.5);
+}
+
+/* Hover effects for rank badges */
+.rank-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(120, 100, 255, 0.3);
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .rank-badge {
+        padding: 3px 8px;
+        font-size: 0.8rem;
+    }
 }

@@ -101,17 +101,6 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label for="rankFilter">Skill Level</label>
-                    <select id="rankFilter" class="filter-input" style="background-color: rgba(30, 30, 40, 0.7) !important; color: #fff !important; border: 1px solid rgba(87, 70, 175, 0.3) !important;">
-                        <option value="">Any level</option>
-                        <option value="1">Beginner</option>
-                        <option value="2">Casual</option>
-                        <option value="3">Intermediate</option>
-                        <option value="4">Advanced</option>
-                        <option value="5">Expert</option>
-                    </select>
-                </div>
-                <div class="filter-group">
                     <label for="statusFilter">Status</label>
                     <select id="statusFilter" class="filter-input" style="background-color: rgba(30, 30, 40, 0.7) !important; color: #fff !important; border: 1px solid rgba(87, 70, 175, 0.3) !important;">
                         <option value="">Any status</option>
@@ -277,7 +266,6 @@
             // Form filters (connect with lobbies.js)
             const gameFilter = document.getElementById('gameFilter');
             const regionFilter = document.getElementById('regionFilter');
-            const rankFilter = document.getElementById('rankFilter');
             const statusFilter = document.getElementById('statusFilter');
             const resetFilterBtn = document.querySelector('.reset-filters');
             const applyFilterBtn = document.querySelector('.apply-filters');
@@ -289,7 +277,6 @@
                     
                     const filters = {
                         game: gameValue,
-                        skillLevel: rankFilter ? rankFilter.value : '',
                         region: regionFilter ? regionFilter.value : '',
                         status: statusFilter ? statusFilter.value : ''
                     };
@@ -306,7 +293,6 @@
             if (resetFilterBtn) {
                 resetFilterBtn.addEventListener('click', function() {
                     if (gameFilter) gameFilter.value = '';
-                    if (rankFilter) rankFilter.value = '';
                     if (regionFilter) regionFilter.value = '';
                     if (statusFilter) statusFilter.value = '';
                     

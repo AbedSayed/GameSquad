@@ -503,6 +503,44 @@ class LobbiesModule {
             gameDisplayName = lobby.game;
         }
         
+        // Get formatted rank display
+        let rankDisplay = 'Any Rank';
+        if (lobby.rank) {
+            // Special case for CS2 ranks with underscores
+            if (game === 'csgo' && lobby.rank.includes('_')) {
+                // Convert underscore format to display format
+                // Example: master_guardian_elite -> Master Guardian Elite
+                rankDisplay = lobby.rank
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+                
+                // Store the normalized rank for filtering
+                lobby.normalizedRank = lobby.rank.replace(/[_\s]/g, '').toLowerCase();
+            } else {
+                // Get the game ranks to display the proper rank label
+                const gameRanks = this.getGameRanks(game);
+                
+                if (gameRanks) {
+                    // Find the matching rank to get its label
+                    const rankEntry = gameRanks.find(r => 
+                        r.value === lobby.rank.toLowerCase() || 
+                        r.value === lobby.rank.replace(/[_\s]/g, '').toLowerCase()
+                    );
+                    if (rankEntry) {
+                        rankDisplay = rankEntry.label;
+                        // Store normalized rank for filtering
+                        lobby.normalizedRank = rankEntry.value;
+                    } else {
+                        // If no exact match found, try to format the rank string
+                        rankDisplay = lobby.rank.charAt(0).toUpperCase() + lobby.rank.slice(1).replace(/([A-Z])/g, ' $1').trim();
+                        // Store normalized rank for filtering
+                        lobby.normalizedRank = lobby.rank.replace(/[_\s]/g, '').toLowerCase();
+                    }
+                }
+            }
+        }
+        
         // Create the HTML content for the card
         card.innerHTML = `
             <div class="game-card-header">
@@ -533,11 +571,9 @@ class LobbiesModule {
                         <span>${hostName}</span>
                     </div>
                 </div>
-                <div class="skill-level">
-                    <span>Skill Level:</span>
-                    <div class="skill-dots">
-                        ${this.generateSkillDots(lobby.skillLevel || 1)}
-                    </div>
+                <div class="rank-level">
+                    <span>Rank:</span>
+                    <span class="rank-badge rank-${lobby.rank || 'any'}">${rankDisplay}</span>
                 </div>
             </div>
             <div class="game-card-footer">
@@ -620,14 +656,32 @@ class LobbiesModule {
         
         // Debug - log all lobbies with their region and rank values 
         lobbies.forEach(lobby => {
-            console.log(`Lobby "${lobby.name}": game=${lobby.game}, region=${lobby.region}, rank=${lobby.rank}, skillLevel=${lobby.skillLevel}`);
+            console.log(`Lobby "${lobby.name}": game=${lobby.game}, gameType=${lobby.gameType}, region=${lobby.region}, rank=${lobby.rank}, skillLevel=${lobby.skillLevel}`);
         });
+        
+        // Create demo rank data if needed for testing
+        lobbies = this.enrichLobbyRankData(lobbies, cleanFilters.game);
         
         const filteredLobbies = lobbies.filter(lobby => {
             // Game filter
-            if (cleanFilters.game && lobby.game && lobby.game.toLowerCase() !== cleanFilters.game) {
-                console.log(`Filtering out "${lobby.name}" - game mismatch: ${lobby.game} vs ${cleanFilters.game}`);
-                return false;
+            if (cleanFilters.game) {
+                // Determine if the lobby matches the requested game
+                let matchesGame = false;
+                
+                // Check different possible game fields
+                if (lobby.game && lobby.game.toLowerCase() === cleanFilters.game) {
+                    matchesGame = true;
+                } else if (lobby.gameType && lobby.gameType.toLowerCase() === cleanFilters.game) {
+                    matchesGame = true;
+                } else if (lobby.gameName && lobby.gameName.toLowerCase().includes(cleanFilters.game)) {
+                    matchesGame = true;
+                }
+                
+                // If no match found for the game, filter out this lobby
+                if (!matchesGame) {
+                    console.log(`Filtering out "${lobby.name}" - game mismatch`);
+                    return false;
+                }
             }
             
             // Region filter
@@ -639,34 +693,111 @@ class LobbiesModule {
                 }
             }
             
-            // Skill Level filter
-            if (cleanFilters.skillLevel) {
-                const requestedSkillLevel = parseInt(cleanFilters.skillLevel);
-                
-                // Try to match by numeric skillLevel first
-                if (!isNaN(requestedSkillLevel) && lobby.skillLevel) {
-                    const lobbySkillLevel = parseInt(lobby.skillLevel);
-                    if (!isNaN(lobbySkillLevel) && requestedSkillLevel !== lobbySkillLevel) {
-                        console.log(`Filtering out "${lobby.name}" - skillLevel mismatch: ${lobbySkillLevel} vs ${requestedSkillLevel}`);
-                        return false;
-                    }
-                } 
-                // Fallback to check rank as string if skillLevel doesn't match
-                else if (lobby.rank) {
-                    const lobbyRank = lobby.rank.toLowerCase();
-                    // Convert numeric skill level to text rank for comparison
-                    let rankValue = cleanFilters.skillLevel;
-                    
-                    // If it doesn't match directly, check if it's a numeric skill level
-                    if (lobbyRank !== rankValue && !lobbyRank.includes(rankValue)) {
-                        console.log(`Filtering out "${lobby.name}" - rank mismatch: ${lobbyRank} vs ${rankValue}`);
-                        return false;
-                    }
-                } else {
-                    // If we can't find a skill level or rank match, filter it out
-                    console.log(`Filtering out "${lobby.name}" - no skill level or rank data`);
-                    return false;
+            // Rank filter
+            if (cleanFilters.rank) {
+                // Get the game for this lobby to determine rank structure
+                let gameKey = 'default';
+                if (cleanFilters.game) {
+                    // Use the selected game filter for consistent rank matching
+                    gameKey = cleanFilters.game.toLowerCase();
+                } else if (lobby.gameType) {
+                    gameKey = lobby.gameType.toLowerCase();
+                } else if (lobby.game && ['valorant', 'csgo', 'lol', 'apex', 'fortnite', 'dota2', 'overwatch'].includes(lobby.game.toLowerCase())) {
+                    gameKey = lobby.game.toLowerCase();
                 }
+                
+                console.log(`Checking rank filter for "${lobby.name}": game=${gameKey}, filterRank=${cleanFilters.rank}, lobbyRank=${lobby.rank}`);
+                
+                // Use normalized ranks to make comparison easier
+                // If we have a normalized rank stored from createLobbyCard, use it
+                const normalizedLobbyRank = lobby.normalizedRank ? 
+                    lobby.normalizedRank.toLowerCase() : 
+                    (lobby.rank || '').replace(/[_\s-]/g, '').toLowerCase();
+                
+                const normalizedFilterRank = cleanFilters.rank.replace(/[_\s-]/g, '').toLowerCase();
+                
+                console.log(`Normalized ranks: lobby=${normalizedLobbyRank}, filter=${normalizedFilterRank}`);
+                
+                // First try simple exact matching (most reliable)
+                if (normalizedLobbyRank === normalizedFilterRank) {
+                    console.log(`Exact rank match for "${lobby.name}": ${normalizedLobbyRank} = ${normalizedFilterRank}`);
+                    return true;
+                }
+                
+                // Next try contains matching (more forgiving)
+                if (normalizedLobbyRank.includes(normalizedFilterRank) || 
+                    normalizedFilterRank.includes(normalizedLobbyRank)) {
+                    console.log(`Partial rank match for "${lobby.name}": ${normalizedLobbyRank} contains/is contained in ${normalizedFilterRank}`);
+                    return true;
+                }
+                
+                // Get the game's rank structure to compare by position
+                const gameRanks = this.getGameRanks(gameKey);
+                if (gameRanks && gameRanks.length > 0) {
+                    // Find positions in rank hierarchy
+                    const filterRankIndex = gameRanks.findIndex(r => 
+                        r.value.toLowerCase() === normalizedFilterRank || 
+                        normalizedFilterRank.includes(r.value.toLowerCase()) ||
+                        r.label.toLowerCase().replace(/\s+/g, '') === normalizedFilterRank);
+                        
+                    const lobbyRankIndex = gameRanks.findIndex(r => 
+                        r.value.toLowerCase() === normalizedLobbyRank || 
+                        normalizedLobbyRank.includes(r.value.toLowerCase()) ||
+                        r.label.toLowerCase().replace(/\s+/g, '') === normalizedLobbyRank);
+                    
+                    // If we found both ranks in the hierarchy, compare them
+                    if (filterRankIndex !== -1 && lobbyRankIndex !== -1) {
+                        // Exact position match
+                        if (filterRankIndex === lobbyRankIndex) {
+                            console.log(`Rank hierarchy match for "${lobby.name}": positions match (${filterRankIndex})`);
+                            return true;
+                        }
+                    }
+                }
+                
+                // Special handling for games with rank variations
+                
+                // CS2-specific handling (if needed)
+                if (gameKey === 'csgo') {
+                    // Common CS2 rank mappings for abbreviations
+                    const csMapping = {
+                        'mge': 'masterguardianelite',
+                        'masterguardianelite': 'mge',
+                        'dmg': 'distinguishedmasterguardian',
+                        'distinguishedmasterguardian': 'dmg',
+                        'le': 'legendaryeagle',
+                        'legendaryeagle': 'le',
+                        'lem': 'legendaryeaglemaster',
+                        'legendaryeaglemaster': 'lem',
+                        'smfc': 'suprememasterfirstclass',
+                        'suprememasterfirstclass': 'smfc',
+                        'ge': 'globalelite',
+                        'globalelite': 'ge'
+                    };
+                    
+                    // Check if we can match using CS2 rank mappings
+                    if (csMapping[normalizedLobbyRank] === normalizedFilterRank || 
+                        csMapping[normalizedFilterRank] === normalizedLobbyRank) {
+                        console.log(`CS2 abbreviation match for "${lobby.name}"`);
+                        return true;
+                    }
+                }
+                
+                // League of Legends handling
+                if (gameKey === 'lol') {
+                    // Check for rank tier with divisions (e.g., "gold 4" should match "gold")
+                    const lobbyRankBase = normalizedLobbyRank.replace(/[0-9ivx]+$/, '').trim();
+                    const filterRankBase = normalizedFilterRank.replace(/[0-9ivx]+$/, '').trim();
+                    
+                    if (lobbyRankBase === filterRankBase) {
+                        console.log(`LoL rank tier match for "${lobby.name}": ${lobbyRankBase}`);
+                        return true;
+                    }
+                }
+                
+                // No match found after all attempts
+                console.log(`Filtering out "${lobby.name}" - no rank match between ${lobby.rank} vs ${cleanFilters.rank}`);
+                return false;
             }
             
             // Status filter
@@ -686,6 +817,148 @@ class LobbiesModule {
         return filteredLobbies;
     }
     
+    // Enrich lobbies with game-specific rank data for better filtering
+    enrichLobbyRankData(lobbies, gameFilter) {
+        // Only process if we have a game filter
+        if (!gameFilter) return lobbies;
+        
+        console.log(`Enriching lobby rank data for game: ${gameFilter}`);
+        
+        // Clone lobbies to avoid modifying the original
+        const enrichedLobbies = lobbies.map(lobby => {
+            const enrichedLobby = {...lobby};
+            
+            // Skip if lobby already has a rank
+            if (enrichedLobby.rank) return enrichedLobby;
+            
+            // Check if this lobby matches the game filter
+            let matchesGame = false;
+            if (enrichedLobby.game && enrichedLobby.game.toLowerCase() === gameFilter) {
+                matchesGame = true;
+            } else if (enrichedLobby.gameType && enrichedLobby.gameType.toLowerCase() === gameFilter) {
+                matchesGame = true;
+            } else if (enrichedLobby.gameName && enrichedLobby.gameName.toLowerCase().includes(gameFilter)) {
+                matchesGame = true;
+            }
+            
+            // Only add rank data if the lobby matches the game filter
+            if (matchesGame && enrichedLobby.skillLevel) {
+                // Convert numeric skill level to game-specific rank
+                const gameRanks = this.getGameRanks(gameFilter);
+                if (gameRanks && gameRanks.length > 0) {
+                    // Map skill level 1-5 to appropriate rank index
+                    const normalizedLevel = Math.max(1, Math.min(5, enrichedLobby.skillLevel));
+                    const rankIndex = Math.floor((normalizedLevel - 1) / 5 * (gameRanks.length - 1));
+                    
+                    if (gameRanks[rankIndex]) {
+                        enrichedLobby.rank = gameRanks[rankIndex].value;
+                        console.log(`Enriched lobby "${enrichedLobby.name}" with rank: ${enrichedLobby.rank} (from skillLevel: ${enrichedLobby.skillLevel})`);
+                    }
+                }
+            }
+            
+            return enrichedLobby;
+        });
+        
+        return enrichedLobbies;
+    }
+    
+    // Helper function to get ranks for a specific game
+    getGameRanks(game) {
+        if (!game) return null;
+        
+        // Define rank options for different games
+        const gameRanks = {
+            'valorant': [
+                { value: 'iron', label: 'Iron' },
+                { value: 'bronze', label: 'Bronze' },
+                { value: 'silver', label: 'Silver' },
+                { value: 'gold', label: 'Gold' },
+                { value: 'platinum', label: 'Platinum' },
+                { value: 'diamond', label: 'Diamond' },
+                { value: 'ascendant', label: 'Ascendant' },
+                { value: 'immortal', label: 'Immortal' },
+                { value: 'radiant', label: 'Radiant' }
+            ],
+            'csgo': [
+                { value: 'silver1', label: 'Silver I' },
+                { value: 'silver2', label: 'Silver II' },
+                { value: 'silverelite', label: 'Silver Elite' },
+                { value: 'silverelitefm', label: 'Silver Elite Master' },
+                { value: 'goldnova1', label: 'Gold Nova I' },
+                { value: 'goldnova2', label: 'Gold Nova II' },
+                { value: 'goldnova3', label: 'Gold Nova III' },
+                { value: 'goldnovam', label: 'Gold Nova Master' },
+                { value: 'mg1', label: 'Master Guardian I' },
+                { value: 'mg2', label: 'Master Guardian II' },
+                { value: 'mge', label: 'Master Guardian Elite' },
+                { value: 'dmg', label: 'Distinguished Master Guardian' },
+                { value: 'le', label: 'Legendary Eagle' },
+                { value: 'lem', label: 'Legendary Eagle Master' },
+                { value: 'supreme', label: 'Supreme Master First Class' },
+                { value: 'global', label: 'Global Elite' }
+            ],
+            'lol': [
+                { value: 'iron', label: 'Iron' },
+                { value: 'bronze', label: 'Bronze' },
+                { value: 'silver', label: 'Silver' },
+                { value: 'gold', label: 'Gold' },
+                { value: 'platinum', label: 'Platinum' },
+                { value: 'diamond', label: 'Diamond' },
+                { value: 'master', label: 'Master' },
+                { value: 'grandmaster', label: 'Grandmaster' },
+                { value: 'challenger', label: 'Challenger' }
+            ],
+            'apex': [
+                { value: 'bronze', label: 'Bronze' },
+                { value: 'silver', label: 'Silver' },
+                { value: 'gold', label: 'Gold' },
+                { value: 'platinum', label: 'Platinum' },
+                { value: 'diamond', label: 'Diamond' },
+                { value: 'master', label: 'Master' },
+                { value: 'predator', label: 'Apex Predator' }
+            ],
+            'fortnite': [
+                { value: 'open', label: 'Open League' },
+                { value: 'contender', label: 'Contender League' },
+                { value: 'champion', label: 'Champion League' }
+            ],
+            'dota2': [
+                { value: 'herald', label: 'Herald' },
+                { value: 'guardian', label: 'Guardian' },
+                { value: 'crusader', label: 'Crusader' },
+                { value: 'archon', label: 'Archon' },
+                { value: 'legend', label: 'Legend' },
+                { value: 'ancient', label: 'Ancient' },
+                { value: 'divine', label: 'Divine' },
+                { value: 'immortal', label: 'Immortal' }
+            ],
+            'overwatch': [
+                { value: 'bronze', label: 'Bronze' },
+                { value: 'silver', label: 'Silver' },
+                { value: 'gold', label: 'Gold' },
+                { value: 'platinum', label: 'Platinum' },
+                { value: 'diamond', label: 'Diamond' },
+                { value: 'master', label: 'Master' },
+                { value: 'grandmaster', label: 'Grandmaster' },
+                { value: 'toptier', label: 'Top 500' }
+            ],
+            'default': [
+                { value: '1', label: 'Beginner' },
+                { value: '2', label: 'Casual' },
+                { value: '3', label: 'Intermediate' },
+                { value: '4', label: 'Advanced' },
+                { value: '5', label: 'Expert' }
+            ]
+        };
+        
+        // Check for game key in different formats
+        const gameKey = game.toLowerCase();
+        
+        // Return rank array for the game or default if not found
+        return gameRanks[gameKey] || gameRanks['default'];
+    }
+    
     // Generate demo lobbies for testing when no real lobbies exist
     generateDemoLobbies() {
         const gameTypes = window.APP_CONFIG?.GAME_TYPES || ['FPS', 'MOBA', 'RPG', 'Strategy', 'Sports', 'Racing', 'Other'];
@@ -703,6 +976,8 @@ class LobbiesModule {
                 currentPlayers: 1,
                 status: 'open',
                 skillLevel: 4,
+                rank: 'diamond', // Game-specific rank for Apex Legends
+                region: 'na',
                 host: demoUserId,
                 hostInfo: {
                     _id: demoUserId,
@@ -723,6 +998,8 @@ class LobbiesModule {
                 currentPlayers: 3,
                 status: 'open',
                 skillLevel: 2,
+                rank: 'silver', // Game-specific rank for League of Legends
+                region: 'eu',
                 host: 'other-user-1',
                 hostInfo: {
                     _id: 'other-user-1',
@@ -743,6 +1020,8 @@ class LobbiesModule {
                 currentPlayers: 5,
                 status: 'full',
                 skillLevel: 5,
+                rank: 'immortal', // Game-specific rank for Valorant
+                region: 'na',
                 host: 'other-user-2',
                 hostInfo: {
                     _id: 'other-user-2',
@@ -754,43 +1033,91 @@ class LobbiesModule {
             },
             {
                 _id: 'demo-lobby-4',
-                name: 'Minecraft Building',
-                game: 'Other',
-                gameName: 'Minecraft',
-                gameType: 'minecraft',
-                description: 'Creative mode building project, bring your ideas!',
-                maxPlayers: 8,
-                currentPlayers: 3,
-                status: 'open',
-                skillLevel: 1,
-                host: 'other-user-3',
-                hostInfo: {
-                    _id: 'other-user-3',
-                    username: 'CreativeMiner',
-                    email: 'miner@example.com'
-                },
-                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
-                gameImage: '../resources/minecraft.png'
-            },
-            {
-                _id: 'demo-lobby-5',
-                name: 'Fortnite Squad',
+                name: 'CS2 Competitive Matchmaking',
                 game: 'FPS',
-                gameName: 'Fortnite',
-                gameType: 'fortnite',
-                description: 'Looking for a fourth for squads',
-                maxPlayers: 4,
+                gameName: 'Counter-Strike 2',
+                gameType: 'csgo',
+                description: 'Looking for Gold Nova+ players for MM',
+                maxPlayers: 5, 
                 currentPlayers: 3,
                 status: 'open',
                 skillLevel: 3,
+                rank: 'goldnova3', // Game-specific rank for CS2
+                region: 'eu',
+                host: 'other-user-3',
+                hostInfo: {
+                    _id: 'other-user-3',
+                    username: 'HeadshotMaster',
+                    email: 'hs@example.com'
+                },
+                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(), // 4 hours ago
+                gameImage: '../resources/counter-strike-png-.png'
+            },
+            {
+                _id: 'demo-lobby-5',
+                name: 'Valorant Iron Team',
+                game: 'FPS',
+                gameName: 'Valorant',
+                gameType: 'valorant',
+                description: 'Iron players only, learning the game',
+                maxPlayers: 5,
+                currentPlayers: 2,
+                status: 'open',
+                skillLevel: 1,
+                rank: 'iron', // Game-specific rank for Valorant
+                region: 'na',
                 host: 'other-user-4',
                 hostInfo: {
                     _id: 'other-user-4',
-                    username: 'FortnitePro',
-                    email: 'fortnite@example.com'
+                    username: 'NewToValorant',
+                    email: 'newbie@example.com'
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(), // 8 hours ago
-                gameImage: '../resources/fortnite.png'
+                gameImage: '../resources/Valorant-Logo-PNG-Image.png'
+            },
+            {
+                _id: 'demo-lobby-6',
+                name: 'Gold Valorant Team',
+                game: 'FPS',
+                gameName: 'Valorant',
+                gameType: 'valorant',
+                description: 'Gold players looking for more',
+                maxPlayers: 5,
+                currentPlayers: 3,
+                status: 'open',
+                skillLevel: 3,
+                rank: 'gold', // Game-specific rank for Valorant
+                region: 'eu',
+                host: 'other-user-5',
+                hostInfo: {
+                    _id: 'other-user-5',
+                    username: 'GoldShots',
+                    email: 'gold@example.com'
+                },
+                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(), // 10 hours ago
+                gameImage: '../resources/Valorant-Logo-PNG-Image.png'
+            },
+            {
+                _id: 'demo-lobby-7',
+                name: 'Apex Casual',
+                game: 'FPS',
+                gameName: 'Apex Legends',
+                gameType: 'apex',
+                description: 'Casual Apex games, all welcome',
+                maxPlayers: 3,
+                currentPlayers: 1,
+                status: 'open',
+                skillLevel: 2,
+                rank: 'silver', // Game-specific rank for Apex Legends
+                region: 'na',
+                host: 'other-user-6',
+                hostInfo: {
+                    _id: 'other-user-6',
+                    username: 'CasualGamer',
+                    email: 'casual@example.com'
+                },
+                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(), // 12 hours ago
+                gameImage: '../resources/apex.png.png'
             }
         ];
         
@@ -830,8 +1157,15 @@ class LobbiesModule {
             lobbies = this.clearAndReinitLobbies();
         }
         
-        // Fix any inconsistent region values
+        // Fix any inconsistent region values and add proper rank data
         lobbies = this.fixLobbyData(lobbies);
+        
+        // Ensure all lobbies have appropriate game-specific rank data based on their skillLevel
+        if (filters.game) {
+            // Enrich with game-specific ranks
+            lobbies = this.enrichLobbyRankData(lobbies, filters.game);
+            console.log('Lobbies after rank enrichment:', lobbies);
+        }
         
         // Apply filters if any
         if (Object.keys(filters).length > 0) {
@@ -910,25 +1244,6 @@ class LobbiesModule {
         }
         
         return fixedLobbies;
-    }
-    
-    // Generate skill level dots
-    generateSkillDots(level) {
-        level = parseInt(level) || 1;
-        let dots = '';
-        
-        // Make sure level is between 1 and 5
-        level = Math.max(1, Math.min(5, level));
-        
-        for (let i = 1; i <= 5; i++) {
-            if (i <= level) {
-                dots += '<span class="skill-dot active"></span>';
-            } else {
-                dots += '<span class="skill-dot"></span>';
-            }
-        }
-        
-        return dots;
     }
     
     // Show notification
@@ -1016,9 +1331,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Get additional filters from URL (rank, region, status) if present
-    ['skillLevel', 'region', 'status'].forEach(param => {
-        const value = urlParams.get(param === 'skillLevel' ? 'rank' : param);
+    // Get additional filters from URL (region, status) if present
+    ['region', 'status'].forEach(param => {
+        const value = urlParams.get(param);
         if (value) {
             initialFilters[param] = value;
         }
@@ -1033,7 +1348,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Find corresponding filter element
             let elementId;
             if (key === 'game') elementId = 'gameFilter';
-            else if (key === 'skillLevel') elementId = 'rankFilter';
             else if (key === 'region') elementId = 'regionFilter';
             else if (key === 'status') elementId = 'statusFilter';
             
@@ -1062,12 +1376,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get values from filter inputs
             const gameFilter = document.getElementById('gameFilter');
             const regionFilter = document.getElementById('regionFilter');
-            const rankFilter = document.getElementById('rankFilter');
             const statusFilter = document.getElementById('statusFilter');
             
             if (gameFilter && gameFilter.value) filters.game = gameFilter.value;
             if (regionFilter && regionFilter.value) filters.region = regionFilter.value;
-            if (rankFilter && rankFilter.value) filters.skillLevel = rankFilter.value;
             if (statusFilter && statusFilter.value) filters.status = statusFilter.value;
             
             console.log('Applying filters:', filters);
