@@ -48,47 +48,53 @@
 
                 <div class="lobby-details-container">
                     <div class="lobby-info-panel">
-                        <div class="lobby-game-header">
-                            <img id="game-icon" src="../assets/csgo-icon.png" alt="Game Icon">
-                            <h1 id="lobby-name">Loading Lobby...</h1>
+                        <!-- Lobby Header -->
+                        <div class="lobby-header">
+                            <div class="lobby-title">
+                                <img id="game-icon" src="../assets/csgo-icon.png" alt="CS:GO" class="game-icon">
+                                <h1 id="lobby-name">Loading...</h1>
+                            </div>
+                            <div class="lobby-meta">
+                                <span id="lobby-created">Created: Just now</span>
+                            </div>
+                        </div>
+
+                        <!-- Game Details Section -->
+                        <div class="game-details-section">
+                            <h2><i class="fas fa-info-circle"></i> Game Details</h2>
+                            <div class="game-info-grid">
+                                <div class="game-info-item">
+                                    <i class="fas fa-gamepad"></i>
+                                    <span id="game-type">Game: csgo</span>
+                                </div>
+                                <div class="game-info-item">
+                                    <i class="fas fa-users"></i>
+                                    <span id="player-count">Players: 3/5</span>
+                                </div>
+                                <div class="game-info-item">
+                                    <i class="fas fa-crown"></i>
+                                    <span id="host-name">Host: abeeddd</span>
+                                </div>
+                                <div class="game-info-item">
+                                    <i class="fas fa-trophy"></i>
+                                    <span id="rank-info">Rank: Any</span>
+                                </div>
+                                <div class="game-info-item">
+                                    <i class="fas fa-globe"></i>
+                                    <span id="region-info">Region: Any</span>
+                                </div>
+                                <div class="game-info-item">
+                                    <i class="fas fa-language"></i>
+                                    <span id="language-info">Language: Any</span>
+                                </div>
+                                <div class="game-info-item">
+                                    <i class="fas fa-signal"></i>
+                                    <span id="status-info">Status: Open</span>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="lobby-details-grid">
-                            <div class="detail-item">
-                                <i class="fas fa-user"></i>
-                                <div>
-                                    <span class="detail-label">Host</span>
-                                    <span id="lobby-host" class="detail-value">Loading...</span>
-                                </div>
-                            </div>
-                            <div class="detail-item">
-                                <i class="fas fa-users"></i>
-                                <div>
-                                    <span class="detail-label">Players</span>
-                                    <span id="lobby-players-count" class="detail-value">0/0</span>
-                                </div>
-                            </div>
-                            <div class="detail-item">
-                                <i class="fas fa-trophy"></i>
-                                <div>
-                                    <span class="detail-label">Rank</span>
-                                    <span id="lobby-rank" class="detail-value">Any</span>
-                                </div>
-                            </div>
-                            <div class="detail-item">
-                                <i class="fas fa-globe"></i>
-                                <div>
-                                    <span class="detail-label">Region</span>
-                                    <span id="lobby-region" class="detail-value">Loading...</span>
-                                </div>
-                            </div>
-                            <div class="detail-item">
-                                <i class="fas fa-language"></i>
-                                <div>
-                                    <span class="detail-label">Language</span>
-                                    <span id="lobby-language" class="detail-value">Loading...</span>
-                                </div>
-                            </div>
                             <div class="detail-item">
                                 <i class="fas fa-clock"></i>
                                 <div>
@@ -98,7 +104,8 @@
                             </div>
                         </div>
 
-                        <div class="lobby-description">
+                        <!-- Description Section -->
+                        <div class="description-section">
                             <h3>Description</h3>
                             <p id="lobby-description-text">Loading lobby description...</p>
                         </div>

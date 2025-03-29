@@ -674,51 +674,90 @@ window.Lobby.updateLobbiesUI = function(lobbies) {
   });
 };
 
-/**
- * Create a lobby card element
- * @param {Object} lobby - Lobby object
- * @returns {HTMLElement} - Lobby card element
- */
-window.Lobby.createLobbyCard = function(lobby) {
-  console.log('Creating card for lobby:', lobby);
-  
-  // Create card element
-  const card = document.createElement('div');
-  card.className = 'lobby-card';
-  card.setAttribute('data-lobby-id', lobby._id);
-  
-  // Parse dates
-  const createdDate = new Date(lobby.createdAt);
-  const formattedDate = createdDate.toLocaleDateString() + ' ' + createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  
-  // Status class for color-coding
-  let statusClass = 'status-waiting';
-  if (lobby.status === 'full') statusClass = 'status-full';
-  if (lobby.status === 'in-progress') statusClass = 'status-in-progress';
-  
-  // Get host name with consistent display format
-  let hostName = 'Unknown';
-  if (lobby.host) {
-    hostName = lobby.host.displayName || lobby.host.username || 'Unknown';
-  } else if (lobby.hostName) {
-    hostName = lobby.hostName;
-  } else if (lobby.creatorName) {
-    hostName = lobby.creatorName;
-  }
-  
-  // Create card content
-  card.innerHTML = `
-    <div class="lobby-name">${lobby.name || 'Unnamed Lobby'}</div>
-    <div class="lobby-game">${lobby.gameType || lobby.game || 'Unknown Game'}</div>
-    <div class="lobby-host">Host: ${hostName}</div>
-    <div class="lobby-players">Players: ${lobby.currentPlayers || 0}/${lobby.maxPlayers || 4}</div>
-    <div class="lobby-status ${statusClass}">${lobby.status || 'waiting'}</div>
-    <div class="lobby-created-at">Created: ${formattedDate}</div>
-    <a href="lobby-details.html?id=${lobby._id}" class="lobby-details-btn">Details</a>
-  `;
-  
-  return card;
-};
+// Add this function to format the details
+function formatGameDetail(value, type) {
+    if (!value || value === 'any') return 'Any';
+    
+    switch (type) {
+        case 'rank':
+            return value.split(/[-_]/)
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ');
+        case 'region':
+            const regionMap = {
+                'na': 'North America',
+                'eu': 'Europe',
+                'asia': 'Asia',
+                'oceania': 'Oceania',
+                'sa': 'South America'
+            };
+            return regionMap[value.toLowerCase()] || value;
+        case 'language':
+            return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+        default:
+            return value;
+    }
+}
+
+// Update the createLobbyCard function
+function createLobbyCard(lobby) {
+    const card = document.createElement('div');
+    card.className = 'lobby-card';
+    
+    card.innerHTML = `
+        <div class="lobby-header">
+            <div class="lobby-game">
+                <img src="../assets/${lobby.gameType.toLowerCase()}-icon.png" alt="${lobby.gameType}">
+                <span>${lobby.gameType}</span>
+            </div>
+            <div class="lobby-status status-${lobby.status.toLowerCase()}">${lobby.status}</div>
+        </div>
+        <div class="lobby-body">
+            <h3 class="lobby-name">${lobby.name}</h3>
+            
+            <div class="game-details">
+                <div class="game-detail-item">
+                    <i class="fas fa-trophy"></i>
+                    <span>Rank: ${formatGameDetail(lobby.rank, 'rank')}</span>
+                </div>
+                <div class="game-detail-item">
+                    <i class="fas fa-globe"></i>
+                    <span>Region: ${formatGameDetail(lobby.region, 'region')}</span>
+                </div>
+                <div class="game-detail-item">
+                    <i class="fas fa-language"></i>
+                    <span>Language: ${formatGameDetail(lobby.language, 'language')}</span>
+                </div>
+                <div class="game-detail-item">
+                    <i class="fas fa-users"></i>
+                    <span>Players: ${lobby.currentPlayers}/${lobby.maxPlayers}</span>
+                </div>
+            </div>
+            
+            <div class="lobby-info">
+                <div class="info-item">
+                    <i class="fas fa-user"></i>
+                    <span>Host: ${lobby.host.username}</span>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-clock"></i>
+                    <span>Created: ${getTimeAgo(new Date(lobby.createdAt))}</span>
+                </div>
+            </div>
+            
+            <div class="lobby-actions">
+                <button class="btn btn-primary join-lobby-btn" data-lobby-id="${lobby._id}">
+                    <i class="fas fa-sign-in-alt"></i> Join
+                </button>
+                <button class="btn btn-secondary details-btn" onclick="window.location.href='lobby-details.html?id=${lobby._id}'">
+                    <i class="fas fa-info-circle"></i> Details
+                </button>
+            </div>
+        </div>
+    `;
+    
+    return card;
+}
 
 // ONLY ONE DOMContentLoaded EVENT LISTENER in the entire file
 document.addEventListener('DOMContentLoaded', function() {
@@ -853,6 +892,30 @@ document.addEventListener('DOMContentLoaded', function() {
             if (hostNameElement) {
                 const hostName = lobby.host?.username || 'Unknown';
                 hostNameElement.textContent = hostName;
+            }
+            
+            // Update new fields: Rank
+            const rankElement = document.getElementById('lobbyRank');
+            if (rankElement) {
+                rankElement.textContent = lobby.rank || 'Any';
+            }
+            
+            // Update new fields: Language
+            const languageElement = document.getElementById('lobbyLanguage');
+            if (languageElement) {
+                languageElement.textContent = lobby.language || 'Any';
+            }
+            
+            // Update new fields: Status Detail
+            const statusDetailElement = document.getElementById('lobbyStatusDetail');
+            if (statusDetailElement) {
+                statusDetailElement.textContent = lobby.status || 'Waiting';
+            }
+            
+            // Update new fields: Region
+            const regionElement = document.getElementById('lobbyRegion');
+            if (regionElement) {
+                regionElement.textContent = lobby.region || 'Any';
             }
             
             // Update players list

@@ -163,6 +163,7 @@ async function handleLobbyCreation(e) {
         maxPlayers: parseInt(formData.get('maxPlayers')),
         region: formData.get('region'),
         language: formData.get('language'),
+        rank: formData.get('minRank'),
         requirements: {
             micRequired: formData.get('micRequired') === 'on',
             ageRestricted: formData.get('18plus') === 'on',
@@ -170,7 +171,8 @@ async function handleLobbyCreation(e) {
             competitiveFocus: formData.get('competitive') === 'on'
         },
         schedule: formData.get('schedule') || null,
-        discord: formData.get('discord') || null
+        discord: formData.get('discord') || null,
+        status: 'open'
     };
     
     try {

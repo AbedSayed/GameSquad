@@ -87,13 +87,17 @@ async function loadLobbyDetails(lobbyId) {
  * Update the lobby details in the UI and determine user membership status
  */
 function updateLobbyDetails(lobby) {
-    // Update basic lobby details
-    document.getElementById('lobby-name').textContent = lobby.name;
-    
-    // Update status with proper styling
-    const statusElement = document.getElementById('lobby-status');
-    statusElement.textContent = lobby.status.charAt(0).toUpperCase() + lobby.status.slice(1);
-    statusElement.className = `lobby-status status-${lobby.status}`;
+    // Update game details section
+    document.getElementById('game-type').textContent = `Game: ${lobby.gameType || 'Unknown'}`;
+    document.getElementById('player-count').textContent = `Players: ${lobby.currentPlayers || 0}/${lobby.maxPlayers || 5}`;
+    document.getElementById('host-name').textContent = `Host: ${lobby.host?.username || 'Unknown'}`;
+    document.getElementById('rank-info').textContent = `Rank: ${formatRank(lobby.rank, lobby.gameType) || 'Any'}`;
+    document.getElementById('region-info').textContent = `Region: ${formatRegion(lobby.region) || 'Any'}`;
+    document.getElementById('language-info').textContent = `Language: ${formatLanguage(lobby.language) || 'Any'}`;
+    document.getElementById('status-info').textContent = `Status: ${formatStatus(lobby.status) || 'Unknown'}`;
+
+    // Update other UI elements
+    document.getElementById('lobby-name').textContent = lobby.name || 'Unnamed Lobby';
     
     // Update game icon if it exists
     const gameIcon = document.getElementById('game-icon');
@@ -101,14 +105,7 @@ function updateLobbyDetails(lobby) {
         gameIcon.src = `../assets/${lobby.gameType.toLowerCase()}-icon.png`;
         gameIcon.alt = lobby.gameType;
     }
-    
-    document.getElementById('lobby-game').textContent = lobby.game || 'Not specified';
-    document.getElementById('lobby-type').textContent = lobby.type || 'Public';
-    document.getElementById('lobby-host').textContent = lobby.host.username;
-    document.getElementById('lobby-players-count').textContent = `${lobby.currentPlayers}/${lobby.maxPlayers}`;
-    document.getElementById('lobby-region').textContent = lobby.region || 'Any';
-    document.getElementById('lobby-language').textContent = lobby.language || 'Any';
-    
+
     // Calculate and update creation time
     const createdDate = new Date(lobby.createdAt);
     const timeAgo = getTimeAgo(createdDate);
@@ -128,13 +125,10 @@ function updateLobbyDetails(lobby) {
         
         // Check if user is a member (player)
         isCurrentUserMember = lobby.players.some(player => {
-            console.log('Comparing:', player.user, currentUser._id);
             return player.user._id === currentUser._id || 
                    (typeof player.user === 'string' && player.user === currentUser._id);
         });
     }
-    
-    console.log('User membership status:', { isCurrentUserMember, isCurrentUserHost });
     
     // Show/hide UI elements based on user status
     const joinButtonContainer = document.querySelector('.lobby-actions');
@@ -562,4 +556,58 @@ function showError(message) {
 function getUserInfo() {
     const userInfo = localStorage.getItem('userInfo');
     return userInfo ? JSON.parse(userInfo) : null;
+}
+
+/**
+ * Format rank display based on game type
+ */
+function formatRank(rank, gameType) {
+    if (!rank || rank === 'any') return 'Any';
+    
+    // Convert rank to proper case
+    const formattedRank = rank.split(/[-_]/)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+    
+    // Special formatting for specific games
+    if (gameType === 'csgo') {
+        if (rank.includes('mg')) return rank.toUpperCase();
+        if (rank === 'dmg') return 'DMG';
+        if (rank === 'le') return 'LE';
+        if (rank === 'lem') return 'LEM';
+    }
+    
+    return formattedRank;
+}
+
+/**
+ * Format region display
+ */
+function formatRegion(region) {
+    if (!region || region === 'any') return 'Any';
+    
+    const regionMap = {
+        'na': 'North America',
+        'eu': 'Europe',
+        'asia': 'Asia',
+        'oceania': 'Oceania',
+        'sa': 'South America'
+    };
+    
+    return regionMap[region.toLowerCase()] || region;
+}
+
+/**
+ * Format language display
+ */
+function formatLanguage(language) {
+    if (!language || language === 'any') return 'Any';
+    
+    // Convert language code to proper case
+    return language.charAt(0).toUpperCase() + language.slice(1).toLowerCase();
+}
+
+function formatStatus(status) {
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
 }

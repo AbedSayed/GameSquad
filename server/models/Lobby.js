@@ -30,6 +30,18 @@ const lobbySchema = new mongoose.Schema({
     type: String,
     default: 'standard'
   },
+  rank: {
+    type: String,
+    default: 'Any'
+  },
+  language: {
+    type: String,
+    default: 'Any'
+  },
+  region: {
+    type: String,
+    default: 'Any'
+  },
   password: {
     type: String,
     select: false // Don't include password in queries by default
@@ -71,4 +83,4 @@ lobbySchema.virtual('isFull').get(function() {
 
 const Lobby = mongoose.model('Lobby', lobbySchema);
 
-module.exports = Lobby; 
+module.exports = Lobby;
