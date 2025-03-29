@@ -21,6 +21,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            text-align: center;
         }
         
         .create-lobby-btn {
@@ -129,9 +130,10 @@
         }
         
         .lobbies-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            margin-top: 30px;
         }
         
         .lobby-card {
@@ -384,15 +386,13 @@
             <ul class="nav-links">
                 <li><a href="../index.html">Home</a></li>
                 <li><a href="lobbies.html" class="active">Lobbies</a></li>
-                <li><a href="my-lobbies.html">My Lobbies</a></li>
-                <li><a href="create-lobby.html">Create Lobby</a></li>
                 <li><a href="players.html">Players</a></li>
             </ul>
             <div class="user-profile">
                 <span class="username">Username</span>
                 <div class="profile-dropdown">
                     <a href="profile.html">My Profile</a>
-                    <a href="my-lobbies.html">My Lobbies</a>
+                    <a href="create-lobby.html">Create Lobby</a>
                     <a href="messages.html">Messages</a>
                     <a href="#" id="logout-btn">Logout</a>
                 </div>

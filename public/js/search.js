@@ -491,7 +491,7 @@ function updateLobbySearchResults(lobbies) {
         <p><strong>Created by:</strong> ${lobby.creator.displayName || lobby.creator.username}</p>
       </div>
       <div class="lobby-actions">
-        <a href="lobby-details.html?id=${lobby._id}" class="btn btn-primary">View Lobby</a>
+        <a href="lobby.html?id=${lobby._id}" class="btn btn-primary">View Lobby</a>
         ${Auth.isLoggedIn() && lobby.status === 'open' ? `<button class="btn btn-secondary join-lobby-btn" data-lobby-id="${lobby._id}">Join Lobby</button>` : ''}
       </div>
     `;
@@ -508,7 +508,7 @@ function updateLobbySearchResults(lobbies) {
           showNotification('Successfully joined lobby!', 'success');
           
           // Redirect to lobby details page
-          window.location.href = `lobby-details.html?id=${lobby._id}`;
+          window.location.href = `lobby.html?id=${lobby._id}`;
         } catch (error) {
           console.error('Join lobby error:', error);
           showNotification('Failed to join lobby: ' + error.message, 'error');

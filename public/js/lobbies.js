@@ -19,18 +19,37 @@ window.Lobby = {
     normalizeGameName(gameName) {
         if (!gameName) return '';
         
-        const lowerGameName = gameName.toLowerCase();
+        gameName = gameName.trim().toLowerCase();
         
-        // Direct match check
-        for (const [key, aliases] of Object.entries(this.gameNameMappings)) {
-            if (key.toLowerCase() === lowerGameName || aliases.includes(lowerGameName)) {
-                // For direct matches, return the filter dropdown format (capitalize first letter of each word)
-                return key.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-            }
-        }
+        // Common abbreviations and full names mapping
+        const gameNameMap = {
+            'lol': 'league of legends',
+            'league': 'league of legends',
+            'cs': 'counter-strike',
+            'cs2': 'counter-strike 2',
+            'csgo': 'counter-strike: global offensive',
+            'cs:go': 'counter-strike: global offensive',
+            'cod': 'call of duty',
+            'valorant': 'valorant',
+            'val': 'valorant',
+            'ow': 'overwatch',
+            'ow2': 'overwatch 2',
+            'overwatch2': 'overwatch 2',
+            'dota': 'dota 2',
+            'dota2': 'dota 2',
+            'apex': 'apex legends',
+            'fortnite': 'fortnite',
+            'fn': 'fortnite',
+            'r6': 'rainbow six siege',
+            'r6s': 'rainbow six siege',
+            'pubg': 'playerunknown\'s battlegrounds',
+            'tft': 'teamfight tactics',
+            'wow': 'world of warcraft',
+            'rl': 'rocket league'
+        };
         
-        // No match found, return original with first letter capitalized
-        return gameName.charAt(0).toUpperCase() + gameName.slice(1);
+        // Check if the input matches any of our known game names or aliases
+        return gameNameMap[gameName] || gameName;
     },
     
     // Function to load lobbies with filters
@@ -137,108 +156,139 @@ window.Lobby = {
         const userInfo = this.getUserInfo();
         const currentUserId = userInfo ? userInfo._id : null;
 
+        // Separate lobbies into user's lobbies and other lobbies
+        const myLobbies = [];
+        const otherLobbies = [];
+
         data.forEach(lobby => {
             const isHost = currentUserId && lobby.host._id === currentUserId;
-            
-            const lobbyCard = document.createElement('div');
-            lobbyCard.className = 'lobby-card';
-            lobbyCard.innerHTML = `
-                <div class="lobby-header">
-                    <div class="lobby-game">
-                        <span>${this.escapeHtml(lobby.gameType)}</span>
-                    </div>
-                    <span class="lobby-status status-${lobby.status}">${lobby.status}</span>
-                </div>
-                <div class="lobby-body">
-                    <h3 class="lobby-name">${this.escapeHtml(lobby.name)}</h3>
-                    <div class="lobby-info">
-                        <div class="info-item">
-                            <i class="fas fa-user"></i>
-                            <span>Host: ${this.escapeHtml(lobby.host.username)}</span>
-                        </div>
-                        <div class="info-item">
-                            <i class="fas fa-users"></i>
-                            <span>Players: ${lobby.currentPlayers}/${lobby.maxPlayers}</span>
-                        </div>
-                    </div>
-                    <div class="lobby-actions">
-                        ${!isHost ? `<button class="lobby-btn join-btn" data-lobby-id="${lobby._id}">
-                            <i class="fas fa-sign-in-alt"></i> Join
-                        </button>` : `<button class="lobby-btn manage-btn" data-lobby-id="${lobby._id}">
-                            <i class="fas fa-cog"></i> Manage
-                        </button>`}
-                        <a href="lobby.html?id=${lobby._id}" class="lobby-btn details-btn">
-                            <i class="fas fa-info-circle"></i> Details
-                        </a>
-                    </div>
-                </div>
-            `;
-
-            container.appendChild(lobbyCard);
+            if (isHost) {
+                myLobbies.push(lobby);
+            } else {
+                otherLobbies.push(lobby);
+            }
         });
 
-        // Add event listeners to join and manage buttons
+        // Create My Lobbies section first (top section)
+        const myLobbiesSection = document.createElement('div');
+        myLobbiesSection.className = 'lobbies-section my-lobbies-section';
+        myLobbiesSection.innerHTML = `
+            <h2 class="section-title">My Lobbies</h2>
+            <div class="lobbies-grid-section"></div>
+        `;
+        container.appendChild(myLobbiesSection);
+
+        const myLobbiesGrid = myLobbiesSection.querySelector('.lobbies-grid-section');
+        
+        // Add my lobbies or show "no lobbies" message
+        if (myLobbies.length > 0) {
+            myLobbies.forEach(lobby => {
+                const lobbyCard = this.createLobbyCard(lobby, true);
+                myLobbiesGrid.appendChild(lobbyCard);
+            });
+        } else {
+            myLobbiesGrid.innerHTML = `
+                <div class="no-lobbies">
+                    <i class="fas fa-users-slash"></i>
+                    <h3>No Owned Lobbies</h3>
+                    <p>You don't own any lobbies yet.</p>
+                </div>
+            `;
+        }
+
+        // Then create Other Lobbies section (bottom section)
+        const otherLobbiesSection = document.createElement('div');
+        otherLobbiesSection.className = 'lobbies-section other-lobbies-section';
+        otherLobbiesSection.innerHTML = `
+            <h2 class="section-title">Other Lobbies</h2>
+            <div class="lobbies-grid-section"></div>
+        `;
+        container.appendChild(otherLobbiesSection);
+
+        const otherLobbiesGrid = otherLobbiesSection.querySelector('.lobbies-grid-section');
+        
+        // Add other lobbies or show "no lobbies" message
+        if (otherLobbies.length > 0) {
+            otherLobbies.forEach(lobby => {
+                const lobbyCard = this.createLobbyCard(lobby, false);
+                otherLobbiesGrid.appendChild(lobbyCard);
+            });
+        } else {
+            otherLobbiesGrid.innerHTML = `
+                <div class="no-lobbies">
+                    <i class="fas fa-users-slash"></i>
+                    <h3>No Other Lobbies Found</h3>
+                    <p>There are no other lobbies available at the moment.</p>
+                </div>
+            `;
+        }
+
+        // Add event listeners to join buttons
         this.setupJoinButtons();
-        this.setupManageButtons();
+    },
+
+    // Create lobby card helper function
+    createLobbyCard(lobby, isOwned) {
+        const lobbyCard = document.createElement('div');
+        lobbyCard.className = 'lobby-card';
+        lobbyCard.innerHTML = `
+            <div class="lobby-header">
+                <div class="lobby-game">
+                    <span>${this.escapeHtml(lobby.gameType)}</span>
+                </div>
+                <span class="lobby-status status-${lobby.status}">${lobby.status}</span>
+            </div>
+            <div class="lobby-body">
+                <h3 class="lobby-name">${this.escapeHtml(lobby.name)}</h3>
+                <div class="lobby-info">
+                    <div class="info-item">
+                        <i class="fas fa-user"></i>
+                        <span>Host: ${this.escapeHtml(lobby.host.username)}</span>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-users"></i>
+                        <span>Players: ${lobby.currentPlayers}/${lobby.maxPlayers}</span>
+                    </div>
+                </div>
+                <div class="lobby-actions">
+                    ${isOwned ? 
+                        `<button class="lobby-btn join-btn disabled" disabled>
+                            <i class="fas fa-sign-in-alt"></i> Join
+                        </button>` : 
+                        `<button class="lobby-btn join-btn" data-lobby-id="${lobby._id}">
+                            <i class="fas fa-sign-in-alt"></i> Join
+                        </button>`
+                    }
+                    <a href="lobby.html?id=${lobby._id}" class="lobby-btn details-btn">
+                        <i class="fas fa-info-circle"></i> Details
+                    </a>
+                </div>
+            </div>
+        `;
+
+        return lobbyCard;
     },
 
     // Function to setup join button handlers
     setupJoinButtons() {
-        const joinButtons = document.querySelectorAll('.join-btn');
+        const joinButtons = document.querySelectorAll('.join-btn:not(.disabled)');
+        
         joinButtons.forEach(button => {
             button.addEventListener('click', async (e) => {
-                const lobbyId = e.target.closest('.join-btn').dataset.lobbyId;
-                await this.joinLobby(lobbyId);
+                e.preventDefault();
+                const lobbyId = button.getAttribute('data-lobby-id');
+                
+                if (!lobbyId) return;
+                
+                try {
+                    // Navigate to the lobby page
+                    window.location.href = `lobby.html?id=${lobbyId}`;
+                } catch (error) {
+                    console.error('Error joining lobby:', error);
+                    this.showNotification('Failed to join lobby', 'error');
+                }
             });
         });
-    },
-
-    // Function to join a lobby
-    async joinLobby(lobbyId) {
-        try {
-            // Use the Auth module if available
-            let token;
-            if (typeof window.Auth !== 'undefined' && typeof window.Auth.getCurrentUser === 'function') {
-                // Auth module exists, use it
-                if (!window.Auth.isLoggedIn()) {
-                    console.log('User not logged in according to Auth module');
-                    window.location.href = 'login.html';
-                    return;
-                }
-                
-                token = localStorage.getItem('token');
-            } else {
-                // Fallback to directly checking localStorage
-                token = localStorage.getItem('token');
-            }
-            
-            if (!token) {
-                console.log('No token found in localStorage');
-                window.location.href = 'login.html';
-                return;
-            }
-
-            console.log('Joining lobby with ID:', lobbyId);
-            const response = await fetch(`${APP_CONFIG.API_URL}/lobbies/${lobbyId}/join`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to join lobby');
-            }
-
-            // Redirect to the lobby page
-            window.location.href = `lobby.html?id=${lobbyId}`;
-        } catch (error) {
-            console.error('Error joining lobby:', error);
-            this.showNotification(error.message, 'error');
-        }
     },
 
     // Function to show notifications
@@ -253,7 +303,7 @@ window.Lobby = {
         const container = document.querySelector('.notifications-container');
         container.appendChild(notification);
 
-        // Remove notification after 5 seconds
+        // Show notification after 5 seconds
         setTimeout(() => {
             notification.classList.add('fade-out');
             setTimeout(() => notification.remove(), 300);
@@ -274,20 +324,6 @@ window.Lobby = {
     getUserInfo() {
         const userInfo = localStorage.getItem('userInfo');
         return userInfo ? JSON.parse(userInfo) : null;
-    },
-
-    // Setup event listeners for manage buttons
-    setupManageButtons() {
-        const manageButtons = document.querySelectorAll('.manage-btn');
-        
-        manageButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const lobbyId = button.getAttribute('data-lobby-id');
-                if (lobbyId) {
-                    window.location.href = `lobby.html?id=${lobbyId}`;
-                }
-            });
-        });
     }
 };
 

@@ -791,7 +791,7 @@ function createLobbyCard(lobby) {
     if (joinButton) {
         joinButton.addEventListener('click', (e) => {
             e.stopPropagation();
-            window.location.href = `lobby-details.html?id=${lobby._id}`;
+            window.location.href = `lobby.html?id=${lobby._id}`;
         });
     }
     
@@ -799,7 +799,7 @@ function createLobbyCard(lobby) {
     if (manageButton) {
         manageButton.addEventListener('click', (e) => {
             e.stopPropagation();
-            window.location.href = `lobby-details.html?id=${lobby._id}`;
+            window.location.href = `lobby.html?id=${lobby._id}`;
         });
     }
     
@@ -807,13 +807,13 @@ function createLobbyCard(lobby) {
     if (detailsButton) {
         detailsButton.addEventListener('click', (e) => {
             e.stopPropagation();
-            window.location.href = `lobby-details.html?id=${lobby._id}`;
+            window.location.href = `lobby.html?id=${lobby._id}`;
         });
     }
     
     // Add event listener to the card itself
     card.addEventListener('click', () => {
-        window.location.href = `lobby-details.html?id=${lobby._id}`;
+        window.location.href = `lobby.html?id=${lobby._id}`;
     });
     
     // If we need to fetch the host rank, do it

@@ -189,7 +189,7 @@ const MyLobbies = {
                         <button class="lobby-btn ${isHost ? 'manage-btn' : 'join-btn'}" data-lobby-id="${lobby._id}">
                             <i class="fas fa-${isHost ? 'cog' : 'sign-in-alt'}"></i> ${isHost ? 'Manage' : 'Return to Lobby'}
                         </button>
-                        <a href="lobby-details.html?id=${lobby._id}" class="lobby-btn details-btn">
+                        <a href="lobby.html?id=${lobby._id}" class="lobby-btn details-btn">
                             <i class="fas fa-info-circle"></i> Details
                         </a>
                     </div>
@@ -210,7 +210,7 @@ const MyLobbies = {
             button.addEventListener('click', () => {
                 const lobbyId = button.getAttribute('data-lobby-id');
                 if (lobbyId) {
-                    window.location.href = `lobby-details.html?id=${lobbyId}`;
+                    window.location.href = `lobby.html?id=${lobbyId}`;
                 }
             });
         });
@@ -221,7 +221,7 @@ const MyLobbies = {
             button.addEventListener('click', () => {
                 const lobbyId = button.getAttribute('data-lobby-id');
                 if (lobbyId) {
-                    window.location.href = `lobby-details.html?id=${lobbyId}`;
+                    window.location.href = `lobby.html?id=${lobbyId}`;
                 }
             });
         });
