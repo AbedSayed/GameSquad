@@ -104,6 +104,37 @@ const SocketHandler = {
             console.error('Socket authentication error:', error);
         });
         
+        // Friend status update
+        this.socket.on('friend-status', (data) => {
+            console.log('Friend status update received:', data);
+            
+            if (data && data.friendId && data.status) {
+                // Update friend status in the UI
+                this.updateFriendStatus(data.friendId, data.status);
+                
+                // If using FriendsService, update there too
+                if (window.FriendsService) {
+                    window.FriendsService.updateFriend(data.friendId, { status: data.status });
+                }
+            }
+        });
+        
+        // Friend request response
+        this.socket.on('friend-request-response', (data) => {
+            console.log('Friend request response received:', data);
+            
+            if (data.accepted) {
+                this.showNotification('Friend Request Accepted', `${data.username} accepted your friend request!`);
+                
+                // If using FriendsService, add the new friend
+                if (window.FriendsService && data.friend) {
+                    window.FriendsService.addFriend(data.friend);
+                }
+            } else {
+                this.showNotification('Friend Request Declined', `${data.username} declined your friend request.`);
+            }
+        });
+        
         // New invite notification
         this.socket.on('new-invite', (invite) => {
             console.log('New invite received:', invite);
@@ -111,16 +142,70 @@ const SocketHandler = {
         });
         
         // Friend request notification
-        this.socket.on('friend-request', (data) => {
-            console.log('Friend request received:', data);
-            this.showNotification('Friend Request', `${data.senderName} sent you a friend request!`);
+        this.socket.on('new-friend-request', (data) => {
+            console.log('Socket received friend request event:', data);
+            
+            // Get current user to check if this request is for us
+            const currentUser = this.getUserInfo();
+            if (!currentUser || !currentUser._id) {
+                console.warn('Cannot process friend request: No user info available');
+                return;
+            }
+            
+            // Check if this request is for the current user
+            if (data.recipientId !== currentUser._id) {
+                console.log(`Friend request not for current user (${currentUser._id}), ignoring`);
+                return;
+            }
+            
+            console.log(`Processing friend request for current user: ${currentUser._id}`);
+            
+            // Show notification
+            this.showNotification('Friend Request', `${data.senderName} sent you a friend request!`, 'info');
+            
+            // Play a sound if available
+            if (typeof Audio !== 'undefined') {
+                try {
+                    const notificationSound = new Audio('../resources/notification.mp3');
+                    notificationSound.play().catch(e => console.log('Could not play notification sound'));
+                } catch (e) {
+                    console.log('Audio not supported');
+                }
+            }
+            
+            // Store the friend request in localStorage
+            this.storeFriendRequest(data);
             
             // Update UI if on messages page
             if (window.location.href.includes('messages.html')) {
+                // Try to call the page-specific function if available
                 if (typeof displayFriendRequests === 'function') {
                     displayFriendRequests();
                 }
+                
+                // Make the friend requests tab active if it exists
+                const friendRequestsTab = document.querySelector('[data-tab="friend-requests"]');
+                if (friendRequestsTab && !friendRequestsTab.classList.contains('active')) {
+                    friendRequestsTab.click();
+                }
             }
+            
+            // Update notification badge count
+            this.updateNotificationBadge();
+            
+            // Show friend requests frame in players page if we're there
+            if (window.location.href.includes('players.html')) {
+                if (typeof showFriendRequestFrame === 'function') {
+                    showFriendRequestFrame(data);
+                }
+            }
+        });
+        
+        // Legacy event name for backward compatibility
+        this.socket.on('friend-request', (data) => {
+            console.log('Legacy friend request event received:', data);
+            // Forward to the new handler
+            this.socket.emit('new-friend-request', data);
         });
         
         // Lobby update notification
@@ -587,6 +672,154 @@ const SocketHandler = {
             }
         } catch (err) {
             console.error('Error updating notification badge:', err);
+        }
+    },
+    
+    // Update friend status in the UI
+    updateFriendStatus: function(friendId, status) {
+        console.log(`Updating status for friend ${friendId} to ${status}`);
+        
+        // Update in any friends list in the sidebar
+        const friendItems = document.querySelectorAll(`.friend-item[data-id="${friendId}"]`);
+        
+        friendItems.forEach(item => {
+            const statusEl = item.querySelector('.friend-status');
+            if (statusEl) {
+                // Remove old status classes
+                statusEl.classList.remove('online', 'offline');
+                
+                // Add new status class
+                statusEl.classList.add(status);
+                
+                // Update text
+                statusEl.innerHTML = `<i class="fas fa-circle"></i> ${status === 'online' ? 'Online' : 'Offline'}`;
+            }
+        });
+        
+        // Update in localStorage if FriendsService is not available
+        if (!window.FriendsService) {
+            try {
+                const friendsStr = localStorage.getItem('friends');
+                if (friendsStr) {
+                    const friends = JSON.parse(friendsStr);
+                    
+                    // Find and update the friend
+                    const friendIndex = friends.findIndex(f => 
+                        f._id === friendId || f.id === friendId
+                    );
+                    
+                    if (friendIndex >= 0) {
+                        friends[friendIndex].status = status;
+                        localStorage.setItem('friends', JSON.stringify(friends));
+                    }
+                }
+            } catch (err) {
+                console.error('Error updating friend status in localStorage:', err);
+            }
+        }
+    },
+    
+    // Store friend request in localStorage
+    storeFriendRequest: function(data) {
+        try {
+            console.log('Storing friend request in localStorage:', data);
+            
+            // Get current user info
+            const userInfo = this.getUserInfo();
+            if (!userInfo) {
+                console.error('Cannot store friend request - user info not found');
+                return;
+            }
+            
+            // Ensure friendRequests structure exists
+            if (!userInfo.friendRequests) {
+                userInfo.friendRequests = { sent: [], received: [] };
+            }
+            
+            if (!userInfo.friendRequests.received) {
+                userInfo.friendRequests.received = [];
+            }
+            
+            // Create new request object
+            const friendRequest = {
+                _id: data.requestId || `local_${Date.now()}`,
+                sender: data.senderId,
+                senderName: data.senderName,
+                status: 'pending',
+                message: data.message || `${data.senderName} would like to be your friend!`,
+                createdAt: data.timestamp || new Date().toISOString()
+            };
+            
+            console.log('Created friend request object:', friendRequest);
+            
+            // Check if this request already exists
+            const existingIndex = userInfo.friendRequests.received.findIndex(req => 
+                (req.sender === data.senderId || 
+                (req.sender && req.sender._id === data.senderId)) ||
+                (req._id === data.requestId)
+            );
+            
+            if (existingIndex >= 0) {
+                console.log('Friend request already exists in localStorage, updating');
+                userInfo.friendRequests.received[existingIndex] = friendRequest;
+            } else {
+                console.log('Adding new friend request to localStorage');
+                userInfo.friendRequests.received.push(friendRequest);
+            }
+            
+            // Update localStorage
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            console.log('Friend request stored in localStorage', userInfo.friendRequests.received);
+            
+            // Update server-side to ensure consistency (optional but recommended)
+            this.updateServerWithFriendRequest(friendRequest);
+            
+            // Try to update UI if we're on the messages page
+            this.updateFriendRequestUI();
+        } catch (error) {
+            console.error('Error storing friend request:', error);
+        }
+    },
+    
+    // Update the UI with the friend request
+    updateFriendRequestUI: function() {
+        if (window.location.href.includes('messages.html')) {
+            // Check if displayFriendRequests function exists in global scope
+            if (typeof window.displayFriendRequests === 'function') {
+                console.log('Calling displayFriendRequests to update UI');
+                window.displayFriendRequests();
+            }
+        }
+    },
+    
+    // Sync with server to ensure consistency
+    updateServerWithFriendRequest: function(request) {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.warn('No auth token available, cannot sync friend request with server');
+                return;
+            }
+            
+            const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+            fetch(`${apiUrl}/users/friends/sync-request`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    request: request
+                })
+            }).then(response => {
+                if (response.ok) {
+                    console.log('Friend request synced with server');
+                }
+            }).catch(err => {
+                console.warn('Failed to sync friend request with server:', err);
+            });
+        } catch (err) {
+            console.warn('Error syncing friend request with server:', err);
         }
     }
 };

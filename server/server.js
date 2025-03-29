@@ -80,13 +80,23 @@ io.on('connection', (socket) => {
             return;
         }
         
-        console.log(`User ${currentUserId} sent friend request to ${data.recipientId}`);
+        console.log(`Socket ${socket.id}: User ${currentUserId} sent friend request to ${data.recipientId}`);
         
-        // Emit to recipient's personal room
-        io.to(`user:${data.recipientId}`).emit('new-friend-request', {
+        // Important: Broadcast the event to ALL sockets, as the recipient may have multiple tabs/windows open
+        io.emit('new-friend-request', {
             senderId: currentUserId,
             senderName: data.senderName || 'A user',
-            timestamp: new Date()
+            message: data.message || 'would like to be your friend!',
+            timestamp: new Date(),
+            requestId: data.requestId, // Include the request ID if available
+            recipientId: data.recipientId // Include recipient ID so client can filter
+        });
+        
+        // Send confirmation back to sender
+        socket.emit('friend-request-sent-confirmation', {
+            success: true,
+            recipientId: data.recipientId,
+            message: `Friend request sent to ${data.recipientId}`
         });
     });
     

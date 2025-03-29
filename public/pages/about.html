@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - GameSquad</title>
+    
+    <!-- Unified Theme System -->
+    <link rel="stylesheet" href="../css/gamesquad-theme.css">
+    <link rel="stylesheet" href="../css/animations.css">
+    <link rel="stylesheet" href="../css/style.css">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Google fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        .about-container {
+            display: flex;
+            flex-direction: column;
+            background-color: rgba(16, 16, 28, 0.95);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(126, 34, 206, 0.5);
+            border: 1px solid;
+            border-image: linear-gradient(to right, #7e22ce, #22d3ee) 1;
+            margin: 20px auto;
+            padding: 0;
+            max-width: 1200px;
+        }
+        
+        .page-header {
+            padding: 15px 25px;
+            border-bottom: 1px solid rgba(126, 34, 206, 0.3);
+            display: flex;
+            align-items: center;
+        }
+        
+        .page-header .fa-info-circle {
+            margin-right: 15px;
+            font-size: 1.2em;
+            color: #22d3ee;
+        }
+        
+        .page-title {
+            font-size: 2em;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .about-content {
+            padding: 30px;
+            line-height: 1.8;
+        }
+        
+        .about-section {
+            margin-bottom: 40px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        .about-section h2 {
+            color: #22d3ee;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            display: inline-block;
+        }
+        
+        .about-section h2::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 50px;
+            height: 3px;
+            background: linear-gradient(90deg, #7e22ce, #22d3ee);
+            border-radius: 3px;
+        }
+        
+        .about-section p {
+            color: #dcddde;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+        
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .team-member {
+            background-color: rgba(26, 26, 36, 0.8);
+            border-radius: 8px;
+            overflow: hidden;
+            padding: 20px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(108, 92, 231, 0.2);
+            text-align: center;
+        }
+        
+        .team-member:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            border-color: rgba(108, 92, 231, 0.4);
+        }
+        
+        .team-member-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background-color: rgba(126, 34, 206, 0.3);
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+            color: #fff;
+            border: 3px solid rgba(126, 34, 206, 0.5);
+        }
+        
+        .team-member h3 {
+            color: #fff;
+            font-size: 1.3em;
+            margin-bottom: 10px;
+        }
+        
+        .team-member p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.95em;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @media (max-width: 768px) {
+            .team-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .about-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <h1 class="sheen"><a href="../index.html">GameSquad</a></h1>
+            </div>
+            <ul class="nav-links">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lobbies.html">Lobbies</a></li>
+                <li><a href="create-lobby.html">Create Lobby</a></li>
+                <li><a href="players.html">Players</a></li>
+                <li><a href="about.html" class="active">About</a></li>
+            </ul>
+            <div class="user-profile">
+                <span class="username">Username <i class="fas fa-chevron-down"></i></span>
+                <div class="profile-dropdown">
+                    <a href="profile.html"><i class="fas fa-user"></i> My Profile</a>
+                    <a href="my-lobbies.html"><i class="fas fa-gamepad"></i> My Lobbies</a>
+                    <a href="messages.html"><i class="fas fa-envelope"></i> Messages</a>
+                    <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="about-container pulse-glow">
+            <div class="page-header">
+                <i class="fas fa-info-circle neon-text"></i>
+                <h1 class="page-title neon-text">ABOUT GAMESQUAD</h1>
+            </div>
+            
+            <div class="about-content">
+                <div class="about-section">
+                    <h2>Project Information</h2>
+                    <p class="lead-text">This project was developed as part of the Internet Technologies module at HTW Saar.</p>
+                    <p>GameSquad is a web platform designed to help gamers connect, form teams, and organize gaming sessions. The application features real-time chat, friend management, and lobby creation functionality.</p>
+                    <p>The platform utilizes modern web technologies including:</p>
+                    <ul style="list-style-type: disc; margin-left: 20px; margin-bottom: 20px;">
+                        <li>HTML5, CSS3 and JavaScript for frontend development</li>
+                        <li>Node.js and Express for the backend server</li>
+                        <li>Socket.IO for real-time communication</li>
+                        <li>MongoDB for database management</li>
+                    </ul>
+                </div>
+                
+                <div class="about-section">
+                    <h2>Development Team</h2>
+                    <p>The website was designed and implemented by:</p>
+                    
+                    <div class="team-grid">
+                        <div class="team-member">
+                            <div class="team-member-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <h3>Abdl Hamed Al Sayed</h3>
+
+                        </div>
+                        
+                        <div class="team-member">
+                            <div class="team-member-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <h3>Ahmad Alhalabi</h3>
+
+                        </div>
+                        
+                        <div class="team-member">
+                            <div class="team-member-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <h3>Hamdi Amish</h3>
+
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="about-section">
+                    <h2>University Project</h2>
+                    <p>HTW Saar - Hochschule für Technik und Wirtschaft des Saarlandes</p>
+                    <p>Internet Technologies Module, 2025</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="notifications-container"></div>
+
+    <!-- Scripts -->
+    <script src="../js/gamesquad-ui.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Apply particle effect to about content
+            applyParticleEffect('body');
+            
+            // Update auth UI (this will show/hide elements based on auth state)
+            updateAuthUI();
+            
+            // Set up logout handler
+            const logoutBtn = document.querySelector('.logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Clear auth data
+                    localStorage.removeItem('userInfo');
+                    localStorage.removeItem('token');
+                    
+                    // Update UI
+                    updateAuthUI();
+                    
+                    // Show notification
+                    showNotification('You have been logged out successfully', 'success');
+                    
+                    // Redirect to landing page
+                    setTimeout(() => {
+                        window.location.href = '../index.html';
+                    }, 1000);
+                });
+            }
+        });
+        
+        // Simple notification function (fallback if gamesquad-ui.js doesn't have it)
+        function showNotification(message, type = 'info') {
+            const notificationsContainer = document.querySelector('.notifications-container');
+            if (!notificationsContainer) return;
+
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <div class="notification-message">${message}</div>
+                </div>
+                <button class="notification-close">&times;</button>
+            `;
+            
+            notificationsContainer.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                notification.classList.add('fade-out');
+                setTimeout(() => {
+                    notification.remove();
+                }, 500);
+            }, 5000);
+            
+            // Close button
+            const closeBtn = notification.querySelector('.notification-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    notification.remove();
+                });
+            }
+        }
+    </script>
+</body>
+</html> 

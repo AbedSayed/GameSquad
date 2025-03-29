@@ -54,6 +54,110 @@
             overflow: hidden;
         }
         
+        /* Friend Requests Container Styles */
+        .friend-requests-container {
+            background-color: rgba(26, 26, 36, 0.95);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin-bottom: 30px;
+            box-shadow: 0 0 20px rgba(126, 34, 206, 0.5);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(108, 92, 231, 0.3);
+            position: relative;
+            overflow: hidden;
+            animation: fadeInDown 0.5s ease-out;
+        }
+        
+        .friend-requests-container .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(108, 92, 231, 0.3);
+            padding-bottom: 10px;
+        }
+        
+        .friend-requests-container h3 {
+            color: var(--light-color);
+            font-size: 1.2rem;
+            margin: 0;
+        }
+        
+        .friend-requests-container h3 i {
+            color: var(--primary-color);
+            margin-right: 10px;
+        }
+        
+        .friend-requests-container .close-btn {
+            background: none;
+            border: none;
+            color: var(--light-color);
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+        
+        .friend-requests-container .close-btn:hover {
+            opacity: 1;
+        }
+        
+        .friend-request-item {
+            background-color: rgba(15, 15, 25, 0.7);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(108, 92, 231, 0.2);
+        }
+        
+        .friend-request-item:hover {
+            background-color: rgba(20, 20, 30, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108, 92, 231, 0.2);
+        }
+        
+        .friend-request-item .request-info {
+            flex: 1;
+        }
+        
+        .friend-request-item .request-info strong {
+            color: var(--primary-color);
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .friend-request-item .request-info p {
+            color: var(--light-color);
+            opacity: 0.8;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        .friend-request-item .request-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .friend-request-item .btn {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
         .filters-title {
             color: var(--light-color);
             margin-bottom: 15px;
@@ -404,6 +508,21 @@
             <h1 class="neon-text">Find Players</h1>
         </div>
 
+        <!-- Friend Request Notifications Section -->
+        <div class="friend-requests-container glow-effect" style="display: none;" id="friendRequestsFrame">
+            <div class="section-header">
+                <h3><i class="fas fa-user-plus"></i> Friend Requests</h3>
+                <button class="close-btn" id="closeFriendRequests">×</button>
+            </div>
+            <div id="friendRequestsList">
+                <!-- Friend requests will be loaded here dynamically -->
+                <div class="empty-state">
+                    <i class="fas fa-user-plus"></i>
+                    <p>No friend requests</p>
+                </div>
+            </div>
+        </div>
+
         <div class="filters-container glow-effect">
             <div class="filters-title">
                 <h2>Filters</h2>
@@ -457,6 +576,10 @@
     <script src="../js/gamesquad-ui.js"></script>
     <!-- Load configuration first -->
     <script src="../js/config.js"></script>
+    <!-- Socket.io client -->
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <!-- Load socket handler -->
+    <script src="../js/socket-handler.js"></script>
     <!-- Load other scripts with defer -->
     <script src="../js/auth.js" defer></script>
     <script src="../js/players.js" defer></script>

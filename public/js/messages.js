@@ -213,28 +213,270 @@ function displayNotifications() {
 
 // Function to display friend requests
 function displayFriendRequests() {
+    console.log('[messages.js] Displaying friend requests');
     const requestsContainer = document.getElementById('friend-requests-container');
-    if (!requestsContainer) return;
+    if (!requestsContainer) {
+        console.error('Friend requests container not found');
+        return;
+    }
     
-    // Placeholder for now - this would fetch friend requests from API
-    requestsContainer.innerHTML = `
-        <div class="empty-state">
-            <i class="fas fa-user-plus"></i>
-            <p>No friend requests</p>
-        </div>`;
+    try {
+        // Get current user info
+        const userInfoStr = localStorage.getItem('userInfo');
+        if (!userInfoStr) {
+            requestsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-user-plus"></i>
+                    <p>No friend requests</p>
+                </div>`;
+            return;
+        }
+        
+        const userInfo = JSON.parse(userInfoStr);
+        
+        // Check if there are any friend requests
+        let friendRequests = [];
+        if (userInfo.friendRequests && userInfo.friendRequests.received) {
+            friendRequests = userInfo.friendRequests.received;
+        }
+        
+        console.log('[messages.js] Friend requests from localStorage:', friendRequests);
+        
+        // Clear container
+        requestsContainer.innerHTML = '';
+        
+        // If no friend requests, show empty state
+        if (!friendRequests.length) {
+            requestsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-user-plus"></i>
+                    <p>No friend requests</p>
+                </div>`;
+            return;
+        }
+        
+        // Sort requests by date (newest first)
+        friendRequests.sort((a, b) => {
+            const dateA = new Date(a.createdAt || 0);
+            const dateB = new Date(b.createdAt || 0);
+            return dateB - dateA;
+        });
+        
+        // Add each request to UI
+        friendRequests.forEach(request => {
+            const requestEl = document.createElement('div');
+            requestEl.className = 'invite-item friend-request-item pulse-glow';
+            requestEl.dataset.id = request._id;
+            
+            // Get sender info
+            const senderId = request.sender?._id || request.sender;
+            const senderName = request.sender?.username || request.senderName || 'User';
+            const message = request.message || `${senderName} would like to be your friend!`;
+            
+            // Format date
+            const requestDate = request.createdAt ? new Date(request.createdAt) : new Date();
+            const time = requestDate.toLocaleTimeString();
+            const date = requestDate.toLocaleDateString();
+            
+            requestEl.innerHTML = `
+                <div class="invite-header">
+                    <span class="invite-game neon-text-secondary">Friend Request</span>
+                    <span class="invite-time">${time} ${date}</span>
+                </div>
+                <div class="invite-body">
+                    <p><strong>${senderName}</strong> sent you a friend request</p>
+                    <p class="invite-message">${message}</p>
+                </div>
+                <div class="invite-actions">
+                    <button class="btn btn-primary accept-friend-request" data-id="${senderId}" data-request-id="${request._id}">
+                        <i class="fas fa-check"></i> Accept
+                    </button>
+                    <button class="btn btn-danger reject-friend-request" data-id="${senderId}" data-request-id="${request._id}">
+                        <i class="fas fa-times"></i> Decline
+                    </button>
+                </div>
+            `;
+            
+            requestsContainer.appendChild(requestEl);
+        });
+        
+        // Add event listeners for buttons
+        addFriendRequestButtonListeners();
+        
+    } catch (err) {
+        console.error('Error displaying friend requests:', err);
+        requestsContainer.innerHTML = `
+            <div class="empty-state error">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Error loading friend requests</p>
+                <p class="error-details">${err.message}</p>
+            </div>`;
+    }
 }
 
 // Function to display friends list
 function displayFriends() {
+    console.log('[messages.js] Displaying friends list');
     const friendsContainer = document.getElementById('friends-container');
-    if (!friendsContainer) return;
+    if (!friendsContainer) {
+        console.error('Friends container not found');
+        return;
+    }
     
-    // Placeholder for now - this would fetch friends from API
-    friendsContainer.innerHTML = `
-        <div class="empty-state">
-            <i class="fas fa-users-slash"></i>
-            <p>No friends</p>
-        </div>`;
+    try {
+        // Get current user info
+        const userInfoStr = localStorage.getItem('userInfo');
+        if (!userInfoStr) {
+            friendsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-users-slash"></i>
+                    <p>No friends</p>
+                </div>`;
+            return;
+        }
+        
+        const userInfo = JSON.parse(userInfoStr);
+        
+        // If there are no friends in the user info
+        if (!userInfo.friends || !userInfo.friends.length) {
+            friendsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-users-slash"></i>
+                    <p>No friends yet</p>
+                    <button class="btn btn-primary mt-3" onclick="window.location.href='players.html'">
+                        <i class="fas fa-user-plus"></i> Find Friends
+                    </button>
+                </div>`;
+            return;
+        }
+        
+        // Try to get detailed friend data from API
+        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+        const token = localStorage.getItem('token');
+        
+        // First show loading indicator
+        friendsContainer.innerHTML = `
+            <div class="text-center p-3">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading friends...</p>
+            </div>`;
+        
+        // Fetch friends data
+        fetch(`${apiUrl}/users/friends`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success || !data.data || !data.data.length) {
+                // No friends returned from API
+                friendsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-users-slash"></i>
+                        <p>No friends found</p>
+                        <button class="btn btn-primary mt-3" onclick="window.location.href='players.html'">
+                            <i class="fas fa-user-plus"></i> Find Friends
+                        </button>
+                    </div>`;
+                return;
+            }
+            
+            // Clear container
+            friendsContainer.innerHTML = '';
+            
+            // Sort friends alphabetically by username
+            const friends = data.data.sort((a, b) => {
+                const nameA = a.username || '';
+                const nameB = b.username || '';
+                return nameA.localeCompare(nameB);
+            });
+            
+            console.log('[messages.js] Friends from API:', friends);
+            
+            // Add each friend to UI
+            friends.forEach(friend => {
+                const friendEl = document.createElement('div');
+                friendEl.className = 'friend-item';
+                friendEl.dataset.id = friend._id;
+                
+                // Get display name or username
+                const displayName = friend.profile?.displayName || friend.username || 'User';
+                
+                // Get status
+                const status = friend.status || 'offline';
+                const statusClass = status === 'online' ? 'status-online' : 'status-offline';
+                const statusText = status === 'online' ? 'Online' : 'Offline';
+                
+                // Get avatar or initials
+                const initials = (friend.username || 'U').substring(0, 2).toUpperCase();
+                const avatarUrl = friend.profile?.avatar || '';
+                
+                const avatarHtml = avatarUrl ? 
+                    `<img src="${avatarUrl}" alt="${displayName}" class="friend-avatar">` : 
+                    `<div class="friend-avatar-initials">${initials}</div>`;
+                
+                friendEl.innerHTML = `
+                    <div class="friend-header">
+                        <div class="friend-info">
+                            <div class="friend-avatar-container">
+                                ${avatarHtml}
+                                <span class="friend-status ${statusClass}" title="${statusText}"></span>
+                            </div>
+                            <div class="friend-details">
+                                <div class="friend-name">${displayName}</div>
+                                <div class="friend-username">@${friend.username || 'user'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="friend-actions">
+                        <button class="btn btn-sm btn-primary message-friend" title="Message" data-id="${friend._id}">
+                            <i class="fas fa-comment"></i>
+                        </button>
+                        <button class="btn btn-sm btn-secondary view-profile" title="View Profile" data-id="${friend._id}">
+                            <i class="fas fa-user"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning invite-friend" title="Invite to Lobby" data-id="${friend._id}">
+                            <i class="fas fa-gamepad"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger remove-friend" title="Remove Friend" data-id="${friend._id}">
+                            <i class="fas fa-user-minus"></i>
+                        </button>
+                    </div>
+                `;
+                
+                friendsContainer.appendChild(friendEl);
+            });
+            
+            // Add event listeners to friend actions
+            addFriendActionListeners();
+        })
+        .catch(error => {
+            console.error('Error fetching friends:', error);
+            
+            // Show error message
+            friendsContainer.innerHTML = `
+                <div class="empty-state error">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Error loading friends</p>
+                    <p class="error-details">${error.message}</p>
+                    <button class="btn btn-primary mt-3" onclick="window.location.reload()">
+                        <i class="fas fa-sync"></i> Retry
+                    </button>
+                </div>`;
+        });
+        
+    } catch (err) {
+        console.error('Error displaying friends:', err);
+        friendsContainer.innerHTML = `
+            <div class="empty-state error">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Error loading friends</p>
+                <p class="error-details">${err.message}</p>
+            </div>`;
+    }
 }
 
 // Function to add event listeners to invite buttons
@@ -756,4 +998,326 @@ function updateUnreadCount() {
     } catch (err) {
         console.error('Error updating unread count:', err);
     }
+}
+
+// Add event listeners for friend request buttons
+function addFriendRequestButtonListeners() {
+    console.log('[messages.js] Adding friend request button listeners');
+    
+    // Accept friend request buttons
+    document.querySelectorAll('.accept-friend-request').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const senderId = btn.dataset.id;
+            const requestId = btn.dataset.requestId;
+            
+            if (!senderId || !requestId) {
+                console.error('Missing sender ID or request ID:', { senderId, requestId });
+                showNotification('Error', 'Could not process friend request', 'error');
+                return;
+            }
+            
+            console.log(`[messages.js] Accepting friend request from ${senderId}, request ID: ${requestId}`);
+            
+            try {
+                // Show loading state
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                btn.disabled = true;
+                
+                // Get the API URL
+                const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+                const token = localStorage.getItem('token');
+                
+                // Make API call to accept the request
+                const response = await fetch(`${apiUrl}/users/friends/accept/${requestId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Update localStorage
+                    if (data.userInfo) {
+                        localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
+                    }
+                    
+                    // Remove the request from UI
+                    const requestItem = btn.closest('.friend-request-item');
+                    if (requestItem) {
+                        requestItem.classList.add('fade-out');
+                        setTimeout(() => {
+                            requestItem.remove();
+                            
+                            // Check if there are no more requests
+                            if (document.querySelectorAll('.friend-request-item').length === 0) {
+                                const container = document.getElementById('friend-requests-container');
+                                if (container) {
+                                    container.innerHTML = `
+                                        <div class="empty-state">
+                                            <i class="fas fa-user-plus"></i>
+                                            <p>No friend requests</p>
+                                        </div>`;
+                                }
+                            }
+                        }, 500);
+                    }
+                    
+                    // Show success notification
+                    showNotification('Success', 'Friend request accepted!', 'success');
+                    
+                    // Update friends list
+                    displayFriends();
+                    
+                    // Emit socket event if available
+                    if (window.SocketHandler && window.SocketHandler.socket) {
+                        window.SocketHandler.socket.emit('friend-request-accepted', {
+                            senderId: senderId,
+                            acceptorName: JSON.parse(localStorage.getItem('userInfo'))?.username || 'User'
+                        });
+                    }
+                } else {
+                    // Reset button
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    
+                    // Show error
+                    showNotification('Error', data.message || 'Failed to accept friend request', 'error');
+                }
+            } catch (error) {
+                console.error('Error accepting friend request:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showNotification('Error', 'Could not process friend request', 'error');
+            }
+        });
+    });
+    
+    // Reject friend request buttons
+    document.querySelectorAll('.reject-friend-request').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const senderId = btn.dataset.id;
+            const requestId = btn.dataset.requestId;
+            
+            if (!senderId || !requestId) {
+                console.error('Missing sender ID or request ID:', { senderId, requestId });
+                showNotification('Error', 'Could not process friend request', 'error');
+                return;
+            }
+            
+            console.log(`[messages.js] Rejecting friend request from ${senderId}, request ID: ${requestId}`);
+            
+            try {
+                // Show loading state
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                btn.disabled = true;
+                
+                // Get the API URL
+                const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+                const token = localStorage.getItem('token');
+                
+                // Make API call to reject the request
+                const response = await fetch(`${apiUrl}/users/friends/reject/${requestId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Update localStorage
+                    if (data.userInfo) {
+                        localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
+                    }
+                    
+                    // Remove the request from UI
+                    const requestItem = btn.closest('.friend-request-item');
+                    if (requestItem) {
+                        requestItem.classList.add('fade-out');
+                        setTimeout(() => {
+                            requestItem.remove();
+                            
+                            // Check if there are no more requests
+                            if (document.querySelectorAll('.friend-request-item').length === 0) {
+                                const container = document.getElementById('friend-requests-container');
+                                if (container) {
+                                    container.innerHTML = `
+                                        <div class="empty-state">
+                                            <i class="fas fa-user-plus"></i>
+                                            <p>No friend requests</p>
+                                        </div>`;
+                                }
+                            }
+                        }, 500);
+                    }
+                    
+                    // Show success notification
+                    showNotification('Friend Request', 'Friend request declined', 'info');
+                    
+                    // Emit socket event if available
+                    if (window.SocketHandler && window.SocketHandler.socket) {
+                        window.SocketHandler.socket.emit('friend-request-rejected', {
+                            senderId: senderId
+                        });
+                    }
+                } else {
+                    // Reset button
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    
+                    // Show error
+                    showNotification('Error', data.message || 'Failed to decline friend request', 'error');
+                }
+            } catch (error) {
+                console.error('Error rejecting friend request:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showNotification('Error', 'Could not process friend request', 'error');
+            }
+        });
+    });
+}
+
+// Add event listeners to friend action buttons
+function addFriendActionListeners() {
+    console.log('[messages.js] Adding friend action listeners');
+    
+    // View profile buttons
+    document.querySelectorAll('.view-profile').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const friendId = btn.dataset.id;
+            
+            if (friendId) {
+                window.location.href = `profile.html?id=${friendId}`;
+            }
+        });
+    });
+    
+    // Message friend buttons
+    document.querySelectorAll('.message-friend').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const friendId = btn.dataset.id;
+            
+            if (friendId) {
+                // This would open a chat with the friend
+                showNotification('Coming Soon', 'Direct messaging coming soon!', 'info');
+            }
+        });
+    });
+    
+    // Invite friend buttons
+    document.querySelectorAll('.invite-friend').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const friendId = btn.dataset.id;
+            const friendName = btn.closest('.friend-item').querySelector('.friend-name').textContent;
+            
+            if (friendId) {
+                // Redirect to lobbies page for now
+                window.location.href = `lobbies.html?invite=${friendId}`;
+            }
+        });
+    });
+    
+    // Remove friend buttons
+    document.querySelectorAll('.remove-friend').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const friendId = btn.dataset.id;
+            const friendItem = btn.closest('.friend-item');
+            const friendName = friendItem.querySelector('.friend-name').textContent;
+            
+            if (!friendId) return;
+            
+            // Ask for confirmation
+            if (!confirm(`Are you sure you want to remove ${friendName} from your friends list?`)) {
+                return;
+            }
+            
+            console.log(`[messages.js] Removing friend: ${friendId} (${friendName})`);
+            
+            try {
+                // Show loading state
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                btn.disabled = true;
+                
+                // Get API URL and token
+                const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+                const token = localStorage.getItem('token');
+                
+                // Make API call to remove friend
+                const response = await fetch(`${apiUrl}/users/friends/remove/${friendId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Update localStorage if new user info is returned
+                    if (data.userInfo) {
+                        localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
+                    }
+                    
+                    // Remove the friend item from UI with animation
+                    friendItem.classList.add('fade-out');
+                    setTimeout(() => {
+                        friendItem.remove();
+                        
+                        // Check if there are no more friends
+                        if (document.querySelectorAll('.friend-item').length === 0) {
+                            const container = document.getElementById('friends-container');
+                            if (container) {
+                                container.innerHTML = `
+                                    <div class="empty-state">
+                                        <i class="fas fa-users-slash"></i>
+                                        <p>No friends</p>
+                                        <button class="btn btn-primary mt-3" onclick="window.location.href='players.html'">
+                                            <i class="fas fa-user-plus"></i> Find Friends
+                                        </button>
+                                    </div>`;
+                            }
+                        }
+                    }, 500);
+                    
+                    // Show success notification
+                    showNotification('Friend Removed', `${friendName} has been removed from your friends list`, 'info');
+                    
+                    // Emit socket event if available
+                    if (window.SocketHandler && window.SocketHandler.socket) {
+                        window.SocketHandler.socket.emit('friend-removed', {
+                            friendId: friendId
+                        });
+                    }
+                } else {
+                    // Reset button
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    
+                    // Show error
+                    showNotification('Error', data.message || 'Failed to remove friend', 'error');
+                }
+            } catch (error) {
+                console.error('Error removing friend:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showNotification('Error', 'Could not remove friend', 'error');
+            }
+        });
+    });
 } 
