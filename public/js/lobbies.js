@@ -490,7 +490,7 @@ class LobbiesModule {
         card.addEventListener('click', (event) => {
             // Don't trigger if they clicked specifically on a button in the footer
             if (!event.target.closest('.game-card-footer')) {
-                window.location.href = `pages/lobby.html?id=${lobby._id}`;
+                window.location.href = `lobby.html?id=${lobby._id}`;
             }
         });
         
@@ -501,7 +501,7 @@ class LobbiesModule {
         if (viewButton) {
             viewButton.addEventListener('click', (event) => {
                 event.stopPropagation(); // Prevent card click
-                window.location.href = `pages/lobby.html?id=${lobby._id}&manage=true`;
+                window.location.href = `lobby.html?id=${lobby._id}&manage=true`;
             });
         }
         
@@ -521,7 +521,7 @@ class LobbiesModule {
                     return;
                 }
                 
-                window.location.href = `pages/lobby.html?id=${lobby._id}&join=true`;
+                window.location.href = `lobby.html?id=${lobby._id}&join=true`;
             });
         }
         

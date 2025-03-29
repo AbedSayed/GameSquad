@@ -147,10 +147,6 @@
             </div>
 
             <div class="lobby-actions">
-                <button id="readyBtn" class="btn btn-primary btn-hover-fx">
-                    <i class="fas fa-check"></i>
-                    <span>Ready</span>
-                </button>
                 <button id="leaveBtn" class="btn btn-danger btn-hover-fx">
                     <i class="fas fa-door-open"></i>
                     <span>Leave Lobby</span>
@@ -209,7 +205,7 @@
                         // Toggle to ready
                         readyToggleBtn.classList.remove('not-ready');
                         readyToggleBtn.classList.add('ready');
-                        readyToggleBtn.innerHTML = '<i class="fas fa-times"></i> <span>Mark as Not Ready</span>';
+                        readyToggleBtn.innerHTML = '<i class="fas fa-times"></i> <span>Not Ready</span>';
                         yourStatus.textContent = 'Ready';
                         yourStatus.className = 'status-badge ready';
                         

@@ -783,11 +783,6 @@
     transition: all 0.2s ease;
 }
 
-.player-item:hover {
-    transform: translateX(4px);
-    border-color: var(--accent-primary);
-}
-
 .player-item i {
     color: var(--accent-primary);
 }
