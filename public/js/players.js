@@ -71,11 +71,11 @@ function setupEventListeners() {
     }
     
     // Reset filters button
-    const resetFiltersBtn = document.getElementById('resetFilters');
-    if (resetFiltersBtn) {
+        const resetFiltersBtn = document.getElementById('resetFilters');
+        if (resetFiltersBtn) {
         console.log('Reset filters button found');
-        resetFiltersBtn.addEventListener('click', resetFilters);
-    }
+            resetFiltersBtn.addEventListener('click', resetFilters);
+        }
     
     // Search input (for typing)
     const searchInput = document.getElementById('searchInput');
@@ -185,7 +185,7 @@ async function loadPlayers() {
                     // If no players after filtering, use mock data
                     displayPlayers(generateMockPlayers());
                 } else {
-                    displayPlayers(filteredPlayers);
+                displayPlayers(filteredPlayers);
                 }
                 
                 hideLoadingIndicator();
@@ -473,17 +473,539 @@ function inviteToLobby(playerId, playerName) {
         return;
     }
     
-    // Check if user has an active lobby
-    const activeLobbies = getUserActiveLobbies();
+    // Show loading notification
+    showNotification('Loading lobbies...', 'info');
     
-    if (!activeLobbies || activeLobbies.length === 0) {
-        showNotification('You must create or join a lobby before inviting players', 'info');
-        return;
+    // Directly fetch hosted lobbies from API
+    fetch(`${window.APP_CONFIG.API_URL}/lobbies?host=${currentUser._id}`)
+        .then(response => response.json())
+        .then(response => {
+            console.log('Hosted lobbies from API:', response);
+            
+            // Extract the lobbies array from the response
+            const allLobbies = response.data || [];
+            console.log('Lobbies array extracted:', allLobbies);
+            
+            // Filter for lobbies that the user is actually a host of or a member of
+            const userLobbies = allLobbies.filter(lobby => {
+                // Check if user is the host
+                const isHost = lobby.host && lobby.host._id === currentUser._id;
+                
+                // Check if user is a player in this lobby
+                const isPlayer = lobby.players && Array.isArray(lobby.players) && 
+                    lobby.players.some(player => 
+                        player.user && player.user._id === currentUser._id
+                    );
+                
+                return isHost || isPlayer;
+            });
+            
+            // Add isHost flag to each lobby
+            const formattedLobbies = userLobbies.map(lobby => ({
+                ...lobby,
+                isHost: lobby.host && lobby.host._id === currentUser._id
+            }));
+            
+            console.log('Filtered user lobbies:', formattedLobbies);
+            
+            if (!formattedLobbies || formattedLobbies.length === 0) {
+                showNotification('You must join or create a lobby before inviting players', 'info');
+                return;
+            }
+            
+            // Show the popup with all lobbies
+            showLobbySelectionPopup(formattedLobbies, playerId, playerName);
+        })
+        .catch(error => {
+            console.error('Error fetching lobbies:', error);
+            showNotification('Error loading lobbies. Please try again.', 'error');
+        });
+}
+
+// Function to show the lobby selection popup
+function showLobbySelectionPopup(lobbies, playerId, playerName) {
+    // Create popup container
+    const popupContainer = document.createElement('div');
+    popupContainer.className = 'modal-container';
+    popupContainer.style.position = 'fixed';
+    popupContainer.style.top = '0';
+    popupContainer.style.left = '0';
+    popupContainer.style.width = '100%';
+    popupContainer.style.height = '100%';
+    popupContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    popupContainer.style.display = 'flex';
+    popupContainer.style.justifyContent = 'center';
+    popupContainer.style.alignItems = 'center';
+    popupContainer.style.zIndex = '9999';
+    
+    // Create popup content
+    const popupContent = document.createElement('div');
+    popupContent.className = 'modal-content';
+    popupContent.style.backgroundColor = 'rgba(26, 26, 36, 0.95)';
+    popupContent.style.borderRadius = '8px';
+    popupContent.style.boxShadow = '0 0 20px rgba(108, 92, 231, 0.4)';
+    popupContent.style.width = '90%';
+    popupContent.style.maxWidth = '500px';
+    popupContent.style.maxHeight = '80vh';
+    popupContent.style.overflow = 'auto';
+    popupContent.style.border = '1px solid rgba(108, 92, 231, 0.3)';
+    popupContent.style.backdropFilter = 'blur(10px)';
+    
+    // Create header
+    const header = document.createElement('div');
+    header.style.padding = '15px 20px';
+    header.style.borderBottom = '1px solid rgba(108, 92, 231, 0.3)';
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
+    
+    // Create title
+    const title = document.createElement('h2');
+    title.textContent = `Invite ${playerName} to Lobby`;
+    title.style.color = '#fff';
+    title.style.margin = '0';
+    title.style.fontSize = '1.5rem';
+    
+    // Create close button
+    const closeButton = document.createElement('button');
+    closeButton.innerHTML = '&times;';
+    closeButton.style.background = 'none';
+    closeButton.style.border = 'none';
+    closeButton.style.color = '#fff';
+    closeButton.style.fontSize = '1.5rem';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.padding = '0 5px';
+    closeButton.style.lineHeight = '1';
+    closeButton.addEventListener('click', () => {
+        document.body.removeChild(popupContainer);
+    });
+    
+    // Add title and close button to header
+    header.appendChild(title);
+    header.appendChild(closeButton);
+    
+    // Create body content
+    const body = document.createElement('div');
+    body.style.padding = '20px';
+    
+    // Create lobby list or empty state
+            if (!lobbies || lobbies.length === 0) {
+        // Empty state
+        const emptyState = document.createElement('div');
+        emptyState.style.textAlign = 'center';
+        emptyState.style.padding = '30px 20px';
+        
+        const emptyIcon = document.createElement('div');
+        emptyIcon.innerHTML = '<i class="fas fa-gamepad" style="font-size: 3rem; color: #6c5ce7; margin-bottom: 15px;"></i>';
+        
+        const emptyTitle = document.createElement('h3');
+        emptyTitle.textContent = 'No Lobbies Available';
+        emptyTitle.style.color = '#fff';
+        emptyTitle.style.marginBottom = '10px';
+        
+        const emptyText = document.createElement('p');
+        emptyText.textContent = 'You need to create or join a lobby before you can invite players.';
+        emptyText.style.color = 'rgba(255, 255, 255, 0.7)';
+        emptyText.style.marginBottom = '20px';
+        
+        const createButton = document.createElement('button');
+        createButton.textContent = 'Create New Lobby';
+        createButton.style.backgroundColor = '#6c5ce7';
+        createButton.style.color = '#fff';
+        createButton.style.border = 'none';
+        createButton.style.borderRadius = '4px';
+        createButton.style.padding = '10px 20px';
+        createButton.style.fontSize = '1rem';
+        createButton.style.cursor = 'pointer';
+        createButton.style.transition = 'all 0.3s ease';
+        
+        createButton.addEventListener('mouseover', () => {
+            createButton.style.backgroundColor = '#5348c7';
+        });
+        
+        createButton.addEventListener('mouseout', () => {
+            createButton.style.backgroundColor = '#6c5ce7';
+        });
+        
+        createButton.addEventListener('click', () => {
+            document.body.removeChild(popupContainer);
+            window.location.href = 'create-lobby.html';
+        });
+        
+        emptyState.appendChild(emptyIcon);
+        emptyState.appendChild(emptyTitle);
+        emptyState.appendChild(emptyText);
+        emptyState.appendChild(createButton);
+        
+        body.appendChild(emptyState);
+    } else {
+        // Create lobby list with header sections
+        const lobbyList = document.createElement('div');
+        lobbyList.className = 'lobby-list';
+        
+        // Split lobbies into hosted and participating
+        const hostedLobbies = lobbies.filter(lobby => lobby.isHost);
+        const participatingLobbies = lobbies.filter(lobby => !lobby.isHost);
+        
+        // Add section for hosted lobbies if any
+        if (hostedLobbies.length > 0) {
+            const hostedSection = document.createElement('div');
+            hostedSection.style.marginBottom = '20px';
+            
+            const hostedTitle = document.createElement('h3');
+            hostedTitle.textContent = 'Your Hosted Lobbies';
+            hostedTitle.style.color = '#6c5ce7';
+            hostedTitle.style.fontSize = '1.2rem';
+            hostedTitle.style.marginBottom = '10px';
+            hostedTitle.style.borderBottom = '1px solid rgba(108, 92, 231, 0.2)';
+            hostedTitle.style.paddingBottom = '5px';
+            
+            hostedSection.appendChild(hostedTitle);
+            
+            // Add hosted lobbies to section
+            hostedLobbies.forEach(lobby => {
+                const lobbyItem = createLobbyItem(lobby, playerId, playerName);
+                hostedSection.appendChild(lobbyItem);
+            });
+            
+            lobbyList.appendChild(hostedSection);
+        }
+        
+        // Add section for participating lobbies if any
+        if (participatingLobbies.length > 0) {
+            const participatingSection = document.createElement('div');
+            
+            const participatingTitle = document.createElement('h3');
+            participatingTitle.textContent = 'Lobbies You\'re In';
+            participatingTitle.style.color = '#00cec9';
+            participatingTitle.style.fontSize = '1.2rem';
+            participatingTitle.style.marginBottom = '10px';
+            participatingTitle.style.borderBottom = '1px solid rgba(0, 206, 201, 0.2)';
+            participatingTitle.style.paddingBottom = '5px';
+            
+            participatingSection.appendChild(participatingTitle);
+            
+            // Add participating lobbies to section
+            participatingLobbies.forEach(lobby => {
+                const lobbyItem = createLobbyItem(lobby, playerId, playerName);
+                participatingSection.appendChild(lobbyItem);
+            });
+            
+            lobbyList.appendChild(participatingSection);
+        }
+        
+        // Add lobby list to body
+        body.appendChild(lobbyList);
     }
     
-    // If user has multiple lobbies, we could show a dropdown to select which one to invite to
-    // For now, just use the first active lobby
-    const lobby = activeLobbies[0];
+    // Add header and body to content
+    popupContent.appendChild(header);
+    popupContent.appendChild(body);
+    
+    // Add content to container
+    popupContainer.appendChild(popupContent);
+    
+    // Add container to body
+    document.body.appendChild(popupContainer);
+}
+
+// Helper function to create a lobby item for the selection popup
+function createLobbyItem(lobby, playerId, playerName) {
+    const lobbyItem = document.createElement('div');
+    lobbyItem.className = 'lobby-item';
+    lobbyItem.style.padding = '15px';
+    lobbyItem.style.marginBottom = '10px';
+    lobbyItem.style.backgroundColor = 'rgba(40, 40, 60, 0.8)';
+    lobbyItem.style.borderRadius = '5px';
+    lobbyItem.style.cursor = 'pointer';
+    lobbyItem.style.transition = 'all 0.3s ease';
+    lobbyItem.style.border = '1px solid rgba(108, 92, 231, 0.2)';
+    
+    // Add hover effect
+    lobbyItem.addEventListener('mouseover', () => {
+        lobbyItem.style.transform = 'translateY(-3px)';
+        lobbyItem.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.3)';
+        lobbyItem.style.borderColor = lobby.isHost ? 'rgba(108, 92, 231, 0.6)' : 'rgba(0, 206, 201, 0.6)';
+        lobbyItem.style.backgroundColor = 'rgba(50, 50, 70, 0.8)';
+    });
+    
+    lobbyItem.addEventListener('mouseout', () => {
+        lobbyItem.style.transform = 'translateY(0)';
+        lobbyItem.style.boxShadow = 'none';
+        lobbyItem.style.borderColor = lobby.isHost ? 'rgba(108, 92, 231, 0.2)' : 'rgba(0, 206, 201, 0.2)';
+        lobbyItem.style.backgroundColor = 'rgba(40, 40, 60, 0.8)';
+    });
+    
+    // Create flex container for better layout
+    const flexContainer = document.createElement('div');
+    flexContainer.style.display = 'flex';
+    flexContainer.style.justifyContent = 'space-between';
+    flexContainer.style.alignItems = 'center';
+    
+    // Create left content (name, game type, etc)
+    const leftContent = document.createElement('div');
+    
+    // Name and status
+    const lobbyName = document.createElement('h3');
+    lobbyName.textContent = lobby.name;
+    lobbyName.style.margin = '0 0 8px 0';
+    lobbyName.style.color = '#fff';
+    
+    // Game icon and type
+    const gameInfo = document.createElement('div');
+    gameInfo.style.display = 'flex';
+    gameInfo.style.alignItems = 'center';
+    gameInfo.style.marginBottom = '5px';
+    
+    // Game icon based on game type
+    const gameIcon = document.createElement('span');
+    gameIcon.innerHTML = '<i class="fas fa-gamepad"></i>';
+    gameIcon.style.marginRight = '5px';
+    gameIcon.style.color = '#6c5ce7';
+    
+    const gameType = document.createElement('span');
+    gameType.textContent = lobby.gameType || 'Unknown Game';
+    gameType.style.color = 'rgba(255, 255, 255, 0.8)';
+    
+    gameInfo.appendChild(gameIcon);
+    gameInfo.appendChild(gameType);
+    
+    // Players info
+    const playersInfo = document.createElement('div');
+    playersInfo.style.display = 'flex';
+    playersInfo.style.alignItems = 'center';
+    
+    const playersIcon = document.createElement('span');
+    playersIcon.innerHTML = '<i class="fas fa-users"></i>';
+    playersIcon.style.marginRight = '5px';
+    playersIcon.style.color = '#00cec9';
+    
+    const playersCount = document.createElement('span');
+    playersCount.textContent = `${lobby.currentPlayers}/${lobby.maxPlayers} players`;
+    playersCount.style.color = 'rgba(255, 255, 255, 0.7)';
+    
+    playersInfo.appendChild(playersIcon);
+    playersInfo.appendChild(playersCount);
+    
+    // Add elements to left content
+    leftContent.appendChild(lobbyName);
+    leftContent.appendChild(gameInfo);
+    leftContent.appendChild(playersInfo);
+    
+    // Create right content (role badge)
+    const rightContent = document.createElement('div');
+    
+    // Role badge
+    const roleBadge = document.createElement('div');
+    roleBadge.style.padding = '4px 8px';
+    roleBadge.style.borderRadius = '4px';
+    roleBadge.style.fontSize = '0.8rem';
+    roleBadge.style.fontWeight = 'bold';
+    
+    if (lobby.isHost) {
+        roleBadge.textContent = 'HOST';
+        roleBadge.style.backgroundColor = 'rgba(108, 92, 231, 0.2)';
+        roleBadge.style.color = '#6c5ce7';
+        roleBadge.style.border = '1px solid rgba(108, 92, 231, 0.4)';
+    } else {
+        roleBadge.textContent = 'MEMBER';
+        roleBadge.style.backgroundColor = 'rgba(0, 206, 201, 0.2)';
+        roleBadge.style.color = '#00cec9';
+        roleBadge.style.border = '1px solid rgba(0, 206, 201, 0.4)';
+    }
+    
+    rightContent.appendChild(roleBadge);
+    
+    // Add left and right content to flex container
+    flexContainer.appendChild(leftContent);
+    flexContainer.appendChild(rightContent);
+    
+    // Add flex container to lobby item
+    lobbyItem.appendChild(flexContainer);
+    
+    // Add click event to send invite
+    lobbyItem.addEventListener('click', () => {
+        sendInvite(lobby, playerId, playerName);
+        const modalContainer = document.querySelector('.modal-container');
+        if (modalContainer) {
+            document.body.removeChild(modalContainer);
+        }
+    });
+    
+    return lobbyItem;
+}
+
+// Function to get all lobbies the user is associated with (owned or participating)
+function getAllUserLobbies() {
+    return new Promise((resolve, reject) => {
+        try {
+            // Get the current user
+            const currentUser = getCurrentUser();
+            if (!currentUser) {
+                reject(new Error('No user logged in'));
+                return;
+            }
+
+            console.log('Current user:', currentUser);
+            // Show loading notification
+            showNotification('Fetching your lobbies...', 'info', true);
+
+            // Fetch lobbies from the API
+            console.log('Fetching user hosted lobbies from API...');
+            fetch(`${window.APP_CONFIG.API_URL}/lobbies?host=${currentUser._id}`)
+                .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to fetch lobbies');
+        }
+                    return response.json();
+                })
+                .then(ownedLobbiesData => {
+                    console.log('Owned lobbies from API:', ownedLobbiesData);
+                    // Transform owned lobbies
+                    const ownedLobbies = ownedLobbiesData.map(lobby => ({
+                        ...lobby,
+                        isHost: true
+                    }));
+                    console.log('Transformed owned lobbies:', ownedLobbies);
+
+                    // Also fetch lobbies the user is participating in but not hosting
+                    console.log('Fetching all lobbies to check participation...');
+                    return fetch(`${window.APP_CONFIG.API_URL}/lobbies`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Failed to fetch participating lobbies');
+                            }
+                            return response.json();
+                        })
+                        .then(allLobbies => {
+                            console.log('All lobbies from API:', allLobbies);
+                            // Filter lobbies where user is a participant but not the host
+                            const participatingLobbies = allLobbies
+                                .filter(lobby => {
+                                    // Check if user is a participant but not the host
+                                    const isParticipant = lobby.players && 
+                                           lobby.players.some(player => {
+                                               console.log('Checking player:', player);
+                                               return player.user && player.user._id === currentUser._id;
+                                           }) &&
+                                           lobby.host && lobby.host._id !== currentUser._id;
+                                    
+                                    if (isParticipant) {
+                                        console.log('User is participant in lobby:', lobby.name);
+                                    }
+                                    return isParticipant;
+                                })
+                                .map(lobby => ({
+                                    ...lobby,
+                                    isHost: false
+                                }));
+                            
+                            console.log('Participating lobbies:', participatingLobbies);
+
+                            // Also check localStorage for any active lobbies not returned by API
+                            let storedActiveLobbies = [];
+                            try {
+                                const stored = localStorage.getItem('active_lobbies');
+                                console.log('Active lobbies from localStorage:', stored);
+                                if (stored) {
+                                    storedActiveLobbies = JSON.parse(stored)
+                                        .filter(lobby => lobby.host && lobby.host._id !== currentUser._id)
+                                        .map(lobby => ({
+                                            ...lobby,
+                                            isHost: false
+                                        }));
+                                    console.log('Filtered active lobbies from localStorage:', storedActiveLobbies);
+                                }
+                            } catch (e) {
+                                console.error('Error parsing active lobbies from localStorage:', e);
+                            }
+
+                            // Combine all lobbies, giving priority to API results
+                            const apiLobbyIds = [...ownedLobbies, ...participatingLobbies].map(lobby => lobby._id);
+                            console.log('API lobby IDs:', apiLobbyIds);
+                            
+                            const filteredStoredLobbies = storedActiveLobbies.filter(
+                                lobby => !apiLobbyIds.includes(lobby._id)
+                            );
+                            console.log('Filtered stored lobbies:', filteredStoredLobbies);
+
+                            const combinedApiLobbies = [...ownedLobbies, ...participatingLobbies, ...filteredStoredLobbies];
+                            console.log('FINAL COMBINED LOBBIES:', combinedApiLobbies);
+
+                            if (combinedApiLobbies.length === 0) {
+                                showNotification('You have no active lobbies. Create a lobby first.', 'info');
+                            }
+
+                            resolve(combinedApiLobbies);
+                        });
+                })
+                .catch(error => {
+        console.error('Error fetching lobbies:', error);
+                    
+                    // Fallback to localStorage if API fails
+                    showNotification('Using cached lobby data', 'warning');
+                    console.log('Falling back to localStorage data');
+                    
+                    const storedLobbies = localStorage.getItem('user_lobbies');
+                    const storedActiveLobbies = localStorage.getItem('active_lobbies');
+                    
+                    console.log('user_lobbies from localStorage:', storedLobbies);
+                    console.log('active_lobbies from localStorage:', storedActiveLobbies);
+                    
+                    let ownedLobbies = [];
+                    let participatingLobbies = [];
+                    
+                    // Parse owned lobbies
+                    if (storedLobbies) {
+                        try {
+                            const lobbies = JSON.parse(storedLobbies);
+                            ownedLobbies = lobbies.map(lobby => ({
+                                ...lobby,
+                                isHost: true
+                            }));
+                            console.log('Owned lobbies from localStorage:', ownedLobbies);
+                        } catch (e) {
+                            console.error('Error parsing stored lobbies:', e);
+                        }
+                    }
+                    
+                    // Parse lobbies user is participating in
+                    if (storedActiveLobbies) {
+                        try {
+                            const activeLobbies = JSON.parse(storedActiveLobbies);
+                            participatingLobbies = activeLobbies
+                                .filter(lobby => lobby.host && lobby.host._id !== currentUser._id)
+                                .map(lobby => ({
+                                    ...lobby,
+                                    isHost: false
+                                }));
+                            console.log('Participating lobbies from localStorage:', participatingLobbies);
+                        } catch (e) {
+                            console.error('Error parsing active lobbies:', e);
+                        }
+                    }
+                    
+                    // Combine both arrays
+                    const combinedLobbies = [...ownedLobbies, ...participatingLobbies];
+                    console.log('FINAL COMBINED LOBBIES (localStorage fallback):', combinedLobbies);
+                    
+                    if (combinedLobbies.length === 0) {
+                        showNotification('No active lobbies found. Create a lobby first.', 'info');
+                    }
+                    
+                    resolve(combinedLobbies);
+                });
+    } catch (error) {
+            console.error('Error getting user lobbies:', error);
+            reject(error);
+        }
+    });
+}
+
+// Function to send the invitation
+function sendInvite(lobby, playerId, playerName) {
+    // Get current user
+    const currentUser = getCurrentUser();
     
     // Generate a unique invite ID
     const inviteId = 'inv_' + Math.random().toString(36).substring(2, 15);
@@ -525,8 +1047,9 @@ function inviteToLobby(playerId, playerName) {
     // Show success notification
     showNotification(`Invitation sent to ${playerName}`, 'success');
     
-    // In a real application, we would also send this to the server
-    // to be stored in the database and potentially trigger a real-time notification
+    // For this demo, we don't need to send API requests since the /invites/send endpoint doesn't exist
+    // and would just cause 404 errors in the console
+    /* 
     try {
         // Send invite to the server (if API is available)
         fetch(`${window.APP_CONFIG.API_URL}/invites/send`, {
@@ -554,53 +1077,7 @@ function inviteToLobby(playerId, playerName) {
         console.warn('Error sending invite to server:', error);
         // Invite is already saved locally, so this is just a warning
     }
-}
-
-// Helper function to get user's active lobbies
-function getUserActiveLobbies() {
-    // In a real application, this would fetch from the server
-    // For demo purposes, we'll create a mock lobby
-    
-    const currentUser = getCurrentUser();
-    if (!currentUser) return null;
-    
-    // Check if we have stored lobbies in localStorage
-    let storedLobbies = localStorage.getItem('user_lobbies');
-    let lobbies = [];
-    
-    if (storedLobbies) {
-        try {
-            lobbies = JSON.parse(storedLobbies);
-            // Filter to only include lobbies where this user is the host
-            lobbies = lobbies.filter(lobby => lobby.host._id === currentUser._id);
-        } catch (e) {
-            console.error('Error parsing stored lobbies:', e);
-        }
-    }
-    
-    // If no lobbies found, create a mock one
-    if (lobbies.length === 0) {
-        const mockLobby = {
-            _id: 'lobby_' + Math.random().toString(36).substring(2, 15),
-            name: `${currentUser.username}'s Lobby`,
-            host: {
-                _id: currentUser._id,
-                username: currentUser.username
-            },
-            gameType: 'FPS',
-            maxPlayers: 5,
-            currentPlayers: 1,
-            status: 'waiting',
-            createdAt: new Date().toISOString()
-        };
-        
-        lobbies.push(mockLobby);
-        
-        // Save back to localStorage
-        localStorage.setItem('user_lobbies', JSON.stringify(lobbies));
-    }
-    
-    return lobbies;
+    */
 }
 
 function viewProfile(playerId) {
@@ -740,14 +1217,14 @@ function showErrorMessage(message) {
         noPlayersMessage.classList.remove('d-none');
     } else {
         // If element doesn't exist, create one
-        const playersContainer = document.getElementById('playersContainer');
-        if (playersContainer) {
+    const playersContainer = document.getElementById('playersContainer');
+    if (playersContainer) {
             const errorDiv = document.createElement('div');
             errorDiv.className = 'alert alert-danger';
             errorDiv.textContent = message;
             
             // Clear container first
-            playersContainer.innerHTML = '';
+        playersContainer.innerHTML = '';
             playersContainer.appendChild(errorDiv);
         }
     }
