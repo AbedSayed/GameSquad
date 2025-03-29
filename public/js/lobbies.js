@@ -28,6 +28,7 @@ class LobbiesModule {
             'counter strike': 'CS2',
             'counterstrike': 'CS2',
             'counter-strike 2': 'CS2',
+            'csgo': 'CS2',
             'lol': 'League of Legends',
             'league': 'League of Legends',
             'valorant': 'VALORANT',
@@ -94,7 +95,28 @@ class LobbiesModule {
             }
         });
         
-        console.log('Normalized filters:', filters);
+        // Convert normalized game names back to API expected values
+        if (filters.game) {
+            // Map standardized names to API expected values
+            const apiGameMap = {
+                'Apex Legends': 'apex',
+                'League of Legends': 'lol',
+                'VALORANT': 'valorant',
+                'CS2': 'csgo',
+                'Fortnite': 'fortnite',
+                'Call of Duty': 'cod',
+                'Call of Duty: Warzone': 'warzone',
+                'Overwatch 2': 'overwatch',
+                'Dota 2': 'dota2',
+                'Rocket League': 'rocketleague',
+                'PUBG: BATTLEGROUNDS': 'pubg'
+            };
+            
+            // If we have a mapping, use it; otherwise, use lowercase of the game name
+            filters.game = apiGameMap[filters.game] || filters.game.toLowerCase();
+        }
+        
+        console.log('Normalized filters for API call:', filters);
         
         try {
             // Get the latest auth token
@@ -598,7 +620,7 @@ class LobbiesModule {
         
         // Debug - log all lobbies with their region and rank values 
         lobbies.forEach(lobby => {
-            console.log(`Lobby "${lobby.name}": game=${lobby.game}, region=${lobby.region}, rank=${lobby.rank}`);
+            console.log(`Lobby "${lobby.name}": game=${lobby.game}, region=${lobby.region}, rank=${lobby.rank}, skillLevel=${lobby.skillLevel}`);
         });
         
         const filteredLobbies = lobbies.filter(lobby => {
@@ -617,11 +639,32 @@ class LobbiesModule {
                 }
             }
             
-            // Rank filter
-            if (cleanFilters.rank && lobby.rank) {
-                const lobbyRank = lobby.rank.toLowerCase();
-                if (lobbyRank !== cleanFilters.rank && !lobbyRank.includes(cleanFilters.rank)) {
-                    console.log(`Filtering out "${lobby.name}" - rank mismatch: ${lobbyRank} vs ${cleanFilters.rank}`);
+            // Skill Level filter
+            if (cleanFilters.skillLevel) {
+                const requestedSkillLevel = parseInt(cleanFilters.skillLevel);
+                
+                // Try to match by numeric skillLevel first
+                if (!isNaN(requestedSkillLevel) && lobby.skillLevel) {
+                    const lobbySkillLevel = parseInt(lobby.skillLevel);
+                    if (!isNaN(lobbySkillLevel) && requestedSkillLevel !== lobbySkillLevel) {
+                        console.log(`Filtering out "${lobby.name}" - skillLevel mismatch: ${lobbySkillLevel} vs ${requestedSkillLevel}`);
+                        return false;
+                    }
+                } 
+                // Fallback to check rank as string if skillLevel doesn't match
+                else if (lobby.rank) {
+                    const lobbyRank = lobby.rank.toLowerCase();
+                    // Convert numeric skill level to text rank for comparison
+                    let rankValue = cleanFilters.skillLevel;
+                    
+                    // If it doesn't match directly, check if it's a numeric skill level
+                    if (lobbyRank !== rankValue && !lobbyRank.includes(rankValue)) {
+                        console.log(`Filtering out "${lobby.name}" - rank mismatch: ${lobbyRank} vs ${rankValue}`);
+                        return false;
+                    }
+                } else {
+                    // If we can't find a skill level or rank match, filter it out
+                    console.log(`Filtering out "${lobby.name}" - no skill level or rank data`);
                     return false;
                 }
             }
@@ -931,7 +974,7 @@ window.LobbiesModule = LobbiesModule;
 window.Lobby = new LobbiesModule();
 
 // Initialize when the page loads
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM content loaded in lobbies.js');
     
     // Check if essential elements exist
@@ -955,14 +998,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Get game parameter from URL, if present
     const gameParam = urlParams.get('game');
     if (gameParam) {
-        initialFilters.game = window.Lobby.normalizeGameName(gameParam);
+        // Don't normalize yet, just store the raw value
+        initialFilters.game = gameParam.toLowerCase();
         console.log('Found game parameter in URL:', gameParam);
-        console.log('Normalized to:', initialFilters.game);
+        
+        // Set the filter dropdown to match if it exists
+        const gameFilterElement = document.getElementById('gameFilter');
+        if (gameFilterElement) {
+            const options = Array.from(gameFilterElement.options);
+            const matchingOption = options.find(option => 
+                option.value.toLowerCase() === gameParam.toLowerCase());
+            
+            if (matchingOption) {
+                gameFilterElement.value = matchingOption.value;
+                console.log('Set game filter dropdown to:', matchingOption.value);
+            }
+        }
     }
     
     // Get additional filters from URL (rank, region, status) if present
-    ['rank', 'region', 'status'].forEach(param => {
-        const value = urlParams.get(param);
+    ['skillLevel', 'region', 'status'].forEach(param => {
+        const value = urlParams.get(param === 'skillLevel' ? 'rank' : param);
         if (value) {
             initialFilters[param] = value;
         }
@@ -971,6 +1027,101 @@ document.addEventListener('DOMContentLoaded', () => {
     // Log the initial filters 
     console.log('Loading lobbies with initial filters:', initialFilters);
     
+    // Update filter UI to match URL parameters
+    const updateFilterUI = (filters) => {
+        Object.entries(filters).forEach(([key, value]) => {
+            // Find corresponding filter element
+            let elementId;
+            if (key === 'game') elementId = 'gameFilter';
+            else if (key === 'skillLevel') elementId = 'rankFilter';
+            else if (key === 'region') elementId = 'regionFilter';
+            else if (key === 'status') elementId = 'statusFilter';
+            
+            if (elementId) {
+                const element = document.getElementById(elementId);
+                if (element) element.value = value;
+            }
+        });
+    };
+    
+    // Update filter UI before loading lobbies
+    updateFilterUI(initialFilters);
+    
     // Load lobbies with URL parameters as filters
     window.Lobby.loadLobbies(initialFilters);
+
+    // Add event listeners for filter buttons
+    const applyFiltersBtn = document.querySelector('.apply-filters');
+    const resetFiltersBtn = document.querySelector('.reset-filters');
+    const filterInputs = document.querySelectorAll('.filter-input');
+
+    if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', () => {
+            const filters = {};
+            
+            // Get values from filter inputs
+            const gameFilter = document.getElementById('gameFilter');
+            const regionFilter = document.getElementById('regionFilter');
+            const rankFilter = document.getElementById('rankFilter');
+            const statusFilter = document.getElementById('statusFilter');
+            
+            if (gameFilter && gameFilter.value) filters.game = gameFilter.value;
+            if (regionFilter && regionFilter.value) filters.region = regionFilter.value;
+            if (rankFilter && rankFilter.value) filters.skillLevel = rankFilter.value;
+            if (statusFilter && statusFilter.value) filters.status = statusFilter.value;
+            
+            console.log('Applying filters:', filters);
+            window.Lobby.loadLobbies(filters);
+        });
+    }
+
+    if (resetFiltersBtn) {
+        resetFiltersBtn.addEventListener('click', () => {
+            // Reset all filter inputs
+            filterInputs.forEach(input => {
+                input.value = '';
+            });
+            
+            // Load all lobbies
+            console.log('Resetting filters');
+            window.Lobby.loadLobbies({});
+        });
+    }
+
+    // Add event listeners for tab buttons
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    if (tabButtons.length > 0) {
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active class from all tabs
+                tabButtons.forEach(tb => tb.classList.remove('active'));
+                
+                // Add active class to clicked tab
+                btn.classList.add('active');
+                
+                // Get the tab value
+                const tabValue = btn.dataset.tab;
+                
+                // Apply filter based on tab
+                let filter = {};
+                
+                if (tabValue !== 'all') {
+                    if (tabValue === 'fps') {
+                        filter = { game: ['valorant', 'csgo', 'apex', 'cod'].join(',') };
+                    } else if (tabValue === 'moba') {
+                        filter = { game: ['lol', 'dota2'].join(',') };
+                    } else if (tabValue === 'battle-royale') {
+                        filter = { game: ['fortnite', 'apex', 'pubg'].join(',') };
+                    } else if (tabValue === 'rpg') {
+                        filter = { game: ['minecraft', 'wow'].join(',') };
+                    } else {
+                        filter = { game: tabValue };
+                    }
+                }
+                
+                console.log('Tab filter:', filter);
+                window.Lobby.loadLobbies(filter);
+            });
+        });
+    }
 });
