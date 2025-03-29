@@ -486,13 +486,12 @@
                 <li><a href="players.html" class="active">Players</a></li>
                 <li><a href="about.html">About</a></li>
             </ul>
-            <div class="user-profile hidden">
+            <div class="user-profile">
                 <span class="username">Username <i class="fas fa-chevron-down"></i></span>
                 <div class="profile-dropdown">
                     <a href="profile.html"><i class="fas fa-user"></i> My Profile</a>
-                    <a href="my-lobbies.html"><i class="fas fa-gamepad"></i> My Lobbies</a>
                     <a href="messages.html"><i class="fas fa-envelope"></i> Messages</a>
-                    <a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
             <div class="hamburger">
@@ -610,7 +609,7 @@
             updateAuthUI();
             
             // Set up logout handler
-            const logoutBtn = document.getElementById('logout-btn');
+            const logoutBtn = document.querySelector('.logout-btn');
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', function(e) {
                     e.preventDefault();

@@ -69,6 +69,17 @@ function updateAuthUI() {
             const usernameText = userInfo.username;
             usernameElem.innerHTML = usernameText + ' <i class="fas fa-chevron-down"></i>';
           }
+          
+          // Update dropdown menu to ensure it doesn't have the My Lobbies option
+          const dropdownMenu = userProfileElem.querySelector('.profile-dropdown');
+          if (dropdownMenu) {
+            // Check for My Lobbies link and remove it if found
+            const myLobbiesLink = dropdownMenu.querySelector('a[href*="my-lobbies"]');
+            if (myLobbiesLink) {
+              myLobbiesLink.remove();
+            }
+          }
+          
           userProfileElem.classList.remove('hidden');
         }
       } catch (e) {
