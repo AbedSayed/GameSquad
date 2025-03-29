@@ -4,631 +4,102 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Messages - GameSquad</title>
-    
-    <!-- Unified Theme System -->
-    <link rel="stylesheet" href="../css/gamesquad-theme.css">
-    <link rel="stylesheet" href="../css/animations.css">
-    <link rel="stylesheet" href="../css/gaming-styles.css">
     <link rel="stylesheet" href="../css/style.css">
-
-    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="../css/messages.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    
-    <!-- Google fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="../js/checkAuth.js"></script>
-    
-    <style>
-        .messages-container {
-            max-width: 1200px;
-            margin: 40px auto;
-            padding: 0 20px;
-            position: relative;
-            z-index: 10;
-        }
-        
-        .page-title {
-            color: var(--light-color);
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .page-title h1 {
-            font-size: 2.5rem;
-            margin: 0;
-            color: var(--light-color);
-            text-shadow: 0 0 10px rgba(108, 92, 231, 0.4);
-        }
-        
-        .messages-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 1px solid rgba(108, 92, 231, 0.3);
-        }
-        
-        .messages-tab {
-            padding: 10px 20px;
-            border: none;
-            background: none;
-            color: var(--gray-color);
-            cursor: pointer;
-            font-size: 1.1rem;
-            position: relative;
-            transition: all 0.3s ease;
-        }
-        
-        .messages-tab.active {
-            color: var(--light-color);
-            font-weight: 600;
-        }
-        
-        .messages-tab.active::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: linear-gradient(90deg, var(--primary-color), #43b5de);
-        }
-        
-        .messages-tab:hover {
-            color: var(--light-color);
-        }
-        
-        .messages-tab .badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 20px;
-            height: 20px;
-            background-color: var(--secondary-color);
-            color: var(--light-color);
-            border-radius: 50%;
-            font-size: 0.8rem;
-            margin-left: 5px;
-        }
-        
-        .message-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        
-        .message-card {
-            background-color: rgba(26, 26, 36, 0.9);
-            border-radius: var(--border-radius);
-            overflow: hidden;
-            transition: all 0.4s ease;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(108, 92, 231, 0.3);
-            position: relative;
-        }
-        
-        .message-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.2);
-            border-color: rgba(108, 92, 231, 0.4);
-        }
-        
-        .message-header {
-            background-color: rgba(20, 20, 30, 0.7);
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(108, 92, 231, 0.2);
-        }
-        
-        .message-from {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .message-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--light-color);
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-        
-        .message-sender {
-            font-weight: 600;
-            color: var(--light-color);
-        }
-        
-        .message-time {
-            color: var(--gray-color);
-            font-size: 0.9rem;
-        }
-        
-        .message-body {
-            padding: 15px;
-            color: var(--light-color);
-        }
-        
-        .message-content {
-            margin-bottom: 15px;
-            line-height: 1.4;
-        }
-        
-        .message-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        .message-btn {
-            padding: 8px 15px;
-            border: none;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.9rem;
-        }
-        
-        .message-btn-primary {
-            background-color: var(--primary-color);
-            color: var(--light-color);
-        }
-        
-        .message-btn-secondary {
-            background-color: var(--secondary-color);
-            color: var(--light-color);
-        }
-        
-        .message-btn-danger {
-            background-color: #dc3545;
-            color: var(--light-color);
-        }
-        
-        .message-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
-        }
-        
-        .empty-message {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 60px 20px;
-            color: var(--gray-color);
-            text-align: center;
-            background-color: rgba(26, 26, 36, 0.7);
-            border-radius: var(--border-radius);
-            backdrop-filter: blur(5px);
-        }
-        
-        .empty-message i {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            color: var(--primary-color);
-        }
-        
-        .empty-message p {
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-        }
-        
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        .invite-game {
-            background-color: rgba(108, 92, 231, 0.2);
-            padding: 5px 10px;
-            border-radius: 5px;
-            margin-left: 10px;
-            font-size: 0.9rem;
-        }
-        
-        .glow-effect {
-            animation: subtle-glow 4s infinite alternate;
-        }
-        
-        @keyframes subtle-glow {
-            0% {
-                box-shadow: 0 5px 15px rgba(108, 92, 231, 0.1);
-            }
-            100% {
-                box-shadow: 0 10px 25px rgba(108, 92, 231, 0.4);
-            }
-        }
-    </style>
 </head>
 <body>
-    <header>
-        <nav class="navbar">
-            <div class="logo">
-                <h1 class="sheen">GameSquad</h1>
-            </div>
-            <ul class="nav-links">
-                <li><a href="../home.html">Home</a></li>
-                <li><a href="lobbies.html">Lobbies</a></li>
-                <li><a href="players.html">Players</a></li>
-                <li><a href="about.html">About</a></li>
-            </ul>
-            <div class="user-profile hidden">
-                <span class="username">Username <i class="fas fa-chevron-down"></i></span>
-                <div class="profile-dropdown">
-                    <a href="profile.html"><i class="fas fa-user"></i> My Profile</a>
-                    <a href="my-lobbies.html"><i class="fas fa-gamepad"></i> My Lobbies</a>
-                    <a href="messages.html" class="active"><i class="fas fa-envelope"></i> Messages</a>
-                    <a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    <!-- Navigation bar -->
+    <nav class="navbar">
+        <div class="navbar-logo">
+            <a href="../home.html">
+                <img src="../images/logo.png" alt="GameSquad Logo">
+                <span>GameSquad</span>
+            </a>
+        </div>
+        <div class="navbar-links">
+            <a href="../home.html">Home</a>
+            <a href="browse-lobbies.html">Browse Lobbies</a>
+            <a href="create-lobby.html">Create Lobby</a>
+            <a href="profile.html" id="profile-link">Profile</a>
+            <a href="messages.html" class="active">Messages</a>
+            <a href="#" id="logout-button">Logout</a>
+        </div>
+        <div class="navbar-toggle">
+            <i class="fas fa-bars"></i>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="container">
+        <h1 class="page-title">Messages & Notifications</h1>
+        
+        <div class="messages-container">
+            <div class="messages-sidebar">
+                <div class="messages-tabs">
+                    <button class="tab-button active" data-tab="invites">Invites</button>
+                    <button class="tab-button" data-tab="notifications">Notifications</button>
+                    <button class="tab-button" data-tab="friends">Friends</button>
                 </div>
             </div>
-            <div class="hamburger">
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
-            </div>
-        </nav>
-    </header>
-
-    <main class="messages-container">
-        <div class="page-title">
-            <h1 class="neon-text">Messages</h1>
-        </div>
-
-        <div class="messages-tabs">
-            <button class="messages-tab active" data-tab="invites">
-                Invites <span class="badge" id="invites-badge">0</span>
-            </button>
-            <button class="messages-tab" data-tab="messages">
-                Messages <span class="badge" id="messages-badge">0</span>
-            </button>
-            <button class="messages-tab" data-tab="notifications">
-                Notifications <span class="badge" id="notifications-badge">0</span>
-            </button>
-        </div>
-
-        <div id="invites-tab" class="tab-content active">
-            <div id="invites-list" class="message-list">
-                <!-- Invites will be loaded here -->
-                <div class="empty-message" id="empty-invites">
-                    <i class="fas fa-envelope-open"></i>
-                    <p>You have no pending invites</p>
-                    <p class="small">When other players invite you to join their lobbies, they will appear here.</p>
+            
+            <div class="messages-content">
+                <!-- Invites Tab -->
+                <div class="tab-content active" id="invites-tab">
+                    <h2>Lobby Invites</h2>
+                    <div id="invites-container" class="invites-list">
+                        <!-- Invites will be populated here -->
+                        <div class="empty-state">No invites</div>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        <div id="messages-tab" class="tab-content">
-            <div id="messages-list" class="message-list">
-                <!-- Messages will be loaded here -->
-                <div class="empty-message" id="empty-messages">
-                    <i class="fas fa-comment-slash"></i>
-                    <p>You have no messages</p>
-                    <p class="small">When other players send you messages, they will appear here.</p>
+                
+                <!-- Notifications Tab -->
+                <div class="tab-content" id="notifications-tab">
+                    <h2>Notifications</h2>
+                    <div id="notifications-container" class="notifications-list">
+                        <!-- Notifications will be populated here -->
+                        <div class="empty-state">No notifications</div>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        <div id="notifications-tab" class="tab-content">
-            <div id="notifications-list" class="message-list">
-                <!-- Notifications will be loaded here -->
-                <div class="empty-message" id="empty-notifications">
-                    <i class="fas fa-bell-slash"></i>
-                    <p>You have no notifications</p>
-                    <p class="small">Important system updates and announcements will appear here.</p>
+                
+                <!-- Friends Tab -->
+                <div class="tab-content" id="friends-tab">
+                    <h2>Friend Requests</h2>
+                    <div id="friend-requests-container" class="friend-requests-list">
+                        <!-- Friend requests will be populated here -->
+                        <div class="empty-state">No friend requests</div>
+                    </div>
+                    
+                    <h2>Friends</h2>
+                    <div id="friends-container" class="friends-list">
+                        <!-- Friends will be populated here -->
+                        <div class="empty-state">No friends</div>
+                    </div>
                 </div>
             </div>
         </div>
     </main>
 
-    <div class="notifications-container"></div>
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2023 GameSquad. All rights reserved.</p>
+    </footer>
+    
+    <!-- Notification element -->
+    <div id="notification" class="notification">
+        <div class="notification-content">
+            <span class="notification-title">Title</span>
+            <span class="notification-message">Message</span>
+        </div>
+        <button class="notification-close">&times;</button>
+    </div>
 
     <!-- Scripts -->
-    <script src="../js/gamesquad-ui.js"></script>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
     <script src="../js/config.js"></script>
-    <script src="../js/auth.js" defer></script>
-    
-    <script>
-        // Global configuration
-        window.APP_CONFIG = {
-            API_URL: '/api'
-        };
-        
-        // Immediate check for auth state (runs before DOM is loaded)
-        (function() {
-            const userInfoStr = localStorage.getItem('userInfo');
-            const token = localStorage.getItem('token');
-            
-            const isAuthenticated = userInfoStr && token;
-            
-            // If authenticated, add class to html element
-            if (isAuthenticated) {
-                document.documentElement.classList.add('user-authenticated');
-            } else {
-                document.documentElement.classList.add('user-unauthenticated');
-            }
-        })();
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Get current user
-            const userInfoStr = localStorage.getItem('userInfo');
-            let currentUser = null;
-            if (userInfoStr) {
-                try {
-                    currentUser = JSON.parse(userInfoStr);
-                } catch (e) {
-                    console.error('Error parsing user info:', e);
-                }
-            }
-            
-            if (!currentUser) {
-                // Redirect to login if no user
-                window.location.href = 'login.html';
-                return;
-            }
-            
-            // Update auth UI (this will show/hide elements based on auth state)
-            updateAuthUI();
-            
-            // Setup tabs
-            const tabs = document.querySelectorAll('.messages-tab');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const tabName = tab.getAttribute('data-tab');
-                    
-                    // Update active tab
-                    tabs.forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    
-                    // Update active content
-                    const tabContents = document.querySelectorAll('.tab-content');
-                    tabContents.forEach(content => content.classList.remove('active'));
-                    document.getElementById(`${tabName}-tab`).classList.add('active');
-                });
-            });
-            
-            // Set up logout handler
-            const logoutBtn = document.getElementById('logout-btn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // Clear auth data
-                    localStorage.removeItem('userInfo');
-                    localStorage.removeItem('token');
-                    
-                    // Update UI
-                    updateAuthUI();
-                    
-                    // Show notification
-                    showNotification('You have been logged out successfully', 'success');
-                    
-                    // Redirect to landing page
-                    setTimeout(() => {
-                        window.location.href = '../index.html';
-                    }, 1000);
-                });
-            }
-            
-            // Load messages data
-            loadInvites();
-            loadMessages();
-            loadNotifications();
-        });
-        
-        function loadInvites() {
-            // Get current user
-            const userInfoStr = localStorage.getItem('userInfo');
-            if (!userInfoStr) return;
-            
-            const currentUser = JSON.parse(userInfoStr);
-            const userId = currentUser._id;
-            
-            // Get invites from localStorage or API
-            let invites = localStorage.getItem('lobby_invites');
-            if (invites) {
-                try {
-                    invites = JSON.parse(invites);
-                    // Filter invites for current user
-                    invites = invites.filter(invite => invite.recipientId === userId);
-                    displayInvites(invites);
-                } catch (e) {
-                    console.error('Error parsing invites:', e);
-                    displayInvites([]);
-                }
-            } else {
-                // Demo invites for testing
-                const demoInvites = [
-                    {
-                        id: 'inv1',
-                        senderId: 'sender1',
-                        senderName: 'PlayerX',
-                        recipientId: userId,
-                        type: 'lobby_invite',
-                        lobbyId: 'lobby123',
-                        lobbyName: 'Pro Valorant Team',
-                        gameType: 'Valorant',
-                        message: 'Join my Valorant lobby!',
-                        timestamp: new Date().toISOString(),
-                        status: 'pending'
-                    }
-                ];
-                
-                displayInvites(demoInvites);
-                
-                // Save demo invites to localStorage
-                localStorage.setItem('lobby_invites', JSON.stringify(demoInvites));
-            }
-        }
-        
-        function displayInvites(invites) {
-            const invitesList = document.getElementById('invites-list');
-            const emptyInvites = document.getElementById('empty-invites');
-            const invitesBadge = document.getElementById('invites-badge');
-            
-            // Update badge count
-            invitesBadge.textContent = invites.length;
-            
-            if (invites.length === 0) {
-                emptyInvites.style.display = 'flex';
-                return;
-            }
-            
-            // Hide empty message if we have invites
-            emptyInvites.style.display = 'none';
-            
-            // Clear existing invites
-            invitesList.innerHTML = '';
-            
-            // Sort invites by timestamp (newest first)
-            invites.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            
-            // Add invites to list
-            invites.forEach(invite => {
-                const inviteCard = createInviteCard(invite);
-                invitesList.appendChild(inviteCard);
-            });
-        }
-        
-        function createInviteCard(invite) {
-            const card = document.createElement('div');
-            card.className = 'message-card glow-effect';
-            card.setAttribute('data-id', invite.id);
-            
-            // Format timestamp
-            const timestamp = new Date(invite.timestamp);
-            const formattedTime = timestamp.toLocaleDateString() + ' ' + timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            
-            // Get first two letters for avatar
-            const initials = invite.senderName.slice(0, 2).toUpperCase();
-            
-            card.innerHTML = `
-                <div class="message-header">
-                    <div class="message-from">
-                        <div class="message-avatar">${initials}</div>
-                        <div>
-                            <div class="message-sender">${invite.senderName}</div>
-                            <div class="message-time">${formattedTime}</div>
-                        </div>
-                    </div>
-                    <div class="invite-game">${invite.gameType}</div>
-                </div>
-                <div class="message-body">
-                    <div class="message-content">
-                        <strong>Lobby Invitation:</strong> You've been invited to join <strong>${invite.lobbyName}</strong>
-                        <p>${invite.message}</p>
-                    </div>
-                    <div class="message-actions">
-                        <button class="message-btn message-btn-primary join-lobby-btn" data-id="${invite.lobbyId}">
-                            <i class="fas fa-sign-in-alt"></i> Join Lobby
-                        </button>
-                        <button class="message-btn message-btn-danger decline-invite-btn" data-id="${invite.id}">
-                            <i class="fas fa-times"></i> Decline
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            // Add event listeners
-            const joinBtn = card.querySelector('.join-lobby-btn');
-            joinBtn.addEventListener('click', () => {
-                joinLobby(invite.lobbyId);
-            });
-            
-            const declineBtn = card.querySelector('.decline-invite-btn');
-            declineBtn.addEventListener('click', () => {
-                declineInvite(invite.id);
-            });
-            
-            return card;
-        }
-        
-        function joinLobby(lobbyId) {
-            // Show notification
-            showNotification('Joining lobby...', 'info');
-            
-            // Redirect to lobby page
-            setTimeout(() => {
-                window.location.href = `lobby.html?id=${lobbyId}&join=true`;
-            }, 500);
-        }
-        
-        function declineInvite(inviteId) {
-            // Get all invites
-            let invites = localStorage.getItem('lobby_invites');
-            if (!invites) return;
-            
-            try {
-                invites = JSON.parse(invites);
-                
-                // Filter out the declined invite
-                invites = invites.filter(invite => invite.id !== inviteId);
-                
-                // Save back to localStorage
-                localStorage.setItem('lobby_invites', JSON.stringify(invites));
-                
-                // Reload invites
-                loadInvites();
-                
-                // Show notification
-                showNotification('Invitation declined', 'success');
-            } catch (e) {
-                console.error('Error declining invite:', e);
-            }
-        }
-        
-        function loadMessages() {
-            // Demo implementation - no messages for now
-            const messagesBadge = document.getElementById('messages-badge');
-            messagesBadge.textContent = '0';
-        }
-        
-        function loadNotifications() {
-            // Demo implementation - no notifications for now
-            const notificationsBadge = document.getElementById('notifications-badge');
-            notificationsBadge.textContent = '0';
-        }
-        
-        // Simple notification function
-        function showNotification(message, type = 'info') {
-            const notificationsContainer = document.querySelector('.notifications-container');
-            if (!notificationsContainer) return;
-
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.textContent = message;
-            
-            notificationsContainer.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.classList.add('show');
-            }, 10);
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
-                    }
-                }, 300);
-            }, 3000);
-        }
-    </script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/socket-handler.js"></script>
+    <script src="../js/messages.js"></script>
 </body>
 </html> 
