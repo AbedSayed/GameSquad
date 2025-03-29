@@ -368,9 +368,9 @@ class LobbiesModule {
             'csgo': '../resources/counter-strike-png-.png',
             'lol': '../resources/leageofLegend.png.png',
             'apex': '../resources/apex.png.png',
-            'fortnite': '../resources/default-game.png',
+            'fortnite': '../assets/images/games/Fortnite.jpg',
             'dota2': '../resources/default-game.png',
-            'overwatch': '../resources/default-game.png',
+            'overwatch': '../assets/images/games/OW.png',
             'rocketleague': '../assets/images/games/RL.png',
             'default': '../resources/default-game.png'
         };
