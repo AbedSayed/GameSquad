@@ -9,6 +9,21 @@ document.addEventListener('DOMContentLoaded', function() {
   applyGlowEffects();
   initializeMobileMenu();
   updateAuthUI();
+  
+  // Apply particle effect to the body for a consistent animated background across all pages
+  applyParticleEffect('body');
+  
+  // Apply particle effect to the features section specifically
+  const featuresSection = document.querySelector('.features');
+  if (featuresSection) {
+    applyParticleEffect('.features');
+    
+    // Add a pulsing glow effect to feature cards
+    const featureCards = document.querySelectorAll('.feature-card');
+    featureCards.forEach(card => {
+      card.classList.add('glow-effect');
+    });
+  }
 });
 
 /**
@@ -284,28 +299,48 @@ function applyParticleEffect(selector) {
   const element = document.querySelector(selector);
   if (!element) return;
   
+  const isBody = selector === 'body';
+  
   // Create a canvas element
   const canvas = document.createElement('canvas');
   canvas.classList.add('particle-canvas');
-  canvas.style.position = 'absolute';
-  canvas.style.top = '0';
-  canvas.style.left = '0';
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
-  canvas.style.pointerEvents = 'none';
-  canvas.style.zIndex = '1';
   
-  // Make sure container has position relative
-  if (getComputedStyle(element).position === 'static') {
-    element.style.position = 'relative';
+  // Different settings if applying to body vs other elements
+  if (isBody) {
+    canvas.style.position = 'fixed'; // Fixed position for body
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100vw';
+    canvas.style.height = '100vh';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '-1'; // Behind content
+    document.body.appendChild(canvas);
+  } else {
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '1';
+    
+    // Make sure container has position relative
+    if (getComputedStyle(element).position === 'static') {
+      element.style.position = 'relative';
+    }
+    
+    element.appendChild(canvas);
   }
-  
-  element.appendChild(canvas);
   
   // Set canvas dimensions
   const resizeCanvas = () => {
-    canvas.width = element.offsetWidth;
-    canvas.height = element.offsetHeight;
+    if (isBody) {
+      canvas.width = document.documentElement.clientWidth;
+      canvas.height = document.documentElement.clientHeight;
+    } else {
+      canvas.width = element.offsetWidth;
+      canvas.height = element.offsetHeight;
+    }
   };
   
   resizeCanvas();
@@ -314,7 +349,7 @@ function applyParticleEffect(selector) {
   // Particle setup
   const ctx = canvas.getContext('2d');
   const particles = [];
-  const particleCount = 50;
+  const particleCount = isBody ? 30 : 50; // Fewer particles for body to improve performance
   
   // Particle class
   class Particle {

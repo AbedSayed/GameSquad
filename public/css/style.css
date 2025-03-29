@@ -29,8 +29,44 @@ body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
   color: var(--text-color);
-  background-color: var(--background-color);
+  background-color: #0c0c14; /* Dark base color */
+  background-image: 
+    linear-gradient(45deg, rgba(20, 20, 35, 0.97), rgba(20, 20, 35, 0.95)),
+    url('../resources/grid-pattern.svg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed; /* Keep background fixed when scrolling */
   padding-top: 70px;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background: radial-gradient(circle at center, transparent, rgba(12, 12, 20, 0.7));
+  pointer-events: none;
+}
+
+/* This will add a subtle glow effect at the top of the screen */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 30vh;
+  z-index: -1;
+  background: linear-gradient(to bottom, 
+    rgba(108, 92, 231, 0.15) 0%, 
+    rgba(108, 92, 231, 0.05) 40%, 
+    transparent 100%);
+  pointer-events: none;
 }
 
 a {
@@ -344,15 +380,43 @@ header {
 
 /* Features Section */
 .features {
-  background-color: var(--card-bg);
+  position: relative;
+  background-color: transparent;
   padding: 60px 20px;
   text-align: center;
+  margin: 40px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  isolation: isolate; /* Create a new stacking context */
+}
+
+.features::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(20, 20, 35, 0.9), rgba(20, 20, 35, 0.85));
+  backdrop-filter: blur(5px);
+  border-radius: 10px;
+  z-index: -1;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(108, 92, 231, 0.2);
+}
+
+.features-container {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .features h2 {
   font-size: 2.5rem;
   margin-bottom: 40px;
   color: var(--light-color);
+  text-shadow: 0 0 10px rgba(126, 34, 206, 0.7);
 }
 
 .feature-cards {
@@ -364,21 +428,46 @@ header {
 }
 
 .feature-card {
-  background-color: var(--dark-color);
+  background-color: rgba(26, 26, 36, 0.7);
   border-radius: var(--border-radius);
   padding: 30px;
   box-shadow: var(--box-shadow);
-  transition: var(--transition);
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(108, 92, 231, 0.1);
+  backdrop-filter: blur(5px);
+  z-index: 1;
 }
 
 .feature-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-10px);
+  box-shadow: 0 15px 25px rgba(0, 0, 0, 0.2);
+  border-color: rgba(108, 92, 231, 0.4);
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-color), #43b5de);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.feature-card:hover::before {
+  opacity: 1;
 }
 
 .feature-card i {
   font-size: 3rem;
   color: var(--primary-color);
   margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
 }
 
 .feature-card h3 {
@@ -389,6 +478,20 @@ header {
 
 .feature-card p {
   color: var(--gray-color);
+}
+
+/* Glow effect animation for featured cards */
+.glow-effect {
+  animation: subtle-glow 4s infinite alternate;
+}
+
+@keyframes subtle-glow {
+  0% {
+    box-shadow: 0 5px 15px rgba(108, 92, 231, 0.1);
+  }
+  100% {
+    box-shadow: 0 10px 25px rgba(108, 92, 231, 0.4);
+  }
 }
 
 /* Games Section */
