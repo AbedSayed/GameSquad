@@ -88,21 +88,21 @@ window.Auth.logoutUser = function() {
 }
 
 /**
- * Get current user info
- * @returns {Object|null} - User info or null if not logged in
+ * Get the current user from localStorage
+ * @returns {Object|null} - User data or null if not logged in
  */
-window.Auth.getCurrentUser = function() {
+function getCurrentUser() {
   try {
-    const userInfoStr = localStorage.getItem('userInfo');
-    if (!userInfoStr) {
+    const userInfoString = localStorage.getItem('userInfo');
+    if (!userInfoString) {
+      console.error('No user information in localStorage');
       return null;
     }
     
-    const userInfo = JSON.parse(userInfoStr);
-    
-    // Validate the user info has required fields
-    if (!userInfo || !userInfo.username || userInfo.username.trim() === '') {
-      console.warn('Invalid user info in localStorage, returning null');
+    const userInfo = JSON.parse(userInfoString);
+    // Verify that the user info contains the expected data format
+    if (!userInfo || !userInfo._id || !userInfo.username) {
+      console.error('Invalid user info in localStorage:', userInfo);
       return null;
     }
     
@@ -115,36 +115,24 @@ window.Auth.getCurrentUser = function() {
 
 /**
  * Check if user is logged in
- * @returns {boolean} - Whether user is logged in
+ * @returns {boolean} - True if logged in, false otherwise
  */
-window.Auth.isLoggedIn = function() {
+function isLoggedIn() {
   try {
     const token = localStorage.getItem('token');
-    const userInfoStr = localStorage.getItem('userInfo');
+    const userInfo = getCurrentUser();
     
-    if (!token || !userInfoStr) {
+    if (!token || !userInfo) {
       return false;
     }
     
-    // Parse user info to check validity
-    try {
-      const userInfo = JSON.parse(userInfoStr);
-      
-      // Check if the userInfo has the expected structure
-      const isValid = userInfo && 
-                      userInfo.username && 
-                      typeof userInfo.username === 'string' &&
-                      userInfo.username.trim() !== '';
-      
-      if (!isValid) {
-        console.warn('Invalid user info structure detected in isLoggedIn');
-      }
-      
-      return isValid;
-    } catch (parseError) {
-      console.error('Error parsing userInfo in isLoggedIn:', parseError);
+    // Additional validation - username shouldn't be empty or default
+    if (!userInfo.username || userInfo.username === 'Guest' || userInfo.username === '') {
+      console.warn('Invalid username detected in localStorage:', userInfo.username);
       return false;
     }
+    
+    return true;
   } catch (error) {
     console.error('Error checking login status:', error);
     return false;
@@ -321,5 +309,161 @@ window.Auth.searchUsers = async function(filters = {}) {
   }
 }
 
+/**
+ * Update the user info in localStorage after friend operations
+ * @param {Object} updatedUserInfo - New user info with updated friends
+ */
+function updateUserInfo(updatedUserInfo) {
+  try {
+    // Get current user info first
+    const currentUserInfo = getCurrentUser();
+    if (!currentUserInfo) {
+      console.error('No user info to update');
+      return false;
+    }
+    
+    // Merge the updated info with existing info
+    const mergedUserInfo = { ...currentUserInfo, ...updatedUserInfo };
+    localStorage.setItem('userInfo', JSON.stringify(mergedUserInfo));
+    return true;
+  } catch (error) {
+    console.error('Error updating user info:', error);
+    return false;
+  }
+}
+
+/**
+ * Initialize socket connection for real-time notifications
+ * @param {string} userId - User ID for authentication
+ */
+function initSocketConnection(userId) {
+  if (!window.io) {
+    console.error('Socket.IO not loaded');
+    return;
+  }
+  
+  // Create or use existing socket connection
+  if (!window.socket) {
+    window.socket = io();
+  }
+  
+  // Authenticate the socket connection
+  window.socket.emit('authenticate', { userId });
+  
+  // Set up socket event listeners for friend-related events
+  window.socket.on('new-friend-request', (data) => {
+    showNotification(`${data.senderName} sent you a friend request!`, 'info');
+    
+    // Update local data if needed
+    refreshUserData();
+  });
+  
+  window.socket.on('friend-request-accepted', (data) => {
+    showNotification(`${data.acceptedByName} accepted your friend request!`, 'success');
+    
+    // Update local data
+    refreshUserData();
+  });
+}
+
+/**
+ * Refresh user data from the server
+ * @returns {Promise} - Promise resolving to updated user data
+ */
+async function refreshUserData() {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+    
+    const response = await fetch('/api/users/me', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to refresh user data');
+    }
+    
+    // Update localStorage with fresh data
+    const userInfo = {
+      _id: data._id,
+      username: data.username,
+      email: data.email,
+      friends: data.friends || [],
+      friendRequests: data.friendRequests || { sent: [], received: [] }
+    };
+    
+    localStorage.setItem('userInfo', JSON.stringify(userInfo));
+    return userInfo;
+  } catch (error) {
+    console.error('Error refreshing user data:', error);
+    return null;
+  }
+}
+
+/**
+ * Display a notification to the user
+ * @param {string} message - Notification message
+ * @param {string} type - Notification type ('success', 'error', 'info')
+ */
+function showNotification(message, type = 'info') {
+  // Check if notification container exists, create if not
+  let notificationContainer = document.getElementById('notification-container');
+  if (!notificationContainer) {
+    notificationContainer = document.createElement('div');
+    notificationContainer.id = 'notification-container';
+    notificationContainer.style.position = 'fixed';
+    notificationContainer.style.top = '20px';
+    notificationContainer.style.right = '20px';
+    notificationContainer.style.zIndex = '1000';
+    document.body.appendChild(notificationContainer);
+  }
+  
+  // Create notification element
+  const notification = document.createElement('div');
+  notification.className = `notification ${type}`;
+  notification.textContent = message;
+  notification.style.backgroundColor = type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8';
+  notification.style.color = 'white';
+  notification.style.padding = '10px 15px';
+  notification.style.margin = '5px 0';
+  notification.style.borderRadius = '4px';
+  notification.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+  notification.style.transition = 'all 0.3s ease';
+  
+  // Add to container
+  notificationContainer.appendChild(notification);
+  
+  // Remove after 5 seconds
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 5000);
+}
+
 // Add a console log to confirm the Auth namespace is properly initialized
 console.log('Auth module loaded and namespace initialized');
+
+// Export functions globally to make them accessible to other scripts
+window.getCurrentUser = getCurrentUser;
+window.isLoggedIn = isLoggedIn;
+window.AUTH = {
+  loginUser,
+  registerUser,
+  logoutUser,
+  isLoggedIn,
+  getCurrentUser,
+  updateUserInfo,
+  refreshUserData,
+  showNotification
+};

@@ -1,6 +1,7 @@
 const { User, Profile } = require('../models');
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('../middleware/asyncHandler');
+const bcrypt = require('bcrypt');
 
 // Generate JWT
 const generateToken = (id) => {
@@ -21,28 +22,54 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   // Check if user exists
-  const userExists = await User.findOne({ email });
+  const userExists = await User.findOne({ $or: [{ email }, { username }] });
 
   if (userExists) {
     res.status(400);
-    throw new Error('User already exists');
+    throw new Error(
+      userExists.email === email 
+        ? 'User with this email already exists' 
+        : 'Username is already taken'
+    );
   }
+
+  // Hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
 
   // Create user
   const user = await User.create({
     username,
     email,
-    password
+    password: hashedPassword,
+    friends: [],
+    friendRequests: { sent: [], received: [] }
   });
 
   if (user) {
-    // Create profile for user
+    // Create an empty profile for the user
     const profile = await Profile.create({
       user: user._id,
-      displayName: username
+      displayName: username,
+      bio: '',
+      avatar: '',
+      level: 1,
+      reputation: 0,
+      gameRanks: [],
+      languages: [],
+      interests: [],
+      preferences: {
+        notifications: true,
+        privacyLevel: 'public',
+        theme: 'dark',
+      },
+      socialLinks: {},
+      isOnline: false,
+      lastOnline: new Date(),
+      recentActivity: [],
     });
 
-    // Update user with profile reference
+    // Update the user with the profile reference
     user.profile = profile._id;
     await user.save();
 
@@ -50,7 +77,10 @@ const registerUser = asyncHandler(async (req, res) => {
       _id: user._id,
       username: user.username,
       email: user.email,
+      friends: user.friends,
+      friendRequests: user.friendRequests,
       token: generateToken(user._id),
+      isAdmin: user.isAdmin,
     });
   } else {
     res.status(400);
@@ -73,37 +103,41 @@ const loginUser = asyncHandler(async (req, res) => {
   // Check for user email
   const user = await User.findOne({ email });
 
-  // If no user found with that email
-  if (!user) {
+  if (user && (await bcrypt.compare(password, user.password))) {
+    res.json({
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      friends: user.friends || [],
+      friendRequests: user.friendRequests || { sent: [], received: [] },
+      token: generateToken(user._id),
+      isAdmin: user.isAdmin,
+    });
+  } else {
     res.status(401);
-    throw new Error('Invalid email or password');
+    throw new Error('Invalid credentials');
   }
-
-  // Check if password matches
-  const isMatch = await user.matchPassword(password);
-  
-  if (!isMatch) {
-    res.status(401);
-    throw new Error('Invalid email or password');
-  }
-
-  // If everything is valid, send the response
-  res.json({
-    _id: user._id,
-    username: user.username,
-    email: user.email,
-    token: generateToken(user._id),
-  });
 });
 
 // @desc    Get user data
 // @route   GET /api/users/me
 // @access  Private
 const getMe = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id)
-    .select('-password')
-    .populate('profile');
-  res.json(user);
+  const user = await User.findById(req.user.id);
+
+  if (user) {
+    res.json({
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      friends: user.friends || [],
+      friendRequests: user.friendRequests || { sent: [], received: [] },
+      isAdmin: user.isAdmin,
+    });
+  } else {
+    res.status(404);
+    throw new Error('User not found');
+  }
 });
 
 // @desc    Get user profile
@@ -401,6 +435,219 @@ const createTestUser = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Add friend
+// @route   POST /api/users/friends/add/:id
+// @access  Private
+const addFriend = asyncHandler(async (req, res) => {
+  try {
+    // Check if the user exists
+    const friendId = req.params.id;
+    const friend = await User.findById(friendId);
+    
+    if (!friend) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Check if trying to add self
+    if (req.user._id.toString() === friendId) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot add yourself as a friend'
+      });
+    }
+    
+    // Get profiles
+    const userProfile = await Profile.findOne({ user: req.user._id });
+    const friendProfile = await Profile.findOne({ user: friendId });
+    
+    if (!userProfile || !friendProfile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Profile not found'
+      });
+    }
+    
+    // Check if already friends
+    if (userProfile.friends.includes(friendId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'This user is already in your friend list'
+      });
+    }
+    
+    // Add friend to both profiles
+    userProfile.friends.push(friendId);
+    await userProfile.save();
+    
+    friendProfile.friends.push(req.user._id);
+    await friendProfile.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Friend added successfully'
+    });
+  } catch (error) {
+    console.error('Error adding friend:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// @desc    Get friend list
+// @route   GET /api/users/friends
+// @access  Private
+const getFriends = asyncHandler(async (req, res) => {
+  try {
+    // Get user profile with populated friends
+    const userProfile = await Profile.findOne({ user: req.user._id })
+      .populate({
+        path: 'friends',
+        select: 'username email',
+        populate: {
+          path: 'profile',
+          select: 'displayName avatar bio isOnline level'
+        }
+      });
+    
+    if (!userProfile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Profile not found'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: userProfile.friends
+    });
+  } catch (error) {
+    console.error('Error getting friends:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// @desc    Remove friend
+// @route   DELETE /api/users/friends/:id
+// @access  Private
+const removeFriend = asyncHandler(async (req, res) => {
+  try {
+    const friendId = req.params.id;
+    
+    // Get profiles
+    const userProfile = await Profile.findOne({ user: req.user._id });
+    const friendProfile = await Profile.findOne({ user: friendId });
+    
+    if (!userProfile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Your profile not found'
+      });
+    }
+    
+    // Remove from user's friends list
+    userProfile.friends = userProfile.friends.filter(
+      id => id.toString() !== friendId
+    );
+    await userProfile.save();
+    
+    // Remove from friend's friends list if the friend profile exists
+    if (friendProfile) {
+      friendProfile.friends = friendProfile.friends.filter(
+        id => id.toString() !== req.user._id.toString()
+      );
+      await friendProfile.save();
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Friend removed successfully'
+    });
+  } catch (error) {
+    console.error('Error removing friend:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// @desc    Send lobby invitation
+// @route   POST /api/users/invite/:userId/lobby/:lobbyId
+// @access  Private
+const inviteToLobby = asyncHandler(async (req, res) => {
+  try {
+    const { userId, lobbyId } = req.params;
+    
+    // Check if the user exists
+    const userToInvite = await User.findById(userId);
+    if (!userToInvite) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Check if the lobby exists
+    const lobby = await Lobby.findById(lobbyId);
+    if (!lobby) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lobby not found'
+      });
+    }
+    
+    // Check if the requester is the host of the lobby
+    if (lobby.host.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the lobby host can send invitations'
+      });
+    }
+    
+    // Check if user is already in the lobby
+    const isAlreadyInLobby = lobby.players.some(player => 
+      player.user.toString() === userId
+    );
+    
+    if (isAlreadyInLobby) {
+      return res.status(400).json({
+        success: false,
+        message: 'User is already in the lobby'
+      });
+    }
+    
+    // Create invitation in database
+    // This would normally be stored in an Invitations collection
+    // For this example, we'll just return success
+    
+    // In a real system, this would trigger a notification to the user
+    // Either through WebSockets or by storing in a notifications collection
+    
+    res.status(200).json({
+      success: true,
+      message: 'Invitation sent successfully'
+    });
+  } catch (error) {
+    console.error('Error sending invitation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -412,4 +659,8 @@ module.exports = {
   getMe,
   getAllUsers,
   createTestUser,
+  addFriend,
+  getFriends,
+  removeFriend,
+  inviteToLobby
 };

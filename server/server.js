@@ -38,10 +38,96 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Socket.IO connection handling
 io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
-
+    
+    // Store user ID for this socket connection if logged in
+    let currentUserId = null;
+    
     // Log all events for debugging
     socket.onAny((event, ...args) => {
         console.log(`Socket ${socket.id} event: ${event}`, args);
+    });
+    
+    // Handle user authentication with socket
+    socket.on('authenticate', (data) => {
+        if (data && data.userId) {
+            currentUserId = data.userId;
+            console.log(`Socket ${socket.id} authenticated as user ${currentUserId}`);
+            
+            // Join a personal room for this user to receive notifications
+            socket.join(`user:${currentUserId}`);
+            
+            // Let the user know they're authenticated
+            socket.emit('authenticated', { success: true });
+        }
+    });
+    
+    // Handle friend request events
+    socket.on('friend-request-sent', async (data) => {
+        if (!data || !data.recipientId) {
+            console.error('Invalid friend request data:', data);
+            return;
+        }
+        
+        console.log(`User ${currentUserId} sent friend request to ${data.recipientId}`);
+        
+        // Emit to recipient's personal room
+        io.to(`user:${data.recipientId}`).emit('new-friend-request', {
+            senderId: currentUserId,
+            senderName: data.senderName || 'A user',
+            timestamp: new Date()
+        });
+    });
+    
+    socket.on('friend-request-accepted', async (data) => {
+        if (!data || !data.senderId) {
+            console.error('Invalid friend request acceptance data:', data);
+            return;
+        }
+        
+        console.log(`User ${currentUserId} accepted friend request from ${data.senderId}`);
+        
+        // Emit to original sender's personal room
+        io.to(`user:${data.senderId}`).emit('friend-request-accepted', {
+            acceptedBy: currentUserId,
+            acceptedByName: data.acceptorName || 'A user',
+            timestamp: new Date()
+        });
+    });
+    
+    socket.on('friend-request-rejected', async (data) => {
+        if (!data || !data.senderId) {
+            console.error('Invalid friend request rejection data:', data);
+            return;
+        }
+        
+        console.log(`User ${currentUserId} rejected friend request from ${data.senderId}`);
+        
+        // Optionally notify the sender that their request was rejected
+        // Uncomment if you want the sender to know their request was rejected
+        /*
+        io.to(`user:${data.senderId}`).emit('friend-request-rejected', {
+            rejectedBy: currentUserId,
+            timestamp: new Date()
+        });
+        */
+    });
+    
+    socket.on('friend-removed', async (data) => {
+        if (!data || !data.friendId) {
+            console.error('Invalid friend removal data:', data);
+            return;
+        }
+        
+        console.log(`User ${currentUserId} removed friend ${data.friendId}`);
+        
+        // Optionally notify the removed friend
+        // Uncomment if you want the removed friend to know they were removed
+        /*
+        io.to(`user:${data.friendId}`).emit('friend-removed', {
+            removedBy: currentUserId,
+            timestamp: new Date()
+        });
+        */
     });
 
     // Handle joining a lobby
