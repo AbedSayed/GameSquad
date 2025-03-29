@@ -262,13 +262,6 @@ const SocketHandler = {
         }
     },
     
-    // Manual method to process an invite - can be called from console for testing
-    manuallyProcessInvite: function(invite) {
-        console.log('Manually processing invite:', invite);
-        this.handleNewInvite(invite);
-        return 'Invite processed';
-    },
-    
     // Update invites UI on messages page
     updateInvitesUI: function() {
         const invitesContainer = document.getElementById('invites-container');
@@ -595,30 +588,6 @@ const SocketHandler = {
         } catch (err) {
             console.error('Error updating notification badge:', err);
         }
-    },
-    
-    // For testing: create a sample invite
-    createSampleInvite: function() {
-        const userInfo = this.getUserInfo();
-        if (!userInfo) {
-            console.error('Cannot create sample invite - no user info');
-            return;
-        }
-        
-        const sampleInvite = {
-            id: 'sample-' + Date.now(),
-            lobbyId: 'sample-lobby-' + Date.now(),
-            senderName: 'Test User',
-            senderId: 'test-user-id',
-            recipientId: userInfo._id,
-            lobbyName: 'Test Lobby',
-            gameType: 'Demo Game',
-            message: 'This is a test invite',
-            timestamp: new Date().toISOString()
-        };
-        
-        this.handleNewInvite(sampleInvite);
-        return sampleInvite;
     }
 };
 
@@ -634,28 +603,5 @@ document.addEventListener('DOMContentLoaded', function() {
             SocketHandler.updateInvitesUI();
             SocketHandler.updateNotificationBadge();
         }, 500);
-        
-        // Add debugging button to create a sample invite (dev only)
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            setTimeout(() => {
-                // Add test button to page
-                const container = document.querySelector('.messages-body');
-                if (container) {
-                    const testButton = document.createElement('button');
-                    testButton.className = 'btn btn-primary';
-                    testButton.style.position = 'fixed';
-                    testButton.style.bottom = '20px';
-                    testButton.style.left = '20px';
-                    testButton.style.zIndex = '9999';
-                    testButton.innerHTML = 'Create Test Invite';
-                    testButton.addEventListener('click', () => {
-                        const invite = SocketHandler.createSampleInvite();
-                        console.log('Created sample invite:', invite);
-                    });
-                    container.appendChild(testButton);
-                    console.log('Added test invite button to page');
-                }
-            }, 1000);
-        }
     }
 }); 
