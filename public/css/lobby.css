@@ -1099,3 +1099,44 @@ select {
     background-color: var(--warning-color);
     color: black;
 }
+
+/* Lobby Card Action Buttons */
+.join-lobby-btn, .manage-lobby-btn, .details-lobby-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s, transform 0.1s;
+  margin: 5px;
+}
+
+.join-lobby-btn {
+  background-color: #5664d2;
+  color: white;
+}
+
+.join-lobby-btn:hover {
+  background-color: #4555c9;
+  transform: translateY(-2px);
+}
+
+.manage-lobby-btn {
+  background-color: #38b2ac;
+  color: white;
+}
+
+.manage-lobby-btn:hover {
+  background-color: #2c9d98;
+  transform: translateY(-2px);
+}
+
+.details-lobby-btn {
+  background-color: #718096;
+  color: white;
+}
+
+.details-lobby-btn:hover {
+  background-color: #4a5568;
+  transform: translateY(-2px);
+}

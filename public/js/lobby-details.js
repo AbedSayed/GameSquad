@@ -39,20 +39,38 @@ async function loadLobbyDetails(lobbyId) {
         
         console.log('Loaded lobby details:', lobby);
         
+        // Get current user info
+        const userInfo = getUserInfo();
+        const isHost = userInfo && lobby.host._id === userInfo._id;
+        const isMember = userInfo && lobby.players.some(player => 
+            player.user._id === userInfo._id || 
+            (typeof player.user === 'string' && player.user === userInfo._id)
+        );
+        
         // Update page with lobby details
         updateLobbyDetails(lobby);
         
         // Check if user is host or member and show appropriate controls
-        const userInfo = getUserInfo();
-        
-        if (userInfo && lobby.host._id === userInfo._id) {
+        if (isHost) {
             // User is host
             document.getElementById('host-controls').classList.remove('hidden');
             document.getElementById('member-controls').classList.add('hidden');
-        } else if (userInfo && lobby.players.some(player => player.user._id === userInfo._id)) {
+            
+            // Remove any existing join button
+            const existingJoinBtn = document.getElementById('join-lobby-btn');
+            if (existingJoinBtn && existingJoinBtn.parentElement) {
+                existingJoinBtn.parentElement.remove();
+            }
+        } else if (isMember) {
             // User is member but not host
             document.getElementById('host-controls').classList.add('hidden');
             document.getElementById('member-controls').classList.remove('hidden');
+            
+            // Remove any existing join button
+            const existingJoinBtn = document.getElementById('join-lobby-btn');
+            if (existingJoinBtn && existingJoinBtn.parentElement) {
+                existingJoinBtn.parentElement.remove();
+            }
         } else {
             // User is not in the lobby
             document.getElementById('host-controls').classList.add('hidden');
@@ -153,14 +171,43 @@ function updateLobbyDetails(lobby) {
     const memberControls = document.getElementById('member-controls');
     const hostControls = document.getElementById('host-controls');
     
+    // Handle join button container
     if (joinButtonContainer) {
-        joinButtonContainer.style.display = isCurrentUserMember ? 'none' : 'block';
+        if (isCurrentUserMember || isCurrentUserHost) {
+            // If user is host or member, remove join button
+            joinButtonContainer.remove();
+        } else {
+            // Otherwise show the join button
+            joinButtonContainer.style.display = 'block';
+        }
+    } else if (!isCurrentUserMember && !isCurrentUserHost) {
+        // Add join button if not a member or host and no button exists
+        const newJoinButtonContainer = document.createElement('div');
+        newJoinButtonContainer.className = 'lobby-actions';
+        newJoinButtonContainer.innerHTML = `
+            <button id="join-lobby-btn" class="btn btn-primary">
+                <i class="fas fa-sign-in-alt"></i> Join Lobby
+            </button>
+        `;
+        
+        // Insert after description
+        const descriptionElement = document.querySelector('.lobby-description');
+        if (descriptionElement) {
+            descriptionElement.after(newJoinButtonContainer);
+            
+            // Add click event listener to the new button
+            document.getElementById('join-lobby-btn').addEventListener('click', () => 
+                joinLobbyHandler(lobby._id)
+            );
+        }
     }
     
+    // Show/hide member controls
     if (memberControls) {
         memberControls.classList.toggle('hidden', !isCurrentUserMember || isCurrentUserHost);
     }
     
+    // Show/hide host controls
     if (hostControls) {
         hostControls.classList.toggle('hidden', !isCurrentUserHost);
     }
@@ -499,58 +546,84 @@ async function joinLobbyHandler(lobbyId) {
         return;
     }
     
-    // Check if already a member
-    const joinButton = document.getElementById('join-lobby-btn');
-    
-    if (joinButton) {
-        // Disable button and show loading state
-        joinButton.disabled = true;
-        joinButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Joining...';
+    // Get current lobby data to check if user is host or already a member
+    try {
+        const response = await window.Lobby.getLobbyById(lobbyId);
+        const lobby = response.data;
         
-        try {
-            // Call API to join lobby wrapped in a try/catch to get more detailed error info
-            const response = await window.Lobby.joinLobby(lobbyId);
-            console.log('Join lobby successful, response:', response);
-            
-            // Remove the join button container instead of reloading the page
-            const joinButtonContainer = joinButton.parentElement;
-            if (joinButtonContainer) {
-                joinButtonContainer.remove();
-            }
-            
-            // Update the lobby data
-            updateLobbyDetails(response.data);
-            updateMembersList(response.data);
-            
-            // Show ready/leave controls
-            document.getElementById('member-controls')?.classList.remove('hidden');
-            
-            // Show notification
-            showNotification('Successfully joined the lobby!', 'success');
-        } catch (error) {
-            console.error('Join lobby error:', error);
-            
-            // Reset button
-            joinButton.disabled = false;
-            joinButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Join Lobby';
-            
-            // Show error notification
-            let errorMessage = 'Failed to join lobby';
-            
-            if (error.message) {
-                if (error.message.includes('full')) {
-                    errorMessage = 'Cannot join: Lobby is full';
-                } else if (error.message.includes('already')) {
-                    errorMessage = 'You are already in this lobby';
-                } else if (error.message.includes('password')) {
-                    errorMessage = 'Incorrect password for private lobby';
-                } else {
-                    errorMessage = `Error: ${error.message}`;
-                }
-            }
-            
-            showNotification(errorMessage, 'error');
+        // Check if user is host
+        if (lobby.host._id === userInfo._id) {
+            showNotification('You are the host of this lobby', 'error');
+            return;
         }
+        
+        // Check if user is already a member
+        const isMember = lobby.players.some(player => 
+            player.user._id === userInfo._id || 
+            (typeof player.user === 'string' && player.user === userInfo._id)
+        );
+        
+        if (isMember) {
+            showNotification('You are already a member of this lobby', 'error');
+            return;
+        }
+        
+        // Continue with join process
+        const joinButton = document.getElementById('join-lobby-btn');
+        
+        if (joinButton) {
+            // Disable button and show loading state
+            joinButton.disabled = true;
+            joinButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Joining...';
+            
+            try {
+                // Call API to join lobby
+                const joinResponse = await window.Lobby.joinLobby(lobbyId);
+                console.log('Join lobby successful, response:', joinResponse);
+                
+                // Remove the join button container
+                const joinButtonContainer = joinButton.parentElement;
+                if (joinButtonContainer) {
+                    joinButtonContainer.remove();
+                }
+                
+                // Update the lobby data
+                updateLobbyDetails(joinResponse.data);
+                updateMembersList(joinResponse.data);
+                
+                // Show ready/leave controls
+                document.getElementById('member-controls')?.classList.remove('hidden');
+                
+                // Show notification
+                showNotification('Successfully joined the lobby!', 'success');
+            } catch (error) {
+                console.error('Join lobby error:', error);
+                
+                // Reset button
+                joinButton.disabled = false;
+                joinButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Join Lobby';
+                
+                // Show error notification
+                let errorMessage = 'Failed to join lobby';
+                
+                if (error.message) {
+                    if (error.message.includes('full')) {
+                        errorMessage = 'Cannot join: Lobby is full';
+                    } else if (error.message.includes('already')) {
+                        errorMessage = 'You are already in this lobby';
+                    } else if (error.message.includes('password')) {
+                        errorMessage = 'Incorrect password for private lobby';
+                    } else {
+                        errorMessage = `Error: ${error.message}`;
+                    }
+                }
+                
+                showNotification(errorMessage, 'error');
+            }
+        }
+    } catch (error) {
+        console.error('Error checking lobby membership:', error);
+        showNotification('Error checking lobby membership', 'error');
     }
 }
 
@@ -716,4 +789,26 @@ async function fetchPlayerRank(playerId, gameType) {
         console.error('Error fetching player rank:', error);
         return null;
     }
+}
+
+/**
+ * Show notification message
+ */
+function showNotification(message, type = 'error') {
+    const container = document.querySelector('.notifications-container');
+    if (!container) return;
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
+        <span>${message}</span>
+    `;
+    container.appendChild(notification);
+
+    // Remove notification after 5 seconds
+    setTimeout(() => {
+        notification.classList.add('fade-out');
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
 }

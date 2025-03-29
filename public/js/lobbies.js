@@ -133,7 +133,13 @@ window.Lobby = {
             return;
         }
 
+        // Get current user info to check if they're the host
+        const userInfo = this.getUserInfo();
+        const currentUserId = userInfo ? userInfo._id : null;
+
         data.forEach(lobby => {
+            const isHost = currentUserId && lobby.host._id === currentUserId;
+            
             const lobbyCard = document.createElement('div');
             lobbyCard.className = 'lobby-card';
             lobbyCard.innerHTML = `
@@ -156,9 +162,11 @@ window.Lobby = {
                         </div>
                     </div>
                     <div class="lobby-actions">
-                        <button class="lobby-btn join-btn" data-lobby-id="${lobby._id}">
+                        ${!isHost ? `<button class="lobby-btn join-btn" data-lobby-id="${lobby._id}">
                             <i class="fas fa-sign-in-alt"></i> Join
-                        </button>
+                        </button>` : `<button class="lobby-btn manage-btn" data-lobby-id="${lobby._id}">
+                            <i class="fas fa-cog"></i> Manage
+                        </button>`}
                         <a href="lobby.html?id=${lobby._id}" class="lobby-btn details-btn">
                             <i class="fas fa-info-circle"></i> Details
                         </a>
@@ -169,8 +177,9 @@ window.Lobby = {
             container.appendChild(lobbyCard);
         });
 
-        // Add event listeners to join buttons
+        // Add event listeners to join and manage buttons
         this.setupJoinButtons();
+        this.setupManageButtons();
     },
 
     // Function to setup join button handlers
@@ -259,6 +268,26 @@ window.Lobby = {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
+    },
+
+    // Get user info from localStorage
+    getUserInfo() {
+        const userInfo = localStorage.getItem('userInfo');
+        return userInfo ? JSON.parse(userInfo) : null;
+    },
+
+    // Setup event listeners for manage buttons
+    setupManageButtons() {
+        const manageButtons = document.querySelectorAll('.manage-btn');
+        
+        manageButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const lobbyId = button.getAttribute('data-lobby-id');
+                if (lobbyId) {
+                    window.location.href = `lobby.html?id=${lobbyId}`;
+                }
+            });
+        });
     }
 };
 

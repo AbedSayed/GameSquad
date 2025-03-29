@@ -705,6 +705,11 @@ function formatGameDetail(value, type) {
  * @returns {HTMLElement} - The lobby card element
  */
 function createLobbyCard(lobby) {
+    // Get current user info
+    const userInfo = localStorage.getItem('userInfo');
+    const currentUser = userInfo ? JSON.parse(userInfo) : null;
+    const isHost = currentUser && lobby.host && currentUser._id === lobby.host._id;
+    
     // Create the card element
     const card = document.createElement('div');
     card.className = 'lobby-card';
@@ -773,16 +778,38 @@ function createLobbyCard(lobby) {
             </div>
         </div>
         <div class="lobby-actions">
-            <button class="join-lobby-btn">Join</button>
+            ${!isHost ? 
+                `<button class="join-lobby-btn">Join</button>` : 
+                `<button class="manage-lobby-btn">Manage</button>`
+            }
+            <button class="details-lobby-btn">Details</button>
         </div>
     `;
     
-    // Add event listener to join button
+    // Add event listener to buttons
     const joinButton = card.querySelector('.join-lobby-btn');
-    joinButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        window.location.href = `lobby-details.html?id=${lobby._id}`;
-    });
+    if (joinButton) {
+        joinButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.location.href = `lobby-details.html?id=${lobby._id}`;
+        });
+    }
+    
+    const manageButton = card.querySelector('.manage-lobby-btn');
+    if (manageButton) {
+        manageButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.location.href = `lobby-details.html?id=${lobby._id}`;
+        });
+    }
+    
+    const detailsButton = card.querySelector('.details-lobby-btn');
+    if (detailsButton) {
+        detailsButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.location.href = `lobby-details.html?id=${lobby._id}`;
+        });
+    }
     
     // Add event listener to the card itself
     card.addEventListener('click', () => {
