@@ -95,8 +95,13 @@ class LobbiesModule {
             }
         });
         
+        // Special handling for game arrays
+        if (filters.game && Array.isArray(filters.game)) {
+            console.log('Found game array in filters:', filters.game);
+            // We'll handle this specially in the filtering logic, so we don't need to modify it here
+        }
         // Convert normalized game names back to API expected values
-        if (filters.game) {
+        else if (filters.game && typeof filters.game === 'string') {
             // Map standardized names to API expected values
             const apiGameMap = {
                 'Apex Legends': 'apex',
@@ -648,15 +653,20 @@ class LobbiesModule {
         const cleanFilters = {};
         for (const [key, value] of Object.entries(filters)) {
             if (value && value !== '' && value !== 'all' && value !== 'any') {
-                cleanFilters[key] = value.toLowerCase();
+                if (key === 'game' && Array.isArray(value)) {
+                    // Keep arrays as they are
+                    cleanFilters[key] = value;
+                } else {
+                    cleanFilters[key] = typeof value === 'string' ? value.toLowerCase() : value;
+                }
             }
         }
         
         console.log('Using clean filters:', cleanFilters);
         
-        // Debug - log all lobbies with their region and rank values 
+        // Debug - log all lobbies with their relevant properties
         lobbies.forEach(lobby => {
-            console.log(`Lobby "${lobby.name}": game=${lobby.game}, gameType=${lobby.gameType}, region=${lobby.region}, rank=${lobby.rank}, skillLevel=${lobby.skillLevel}`);
+            console.log(`Lobby "${lobby.name}": game=${lobby.game}, gameType=${lobby.gameType}, region=${lobby.region}, rank=${lobby.rank}`);
         });
         
         // Create demo rank data if needed for testing
@@ -665,21 +675,83 @@ class LobbiesModule {
         const filteredLobbies = lobbies.filter(lobby => {
             // Game filter
             if (cleanFilters.game) {
-                // Determine if the lobby matches the requested game
-                let matchesGame = false;
+                if (Array.isArray(cleanFilters.game)) {
+                    // Handle array of games (for category filtering)
+                    console.log(`Checking if lobby "${lobby.name}" matches any game in:`, cleanFilters.game);
+                    
+                    let matchesAnyGame = false;
+                    
+                    for (const gameOption of cleanFilters.game) {
+                        // Check if lobby game matches this option
+                        if ((lobby.game && lobby.game.toLowerCase() === gameOption.toLowerCase()) ||
+                            (lobby.gameType && lobby.gameType.toLowerCase() === gameOption.toLowerCase()) ||
+                            (lobby.gameName && lobby.gameName.toLowerCase().includes(gameOption.toLowerCase()))) {
+                            console.log(`Lobby "${lobby.name}" matches game option: ${gameOption}`);
+                            matchesAnyGame = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!matchesAnyGame) {
+                        console.log(`Filtering out "${lobby.name}" - doesn't match any game in the category`);
+                        return false;
+                    }
+                } else {
+                    // Handle single game filter (string)
+                    // Determine if the lobby matches the requested game
+                    let matchesGame = false;
+                    
+                    // Check different possible game fields
+                    if (lobby.game && lobby.game.toLowerCase() === cleanFilters.game) {
+                        matchesGame = true;
+                    } else if (lobby.gameType && lobby.gameType.toLowerCase() === cleanFilters.game) {
+                        matchesGame = true;
+                    } else if (lobby.gameName && lobby.gameName.toLowerCase().includes(cleanFilters.game)) {
+                        matchesGame = true;
+                    }
+                    
+                    // If no match found for the game, filter out this lobby
+                    if (!matchesGame) {
+                        console.log(`Filtering out "${lobby.name}" - game mismatch`);
+                        return false;
+                    }
+                }
+            }
+            
+            // GameType filter - for category tabs (fps, moba, battle-royale, rpg)
+            if (cleanFilters.gameType) {
+                const gameTypeMap = {
+                    'fps': ['valorant', 'csgo', 'cod', 'overwatch'],
+                    'moba': ['lol', 'dota2'],
+                    'battle-royale': ['fortnite', 'apex', 'pubg', 'warzone'],
+                    'rpg': ['minecraft', 'wow', 'elder scrolls', 'fallout']
+                };
                 
-                // Check different possible game fields
-                if (lobby.game && lobby.game.toLowerCase() === cleanFilters.game) {
-                    matchesGame = true;
-                } else if (lobby.gameType && lobby.gameType.toLowerCase() === cleanFilters.game) {
-                    matchesGame = true;
-                } else if (lobby.gameName && lobby.gameName.toLowerCase().includes(cleanFilters.game)) {
-                    matchesGame = true;
+                // Get the list of games in this category
+                const gameList = gameTypeMap[cleanFilters.gameType] || [];
+                
+                // Check if the lobby's game matches any game in this category
+                let matchesGameType = false;
+                
+                // First, check the gameCategory property (most reliable)
+                if (lobby.gameCategory && lobby.gameCategory.toLowerCase() === cleanFilters.gameType.toLowerCase()) {
+                    console.log(`Lobby "${lobby.name}" matches gameCategory: ${cleanFilters.gameType}`);
+                    matchesGameType = true;
+                }
+                // Then check direct gameType match
+                else if (lobby.gameType && lobby.gameType.toLowerCase() === cleanFilters.gameType.toLowerCase()) {
+                    console.log(`Lobby "${lobby.name}" matches direct gameType: ${cleanFilters.gameType}`);
+                    matchesGameType = true;
+                } 
+                // Finally check if game is in the list for this category
+                else if (lobby.gameType && gameList.includes(lobby.gameType.toLowerCase())) {
+                    console.log(`Lobby "${lobby.name}" gameType ${lobby.gameType} is in category ${cleanFilters.gameType}`);
+                    matchesGameType = true;
                 }
                 
-                // If no match found for the game, filter out this lobby
-                if (!matchesGame) {
-                    console.log(`Filtering out "${lobby.name}" - game mismatch`);
+                // If no match for this game type category, filter out
+                if (!matchesGameType) {
+                    console.log(`Filtering out "${lobby.name}" - gameType mismatch for ${cleanFilters.gameType}`);
                     return false;
                 }
             }
@@ -971,6 +1043,7 @@ class LobbiesModule {
                 game: 'FPS',
                 gameName: 'Apex Legends',
                 gameType: 'apex',
+                gameCategory: 'battle-royale',
                 description: 'Looking for skilled players for ranked grind',
                 maxPlayers: 3,
                 currentPlayers: 1,
@@ -993,6 +1066,7 @@ class LobbiesModule {
                 game: 'MOBA',
                 gameName: 'League of Legends',
                 gameType: 'lol',
+                gameCategory: 'moba',
                 description: 'Casual gaming, all ranks welcome',
                 maxPlayers: 5,
                 currentPlayers: 3,
@@ -1015,6 +1089,7 @@ class LobbiesModule {
                 game: 'FPS',
                 gameName: 'Valorant',
                 gameType: 'valorant',
+                gameCategory: 'fps',
                 description: 'Looking for Diamond+ players for competitive team',
                 maxPlayers: 5,
                 currentPlayers: 5,
@@ -1037,6 +1112,7 @@ class LobbiesModule {
                 game: 'FPS',
                 gameName: 'Counter-Strike 2',
                 gameType: 'csgo',
+                gameCategory: 'fps',
                 description: 'Looking for Gold Nova+ players for MM',
                 maxPlayers: 5, 
                 currentPlayers: 3,
@@ -1059,6 +1135,7 @@ class LobbiesModule {
                 game: 'FPS',
                 gameName: 'Valorant',
                 gameType: 'valorant',
+                gameCategory: 'fps',
                 description: 'Iron players only, learning the game',
                 maxPlayers: 5,
                 currentPlayers: 2,
@@ -1081,6 +1158,7 @@ class LobbiesModule {
                 game: 'FPS',
                 gameName: 'Valorant',
                 gameType: 'valorant',
+                gameCategory: 'fps',
                 description: 'Gold players looking for more',
                 maxPlayers: 5,
                 currentPlayers: 3,
@@ -1103,6 +1181,7 @@ class LobbiesModule {
                 game: 'FPS',
                 gameName: 'Apex Legends',
                 gameType: 'apex',
+                gameCategory: 'battle-royale',
                 description: 'Casual Apex games, all welcome',
                 maxPlayers: 3,
                 currentPlayers: 1,
@@ -1118,6 +1197,30 @@ class LobbiesModule {
                 },
                 createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(), // 12 hours ago
                 gameImage: '../resources/apex.png.png'
+            },
+            // Add some RPG lobbies for testing
+            {
+                _id: 'demo-lobby-8',
+                name: 'Minecraft Building',
+                game: 'RPG',
+                gameName: 'Minecraft',
+                gameType: 'minecraft',
+                gameCategory: 'rpg',
+                description: 'Creative building server',
+                maxPlayers: 10,
+                currentPlayers: 3,
+                status: 'open',
+                skillLevel: 2,
+                rank: 'any',
+                region: 'eu',
+                host: 'other-user-7',
+                hostInfo: {
+                    _id: 'other-user-7',
+                    username: 'CreativeBuild',
+                    email: 'build@example.com'
+                },
+                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+                gameImage: '../resources/default-game.png'
             }
         ];
         
@@ -1157,7 +1260,7 @@ class LobbiesModule {
             lobbies = this.clearAndReinitLobbies();
         }
         
-        // Fix any inconsistent region values and add proper rank data
+        // Fix any issues with lobby data
         lobbies = this.fixLobbyData(lobbies);
         
         // Ensure all lobbies have appropriate game-specific rank data based on their skillLevel
@@ -1184,6 +1287,8 @@ class LobbiesModule {
         
         const fixedLobbies = lobbies.map(lobby => {
             const fixedLobby = {...lobby};
+            
+            console.log(`Fixing lobby "${fixedLobby.name}": game=${fixedLobby.game}, gameType=${fixedLobby.gameType}`);
             
             // Check for missing or incorrect region
             if (!fixedLobby.region || typeof fixedLobby.region !== 'string') {
@@ -1214,25 +1319,203 @@ class LobbiesModule {
             }
             
             // Fix game/gameType inconsistencies
-            // If we have a game value that looks like a game identifier (not a category)
-            if (fixedLobby.game && ['valorant', 'csgo', 'lol', 'apex', 'fortnite', 'dota2', 'overwatch', 'rocketleague'].includes(fixedLobby.game.toLowerCase())) {
-                console.log(`Fixing game value in lobby: ${fixedLobby.name}, current game=${fixedLobby.game}`);
-                // This is a direct game value from the form, we need to set gameType to match
-                fixedLobby.gameType = fixedLobby.game.toLowerCase();
-                hasChanges = true;
+            // First ensure the lobby has a game property
+            if (!fixedLobby.game) {
+                console.log(`Setting missing game property for: ${fixedLobby.name}`);
+                
+                // Try to infer from gameType or gameName
+                if (fixedLobby.gameType) {
+                    const gameTypeCategories = {
+                        'valorant': 'FPS',
+                        'csgo': 'FPS',
+                        'cod': 'FPS',
+                        'overwatch': 'FPS',
+                        'lol': 'MOBA',
+                        'dota2': 'MOBA',
+                        'apex': 'Battle Royale',
+                        'fortnite': 'Battle Royale',
+                        'pubg': 'Battle Royale',
+                        'warzone': 'Battle Royale',
+                        'minecraft': 'RPG',
+                        'wow': 'RPG'
+                    };
+                    
+                    fixedLobby.game = gameTypeCategories[fixedLobby.gameType.toLowerCase()] || 'Other';
+                    hasChanges = true;
+                } else if (fixedLobby.gameName) {
+                    // Try to infer category from name
+                    const gameNameMap = {
+                        'valorant': 'FPS',
+                        'counter-strike': 'FPS',
+                        'cs2': 'FPS',
+                        'call of duty': 'FPS',
+                        'overwatch': 'FPS',
+                        'league of legends': 'MOBA',
+                        'dota': 'MOBA',
+                        'apex legends': 'Battle Royale',
+                        'fortnite': 'Battle Royale',
+                        'playerunknown': 'Battle Royale',
+                        'minecraft': 'RPG',
+                        'world of warcraft': 'RPG'
+                    };
+                    
+                    // Search for matches in the game name
+                    let found = false;
+                    for (const [key, value] of Object.entries(gameNameMap)) {
+                        if (fixedLobby.gameName.toLowerCase().includes(key)) {
+                            fixedLobby.game = value;
+                            found = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!found) {
+                        fixedLobby.game = 'Other';
+                    }
+                    
+                    hasChanges = true;
+                } else {
+                    fixedLobby.game = 'Other';
+                    hasChanges = true;
+                }
             }
             
-            // Special handling for League of Legends
-            if (fixedLobby.game === 'League of Legends' || 
-                fixedLobby.gameName === 'League of Legends' || 
-                fixedLobby.game === 'LoL' || 
-                (fixedLobby.gameType && fixedLobby.gameType.toLowerCase() === 'lol')) {
-                console.log(`Fixing League of Legends lobby: ${fixedLobby.name}`);
-                fixedLobby.game = 'MOBA'; // Game category
-                fixedLobby.gameName = 'League of Legends'; // Full game name
-                fixedLobby.gameType = 'lol'; // Game identifier for images
-                hasChanges = true;
+            // Then ensure the lobby has a gameType property
+            if (!fixedLobby.gameType) {
+                console.log(`Setting missing gameType property for: ${fixedLobby.name}`);
+                
+                // Map specific games to their types
+                const gameToType = {
+                    'VALORANT': 'valorant',
+                    'Valorant': 'valorant',
+                    'valorant': 'valorant',
+                    'CS2': 'csgo',
+                    'Counter-Strike 2': 'csgo',
+                    'CS:GO': 'csgo',
+                    'csgo': 'csgo',
+                    'League of Legends': 'lol',
+                    'LoL': 'lol',
+                    'lol': 'lol',
+                    'Apex Legends': 'apex',
+                    'Apex': 'apex',
+                    'apex': 'apex',
+                    'Fortnite': 'fortnite',
+                    'fortnite': 'fortnite',
+                    'Call of Duty': 'cod',
+                    'COD': 'cod',
+                    'cod': 'cod',
+                    'Warzone': 'warzone',
+                    'warzone': 'warzone',
+                    'Dota 2': 'dota2',
+                    'DOTA 2': 'dota2',
+                    'dota2': 'dota2',
+                    'Overwatch': 'overwatch',
+                    'Overwatch 2': 'overwatch',
+                    'overwatch': 'overwatch',
+                    'Minecraft': 'minecraft',
+                    'minecraft': 'minecraft',
+                    'World of Warcraft': 'wow',
+                    'WoW': 'wow',
+                    'wow': 'wow'
+                };
+                
+                // Try to match from game property first
+                if (fixedLobby.game in gameToType) {
+                    fixedLobby.gameType = gameToType[fixedLobby.game];
+                    hasChanges = true;
+                }
+                // Then try to match from gameName property
+                else if (fixedLobby.gameName) {
+                    let found = false;
+                    for (const [key, value] of Object.entries(gameToType)) {
+                        if (fixedLobby.gameName.includes(key)) {
+                            fixedLobby.gameType = value;
+                            found = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!found) {
+                        // Default based on game category
+                        const categoryDefaults = {
+                            'FPS': 'valorant',
+                            'MOBA': 'lol',
+                            'Battle Royale': 'apex',
+                            'RPG': 'minecraft',
+                            'Other': 'unknown'
+                        };
+                        
+                        fixedLobby.gameType = categoryDefaults[fixedLobby.game] || 'unknown';
+                    }
+                    
+                    hasChanges = true;
+                } else {
+                    // Assign a default based on game category
+                    const categoryDefaults = {
+                        'FPS': 'valorant',
+                        'MOBA': 'lol',
+                        'Battle Royale': 'apex',
+                        'RPG': 'minecraft',
+                        'Other': 'unknown'
+                    };
+                    
+                    fixedLobby.gameType = categoryDefaults[fixedLobby.game] || 'unknown';
+                    hasChanges = true;
+                }
             }
+            
+            // Make sure the lobby has a gameCategory property for tab filtering
+            if (!fixedLobby.gameCategory) {
+                console.log(`Setting missing gameCategory property for: ${fixedLobby.name}`);
+                
+                const gameTypeToCategory = {
+                    'valorant': 'fps',
+                    'csgo': 'fps',
+                    'cod': 'fps',
+                    'overwatch': 'fps',
+                    'lol': 'moba',
+                    'dota2': 'moba',
+                    'apex': 'battle-royale',
+                    'fortnite': 'battle-royale',
+                    'pubg': 'battle-royale',
+                    'warzone': 'battle-royale',
+                    'minecraft': 'rpg',
+                    'wow': 'rpg',
+                    'elder-scrolls': 'rpg',
+                    'fallout': 'rpg'
+                };
+                
+                if (fixedLobby.gameType && gameTypeToCategory[fixedLobby.gameType.toLowerCase()]) {
+                    fixedLobby.gameCategory = gameTypeToCategory[fixedLobby.gameType.toLowerCase()];
+                    console.log(`Set gameCategory to ${fixedLobby.gameCategory} based on gameType ${fixedLobby.gameType}`);
+                    hasChanges = true;
+                }
+                // If we can't determine from gameType, check the game property
+                else if (fixedLobby.game) {
+                    const gameCategoryMap = {
+                        'FPS': 'fps',
+                        'MOBA': 'moba',
+                        'Battle Royale': 'battle-royale',
+                        'RPG': 'rpg'
+                    };
+                    
+                    if (gameCategoryMap[fixedLobby.game]) {
+                        fixedLobby.gameCategory = gameCategoryMap[fixedLobby.game];
+                        console.log(`Set gameCategory to ${fixedLobby.gameCategory} based on game ${fixedLobby.game}`);
+                        hasChanges = true;
+                    } else {
+                        fixedLobby.gameCategory = 'other';
+                        console.log(`Set default gameCategory to 'other'`);
+                        hasChanges = true;
+                    }
+                } else {
+                    fixedLobby.gameCategory = 'other';
+                    console.log(`Set default gameCategory to 'other'`);
+                    hasChanges = true;
+                }
+            }
+            
+            console.log(`After fixing, lobby "${fixedLobby.name}": game=${fixedLobby.game}, gameType=${fixedLobby.gameType}, gameCategory=${fixedLobby.gameCategory}`);
             
             return fixedLobby;
         });
@@ -1291,6 +1574,11 @@ window.Lobby = new LobbiesModule();
 // Initialize when the page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM content loaded in lobbies.js');
+    
+    // Force complete reset of lobby data to apply our new filtering logic
+    console.log('🔄 COMPLETELY RESETTING LOBBY DATA');
+    localStorage.removeItem('lobbies');
+    localStorage.setItem('reset_lobbies', 'true');
     
     // Check if essential elements exist
     const myLobbiesElement = document.getElementById('myLobbies');
@@ -1405,6 +1693,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (tabButtons.length > 0) {
         tabButtons.forEach(btn => {
             btn.addEventListener('click', () => {
+                console.log('Tab button clicked:', btn.dataset.tab);
+                
                 // Remove active class from all tabs
                 tabButtons.forEach(tb => tb.classList.remove('active'));
                 
@@ -1418,20 +1708,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 let filter = {};
                 
                 if (tabValue !== 'all') {
+                    // Use the simple gameType property for filtering
                     if (tabValue === 'fps') {
-                        filter = { game: ['valorant', 'csgo', 'apex', 'cod'].join(',') };
+                        filter = { gameType: 'fps' };
+                        console.log('FPS filter applied');
                     } else if (tabValue === 'moba') {
-                        filter = { game: ['lol', 'dota2'].join(',') };
+                        filter = { gameType: 'moba' };
+                        console.log('MOBA filter applied');
                     } else if (tabValue === 'battle-royale') {
-                        filter = { game: ['fortnite', 'apex', 'pubg'].join(',') };
+                        filter = { gameType: 'battle-royale' };
+                        console.log('Battle Royale filter applied');
                     } else if (tabValue === 'rpg') {
-                        filter = { game: ['minecraft', 'wow'].join(',') };
+                        filter = { gameType: 'rpg' };
+                        console.log('RPG filter applied');
                     } else {
                         filter = { game: tabValue };
+                        console.log('Specific game filter applied:', tabValue);
                     }
+                } else {
+                    console.log('All lobbies filter applied');
                 }
                 
                 console.log('Tab filter:', filter);
+                
+                // Update the filter UI to match
+                const gameFilter = document.getElementById('gameFilter');
+                if (gameFilter) {
+                    if (tabValue === 'all') {
+                        gameFilter.value = '';
+                    } else {
+                        gameFilter.value = tabValue;
+                    }
+                }
+                
+                // Force reload lobbies with the new filter
+                window.Lobby.clearAndReinitLobbies();
                 window.Lobby.loadLobbies(filter);
             });
         });
