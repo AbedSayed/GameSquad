@@ -823,13 +823,39 @@ function createLobbyItem(lobby, playerId, playerName) {
     // Add flex container to lobby item
     lobbyItem.appendChild(flexContainer);
     
-    // Add click event to send invite
+    // Add click event to send invite with visual feedback
     lobbyItem.addEventListener('click', () => {
+        // Visual feedback - show "Sending..." status
+        const originalBackgroundColor = lobbyItem.style.backgroundColor;
+        const originalContent = flexContainer.innerHTML;
+        
+        // Change to loading state
+        lobbyItem.style.backgroundColor = 'rgba(108, 92, 231, 0.2)';
+        flexContainer.innerHTML = `<div style="width: 100%; text-align: center; padding: 15px 0;">
+            <span style="color: #fff; font-weight: bold;">
+                <i class="fas fa-paper-plane" style="margin-right: 10px;"></i>Sending invitation...
+            </span>
+        </div>`;
+        
+        // Send the invite
         sendInvite(lobby, playerId, playerName);
-        const modalContainer = document.querySelector('.modal-container');
-        if (modalContainer) {
-            document.body.removeChild(modalContainer);
-        }
+        
+        // Show success state briefly before closing
+        setTimeout(() => {
+            flexContainer.innerHTML = `<div style="width: 100%; text-align: center; padding: 15px 0;">
+                <span style="color: #00b894; font-weight: bold;">
+                    <i class="fas fa-check-circle" style="margin-right: 10px;"></i>Invitation sent!
+                </span>
+            </div>`;
+            
+            // Close the popup after a brief delay
+            setTimeout(() => {
+                const modalContainer = document.querySelector('.modal-container');
+                if (modalContainer) {
+                    document.body.removeChild(modalContainer);
+                }
+            }, 800);
+        }, 600);
     });
     
     return lobbyItem;
@@ -1026,7 +1052,7 @@ function sendInvite(lobby, playerId, playerName) {
         status: 'pending'
     };
     
-    // Store the invite in localStorage
+    // Store the invite in localStorage (as fallback)
     let existingInvites = localStorage.getItem('lobby_invites');
     let invites = [];
     
@@ -1044,21 +1070,23 @@ function sendInvite(lobby, playerId, playerName) {
     // Save back to localStorage
     localStorage.setItem('lobby_invites', JSON.stringify(invites));
     
-    // Show success notification
-    showNotification(`Invitation sent to ${playerName}`, 'success');
-    
-    // For this demo, we don't need to send API requests since the /invites/send endpoint doesn't exist
-    // and would just cause 404 errors in the console
-    /* 
+    // Send the invite to the API 
     try {
-        // Send invite to the server (if API is available)
+        // Send invite to the server
         fetch(`${window.APP_CONFIG.API_URL}/invites/send`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
-            body: JSON.stringify(invite)
+            body: JSON.stringify({
+                recipientId: playerId,
+                recipientName: playerName,
+                lobbyId: lobby._id,
+                lobbyName: lobby.name,
+                gameType: lobby.gameType || 'Unknown',
+                message: `${currentUser.username} has invited you to join their lobby!`
+            })
         })
         .then(response => {
             if (!response.ok) {
@@ -1067,17 +1095,19 @@ function sendInvite(lobby, playerId, playerName) {
             return response.json();
         })
         .then(data => {
-            console.log('Invite sent through API:', data);
+            console.log('Invite sent successfully:', data);
+            showNotification(`Invitation sent to ${playerName}`, 'success');
         })
         .catch(error => {
-            console.error('API invite error:', error);
-            // We already saved to localStorage so no need to show an error
+            console.warn('API invite error:', error);
+            // Still show success since we saved to localStorage as fallback
+            showNotification(`Invitation sent to ${playerName}`, 'success');
         });
     } catch (error) {
         console.warn('Error sending invite to server:', error);
-        // Invite is already saved locally, so this is just a warning
+        // Still show success since we saved to localStorage
+        showNotification(`Invitation sent to ${playerName}`, 'success');
     }
-    */
 }
 
 function viewProfile(playerId) {

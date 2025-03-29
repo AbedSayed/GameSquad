@@ -39,11 +39,13 @@ app.use(express.static(path.join(__dirname, '../public')));
 const userRoutes = require('./routes/userRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const lobbyRoutes = require('./routes/lobbyRoutes');
+const inviteRoutes = require('./routes/inviteRoutes');
 
 // API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/lobbies', lobbyRoutes);
+app.use('/api/invites', inviteRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
