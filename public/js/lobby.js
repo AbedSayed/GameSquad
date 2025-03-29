@@ -699,6 +699,65 @@ function formatGameDetail(value, type) {
     }
 }
 
+// Add system message to the chat
+function addSystemMessage(text) {
+    console.log('System message:', text);
+    
+    // If chat messages container doesn't exist, just log to console
+    const chatMessages = document.querySelector('.chat-messages');
+    if (!chatMessages) {
+        console.warn('Chat messages container not found, cannot display message:', text);
+        return;
+    }
+    
+    const messageElement = document.createElement('div');
+    messageElement.className = 'chat-message system-message';
+    
+    messageElement.innerHTML = `
+        <div class="message-content">${text}</div>
+    `;
+    
+    chatMessages.appendChild(messageElement);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Update the addChatMessage function to handle system messages
+function addChatMessage(message) {
+    const chatMessages = document.querySelector('.chat-messages');
+    if (!chatMessages) {
+        console.error('Chat messages container not found');
+        return;
+    }
+    
+    const messageElement = document.createElement('div');
+    messageElement.className = 'chat-message';
+    
+    // Add system message class if it's a system message
+    if (message.isSystem) {
+        messageElement.classList.add('system-message');
+    } else if (userInfo && message.username === userInfo.username) {
+        messageElement.classList.add('own-message');
+    }
+    
+    // Format differently for system messages
+    if (message.isSystem) {
+        messageElement.innerHTML = `
+            <div class="message-content">${message.text}</div>
+        `;
+    } else {
+        messageElement.innerHTML = `
+            <div class="message-header">
+                <span class="message-sender">${message.username || 'Anonymous'}</span>
+                <span class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</span>
+            </div>
+            <div class="message-content">${message.text}</div>
+        `;
+    }
+    
+    chatMessages.appendChild(messageElement);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
 /**
  * Create a lobby card element
  * @param {Object} lobby - Lobby data
@@ -881,6 +940,61 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('No lobby ID found in URL');
         addSystemMessage('Error: No lobby ID specified');
         return;
+    }
+    
+    // Check if we're joining this lobby
+    const isJoining = urlParams.get('join') === 'true';
+    if (isJoining) {
+        console.log('Join parameter detected, will attempt to join the lobby');
+        
+        // Function to handle joining the lobby
+        const joinCurrentLobby = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.error('No token found, cannot join lobby');
+                    addSystemMessage('Please log in to join lobbies');
+                    return;
+                }
+                
+                console.log('Joining lobby with ID:', lobbyId);
+                
+                // Call the joinLobby API function
+                const response = await fetch(`/api/lobbies/${lobbyId}/join`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.message || `Failed to join lobby. Status: ${response.status}`;
+                    console.error('Error joining lobby:', errorMessage);
+                    addSystemMessage(`Error joining lobby: ${errorMessage}`);
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('Successfully joined lobby:', data);
+                addSystemMessage('You have joined the lobby!');
+                
+                // Remove the join parameter from URL to avoid rejoining on page refresh
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete('join');
+                window.history.replaceState({}, '', newUrl);
+                
+                // Refresh lobby details to show updated player list
+                await fetchLobbyDetails();
+            } catch (error) {
+                console.error('Error in joinCurrentLobby:', error);
+                addSystemMessage(`Error joining lobby: ${error.message}`);
+            }
+        };
+        
+        // Call the join function
+        joinCurrentLobby();
     }
     
     // Get user information - try multiple sources
@@ -1116,62 +1230,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Add system message
-    function addSystemMessage(text) {
-        const chatMessages = document.querySelector('.chat-messages');
-        if (!chatMessages) {
-            console.error('Chat messages container not found');
-            return;
-        }
-        
-        const messageElement = document.createElement('div');
-        messageElement.className = 'chat-message system-message';
-        
-        messageElement.innerHTML = `
-            <div class="message-content">${text}</div>
-        `;
-        
-        chatMessages.appendChild(messageElement);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    // Update the addChatMessage function to handle system messages
-    function addChatMessage(message) {
-        const chatMessages = document.querySelector('.chat-messages');
-        if (!chatMessages) {
-            console.error('Chat messages container not found');
-            return;
-        }
-        
-        const messageElement = document.createElement('div');
-        messageElement.className = 'chat-message';
-        
-        // Add system message class if it's a system message
-        if (message.isSystem) {
-            messageElement.classList.add('system-message');
-        } else if (userInfo && message.username === userInfo.username) {
-            messageElement.classList.add('own-message');
-        }
-        
-        // Format differently for system messages
-        if (message.isSystem) {
-            messageElement.innerHTML = `
-                <div class="message-content">${message.text}</div>
-            `;
-        } else {
-            messageElement.innerHTML = `
-                <div class="message-header">
-                    <span class="message-sender">${message.username || 'Anonymous'}</span>
-                    <span class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</span>
-                </div>
-                <div class="message-content">${message.text}</div>
-            `;
-        }
-        
-        chatMessages.appendChild(messageElement);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
     // Fetch message history
     async function fetchMessageHistory() {
         try {
