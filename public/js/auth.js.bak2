@@ -17,56 +17,25 @@ if (!window.APP_CONFIG?.API_URL) {
  */
 window.Auth.registerUser = async function(userData) {
   try {
-    console.log('Validating registration data');
-    
-    // Basic validation
-    if (!userData.email || !userData.password || !userData.username) {
-      throw new Error('Email, password and username are required');
+    const response = await fetch(`${window.APP_CONFIG.API_URL}/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Registration failed');
     }
-    
-    // Check for valid email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(userData.email)) {
-      throw new Error('Invalid email format');
-    }
-    
-    // Check for minimum password length
-    if (userData.password.length < 6) {
-      throw new Error('Password must be at least 6 characters');
-    }
-    
-    // Check for username requirements
-    if (userData.username.length < 3) {
-      throw new Error('Username must be at least 3 characters');
-    }
-    
-    // Check if email is already registered
-    const registeredEmails = [
-      'user@example.com',
-      'admin@example.com',
-      'demo@example.com'
-    ];
-    
-    if (registeredEmails.includes(userData.email)) {
-      throw new Error('Email is already registered');
-    }
-    
-    console.log('Registration successful');
-    
-    // Create user object
-    const mockUser = {
-      _id: 'user_' + Math.random().toString(36).substring(2),
-      username: userData.username,
-      email: userData.email,
-      createdAt: new Date().toISOString(),
-      token: 'auth_token_' + Math.random().toString(36).substring(2)
-    };
-    
-    // Store user data in localStorage
-    localStorage.setItem('userInfo', JSON.stringify(mockUser));
-    localStorage.setItem('token', mockUser.token);
-    
-    return mockUser;
+
+    // Store user data and token in localStorage
+    localStorage.setItem('userInfo', JSON.stringify(data));
+    localStorage.setItem('token', data.token);
+
+    return data;
   } catch (error) {
     console.error('Registration error:', error);
     throw error;
@@ -80,62 +49,30 @@ window.Auth.registerUser = async function(userData) {
  * @returns {Promise} - Promise resolving to user data with token
  */
 window.Auth.loginUser = async function(email, password) {
-    try {
-        // Demo mode is explicitly disabled now
-        console.log('Validating login credentials');
-        
-        // Basic validation
-        if (!email || !password) {
-            throw new Error('Email and password are required');
-        }
-        
-        // Check for valid email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            throw new Error('Invalid email format');
-        }
-        
-        // Check for minimum password length
-        if (password.length < 6) {
-            throw new Error('Password must be at least 6 characters');
-        }
-        
-        // Hardcoded valid credentials for demo purposes
-        // In a real app, this would be a database check
-        const validCredentials = [
-            { email: 'user@example.com', password: 'password123' },
-            { email: 'admin@example.com', password: 'admin123' },
-            { email: 'demo@example.com', password: 'demo123' }
-        ];
-        
-        // Check if credentials match any valid user
-        const validUser = validCredentials.find(user => 
-            user.email === email && user.password === password
-        );
-        
-        if (!validUser) {
-            throw new Error('Invalid email or password');
-        }
-        
-        console.log('Login successful');
-        
-        // Create user object for the valid user
-        const mockUser = {
-            _id: 'user_' + Math.random().toString(36).substring(2),
-            username: email.split('@')[0],
-            email: email,
-            token: 'auth_token_' + Math.random().toString(36).substring(2)
-        };
-        
-        // Store mock user data in localStorage
-        localStorage.setItem('userInfo', JSON.stringify(mockUser));
-        localStorage.setItem('token', mockUser.token);
-        
-        return mockUser;
-    } catch (error) {
-        console.error('Login error:', error);
-        throw error;
+  try {
+    const response = await fetch(`${window.APP_CONFIG.API_URL}/users/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Login failed');
     }
+
+    // Store user data and token in localStorage
+    localStorage.setItem('userInfo', JSON.stringify(data));
+    localStorage.setItem('token', data.token);
+
+    return data;
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
+  }
 }
 
 /**
@@ -591,55 +528,129 @@ function saveUserInfo(userInfo) {
  * Handle login form submission
  */
 async function handleLogin(e) {
-    e.preventDefault();
+  e.preventDefault();
+  
+  // Get form data
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  
+  // Validate form data
+  if (!email || !password) {
+    showLoginError('Please enter both email and password');
+    return;
+  }
+  
+  try {
+    // Determine API URL
+    const apiUrl = window.APP_CONFIG && window.APP_CONFIG.API_URL 
+      ? `${window.APP_CONFIG.API_URL}/auth/login`
+      : 'http://localhost:3000/api/auth/login';
     
-    // Get form data
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
+    console.log(`Sending login request to: ${apiUrl}`);
     
-    // Validate form data
-    if (!email || !password) {
-        showLoginError('Please enter both email and password');
-        return;
-    }
+    // Show loading state
+    const loginBtn = document.querySelector('button[type="submit"]');
+    const originalBtnText = loginBtn.innerHTML;
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
     
-    try {
-        // Show loading state
-        const loginBtn = document.querySelector('button[type="submit"]');
-        if (loginBtn) {
-            const originalBtnText = loginBtn.innerHTML;
-            loginBtn.disabled = true;
-            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
-        }
+    // For demo/development purposes
+    if (isDemoMode()) {
+      console.log('DEMO MODE: Using mock login');
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Demo credentials check
+      if (email === 'demo@example.com' && password === 'password') {
+        // Create demo user and token
+        const mockUser = {
+          _id: 'demo_user_123',
+          username: email.split('@')[0],
+          email: email,
+          createdAt: new Date().toISOString()
+        };
         
-        // Use the Auth.loginUser method for consistent behavior
-        const user = await window.Auth.loginUser(email, password);
+        const mockToken = 'demo_token_' + Math.random().toString(36).substring(2);
         
-        // Show success message
-        if (window.showNotification) {
-            window.showNotification('Login successful!', 'success');
-        } else {
-            alert('Login successful!');
-        }
+        // Save to localStorage
+        saveAuthToken(mockToken);
+        saveUserInfo(mockUser);
         
         // Redirect after login
         redirectAfterLogin();
-        
-    } catch (error) {
-        console.error('Login error:', error);
-        showLoginError(error.message || 'Login failed. Please try again.');
-        
-        // Reset button state
-        const loginBtn = document.querySelector('button[type="submit"]');
-        if (loginBtn) {
-            loginBtn.disabled = false;
-            loginBtn.innerHTML = 'Login';
-        }
+        return;
+      } else {
+        // Demo login failed
+        throw new Error('Invalid email or password');
+      }
     }
+    
+    // Send real API request
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password })
+    });
+    
+    // Handle response
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type');
+      let errorMessage = 'Login failed';
+      
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || 'Authentication failed';
+      } else {
+        errorMessage = `Server error (${response.status})`;
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    // Parse response data
+    const data = await response.json();
+    console.log('Login successful:', data);
+    
+    // Extract token and user info
+    const token = data.token || data.accessToken;
+    const userInfo = data.user || data.userInfo || data;
+    
+    if (!token) {
+      throw new Error('No token received from server');
+    }
+    
+    // Save auth data
+    saveAuthToken(token);
+    
+    // Save user info if available
+    if (userInfo) {
+      saveUserInfo(userInfo);
+    }
+    
+    // Show success message
+    showNotification('Login successful!', 'success');
+    
+    // Redirect after login
+    redirectAfterLogin();
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    showLoginError(error.message || 'Login failed. Please try again.');
+    
+    // Reset button state
+    const loginBtn = document.querySelector('button[type="submit"]');
+    if (loginBtn) {
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = 'Login';
+    }
+  }
 }
 
 // Function to determine if we're in demo mode (no API available)
 function isDemoMode() {
-    // Always return false to ensure strict validation
-    return false;
+  // Check for demo mode flag or if we're on GitHub Pages or other static hosting
+  return !window.APP_CONFIG || !window.APP_CONFIG.API_URL || window.location.hostname.includes('github.io');
 }

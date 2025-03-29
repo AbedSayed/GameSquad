@@ -6,8 +6,6 @@ if (!window.APP_CONFIG) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Create lobby page loaded');
-
     // Check if user is logged in using the Auth module
     if (typeof window.Auth !== 'undefined' && typeof window.Auth.isLoggedIn === 'function') {
         if (!window.Auth.isLoggedIn()) {
@@ -380,179 +378,58 @@ async function handleLobbyCreation(e) {
     e.preventDefault();
     
     const formError = document.getElementById('form-error');
-    if (formError) {
-        formError.textContent = '';
-        formError.classList.add('hidden');
-    }
+    formError.textContent = '';
+    formError.classList.add('hidden');
     
-    // Get user info from Auth module or localStorage
-    const userInfo = getUserInfo();
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-    
-    console.log('Current user:', userInfo);
-    console.log('Token available:', !!token);
-    
+    // Check authentication - using the correct token key
+    const token = localStorage.getItem('token');
     if (!token) {
-        showLoginError('You must be logged in to create a lobby');
-        
         // Store the current URL before redirecting
         localStorage.setItem('returnUrl', window.location.href);
-        
-        // Show notification and redirect
-        showNotification('Authentication required. Please log in.', 'error');
-        setTimeout(() => {
-            window.location.href = 'login.html';
-        }, 2000);
+        window.location.href = 'login.html';
         return;
-    }
-    
-    // Show loading state
-    const submitBtn = document.querySelector('button[type="submit"]');
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
     }
     
     // Get form data
     const formData = new FormData(e.target);
     const lobbyData = {
         name: formData.get('name'),
-        game: formData.get('game'),
-        gameType: getGameType(formData.get('game')),
-        maxPlayers: parseInt(formData.get('maxPlayers')) || 5,
-        currentPlayers: 1, // Start with the host
+        gameType: formData.get('game'),
+        maxPlayers: parseInt(formData.get('maxPlayers')),
         region: formData.get('region'),
         language: formData.get('language'),
-        skillLevel: getRankLevel(formData.get('minRank')),
         rank: formData.get('minRank'),
-        description: formData.get('description') || '',
         requirements: {
             micRequired: formData.get('micRequired') === 'on',
             ageRestricted: formData.get('18plus') === 'on',
             casualFriendly: formData.get('casual') === 'on',
             competitiveFocus: formData.get('competitive') === 'on'
         },
-        schedule: formData.get('schedule') || '',
-        discord: formData.get('discord') || '',
-        status: 'waiting',
-        createdAt: new Date().toISOString()
+        schedule: formData.get('schedule') || null,
+        discord: formData.get('discord') || null,
+        status: 'open'
     };
     
-    // Add host ID if available
-    if (userInfo && userInfo._id) {
-        lobbyData.host = userInfo._id;
-        // Also add full host info for display purposes
-        lobbyData.hostInfo = {
-            _id: userInfo._id,
-            username: userInfo.username || userInfo.email.split('@')[0],
-            email: userInfo.email
-        };
-    }
-    
-    console.log('Creating lobby with data:', lobbyData);
+    console.log('Sending lobby data:', lobbyData);
     
     try {
-        // TEMPORARY: Skip the API call and store directly to localStorage
-        // This is useful until the backend API is properly configured
+        console.log('Creating lobby with data:', lobbyData);
+        console.log('Using API URL:', window.APP_CONFIG.API_URL);
         
-        console.log('DEVELOPMENT MODE: Storing lobby to localStorage');
-        
-        // Create a unique ID
-        lobbyData._id = 'local_lobby_' + Date.now();
-        
-        // Get existing lobbies or create empty array
-        const existingLobbies = JSON.parse(localStorage.getItem('lobbies') || '[]');
-        
-        // Add the new lobby
-        existingLobbies.push(lobbyData);
-        
-        // Save back to localStorage
-        localStorage.setItem('lobbies', JSON.stringify(existingLobbies));
-        
-        console.log('Lobby stored locally:', lobbyData);
-        console.log('Total lobbies in localStorage:', existingLobbies.length);
-        
-        // Show success notification
-        showNotification('Lobby created successfully!', 'success');
-        
-        // Redirect to the lobbies page on success
-        setTimeout(() => {
-            window.location.href = 'lobbies.html';
-        }, 1500);
-        
-        /* DISABLED UNTIL SERVER API IS CONFIGURED
-        // Determine the API URL
-        const baseApiUrl = window.APP_CONFIG && window.APP_CONFIG.API_URL 
-            ? window.APP_CONFIG.API_URL
-            : '/api';
-            
-        const apiUrl = `${window.location.origin}${baseApiUrl}/lobbies`;
-            
-        console.log('Using API URL:', apiUrl);
-        
-        // Send API request to create lobby with proper authorization
-        const response = await fetch(apiUrl, {
+        // Send API request to create lobby
+        const response = await fetch(`${window.APP_CONFIG.API_URL}/lobbies`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(lobbyData)
         });
         
-        console.log('Response status:', response.status);
-        
-        // Get the response data
-        const responseText = await response.text();
-        console.log('Response text:', responseText);
-        
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (e) {
-            console.error('Error parsing response:', e);
-            data = { message: responseText };
-        }
+        const data = await response.json();
         
         if (!response.ok) {
-            if (response.status === 401) {
-                // Handle unauthorized specifically
-                localStorage.removeItem('token');
-                localStorage.removeItem('authToken');
-                throw new Error('Your session has expired. Please log in again.');
-            } else {
-                throw new Error(data.error || data.message || `Server error (${response.status})`);
-            }
-        }
-        
-        console.log('Lobby created successfully:', data);
-        
-        // For demo/development purposes, if we can't connect to the API, store locally
-        if (!data || !data._id) {
-            console.log('Using local storage fallback for lobbies');
-            
-            // Get existing lobbies or create empty array
-            const existingLobbies = JSON.parse(localStorage.getItem('lobbies') || '[]');
-            
-            // Create a dummy ID
-            lobbyData._id = 'local_' + Date.now();
-            
-            // Add host details if missing
-            if (!lobbyData.host) {
-                lobbyData.host = { 
-                    _id: userInfo ? userInfo._id : 'current_user',
-                    username: userInfo ? userInfo.username : 'You'
-                };
-            }
-            
-            // Add to existing lobbies
-            existingLobbies.push(lobbyData);
-            
-            // Save back to localStorage
-            localStorage.setItem('lobbies', JSON.stringify(existingLobbies));
-            
-            data = lobbyData;
+            throw new Error(data.error || data.message || 'Failed to create lobby');
         }
         
         // Show success notification
@@ -562,240 +439,12 @@ async function handleLobbyCreation(e) {
         setTimeout(() => {
             window.location.href = 'lobbies.html';
         }, 1500);
-        */
         
     } catch (error) {
         console.error('Error creating lobby:', error);
-        
-        // Reset button state
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-plus-circle"></i> Create Lobby';
-        }
-        
         // Display error message
-        showLoginError(error.message || 'Failed to create lobby. Please try again.');
-        showNotification(error.message || 'Failed to create lobby', 'error');
-    }
-}
-
-// Helper function to convert rank to numeric skill level
-function getRankLevel(rank) {
-    if (!rank || rank === 'any') return 3; // Default to middle
-    
-    // Handle common rank patterns
-    const rankLower = typeof rank === 'string' ? rank.toLowerCase() : '';
-    
-    if (rankLower.includes('iron') || rankLower.includes('bronze') || 
-        rankLower.includes('rookie') || rankLower.includes('silver1') || 
-        rankLower.includes('beginner')) {
-        return 1;
-    }
-    
-    if (rankLower.includes('silver') || rankLower.includes('gold') || 
-        rankLower.includes('intermediate')) {
-        return 2;
-    }
-    
-    if (rankLower.includes('platinum') || rankLower.includes('diamond') || 
-        rankLower.includes('advanced')) {
-        return 3;
-    }
-    
-    if (rankLower.includes('master') || rankLower.includes('immortal') || 
-        rankLower.includes('ascendant') || rankLower.includes('expert')) {
-        return 4;
-    }
-    
-    if (rankLower.includes('radiant') || rankLower.includes('challenger') || 
-        rankLower.includes('global') || rankLower.includes('predator')) {
-        return 5;
-    }
-    
-    return 3; // Default to middle
-}
-
-// Helper function to determine game type based on game
-function getGameType(game) {
-    if (!game) return 'FPS';
-    
-    const gameLower = game.toLowerCase();
-    
-    // FPS games
-    if (gameLower.includes('valorant') || 
-        gameLower.includes('cs') || 
-        gameLower.includes('counter') || 
-        gameLower.includes('overwatch') || 
-        gameLower.includes('rainbow') ||
-        gameLower.includes('call of duty') ||
-        gameLower.includes('cod') ||
-        gameLower.includes('pubg')) {
-        return 'FPS';
-    }
-    
-    // MOBA games
-    if (gameLower.includes('lol') || 
-        gameLower.includes('league') || 
-        gameLower.includes('dota') || 
-        gameLower.includes('heroes of')) {
-        return 'MOBA';
-    }
-    
-    // Battle Royale games
-    if (gameLower.includes('apex') || 
-        gameLower.includes('fortnite') || 
-        gameLower.includes('warzone') || 
-        gameLower.includes('battle royale')) {
-        return 'Battle Royale';
-    }
-    
-    // RPG games
-    if (gameLower.includes('rpg') || 
-        gameLower.includes('world of warcraft') || 
-        gameLower.includes('wow') || 
-        gameLower.includes('elder scrolls') ||
-        gameLower.includes('final fantasy')) {
-        return 'RPG';
-    }
-    
-    // Default to FPS
-    return 'FPS';
-}
-
-/**
- * Get user info from localStorage
- */
-function getUserInfo() {
-    try {
-        const userInfo = localStorage.getItem('userInfo');
-        
-        if (userInfo) {
-            return JSON.parse(userInfo);
-        }
-        
-        return null;
-    } catch (error) {
-        console.error('Error parsing user info from localStorage:', error);
-        return null;
-    }
-}
-
-/**
- * Show login error
- */
-function showLoginError(message) {
-    const errorElement = document.getElementById('form-error');
-    
-    if (errorElement) {
-        errorElement.textContent = message;
-        errorElement.classList.remove('hidden');
-        
-        // Scroll to error
-        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else {
-        // Fallback to alert if error element not found
-        alert(message);
-    }
-}
-
-/**
- * Set up the preview functionality for the form
- */
-function setupPreviewFunctionality() {
-    // Game type mapping
-    const gameTypeMap = {
-        'valorant': 'FPS',
-        'csgo': 'FPS',
-        'lol': 'MOBA',
-        'dota2': 'MOBA',
-        'apex': 'Battle Royale',
-        'fortnite': 'Battle Royale',
-        'overwatch': 'FPS',
-        'rocketleague': 'Sports'
-    };
-    
-    // Game image mapping
-    const gameImageMap = {
-        'valorant': '../recources/Valorant-Logo-PNG-Image.png',
-        'csgo': '../recources/counter-strike-png-.png',
-        'lol': '../recources/leageofLegend.png.png',
-        'apex': '../recources/apex.png.png',
-        'default': '../recources/default-game.png'
-    };
-    
-    // Get form elements
-    const lobbyNameInput = document.getElementById('name');
-    const gameSelect = document.getElementById('game');
-    const regionSelect = document.getElementById('region');
-    const languageSelect = document.getElementById('language');
-    
-    // Get preview elements
-    const previewName = document.getElementById('preview-name');
-    const previewImage = document.getElementById('preview-image');
-    const regionPreview = document.getElementById('region-preview');
-    const languagePreview = document.getElementById('language-preview');
-    const gameBadge = document.querySelector('.game-badge');
-    
-    // If we have the required elements, set up live preview
-    if (lobbyNameInput && previewName) {
-        lobbyNameInput.addEventListener('input', function() {
-            previewName.textContent = this.value || 'Your Lobby Name';
-        });
-    }
-    
-    if (gameSelect && previewImage && gameBadge) {
-        gameSelect.addEventListener('change', function() {
-            const gameValue = this.value;
-            const gameType = gameTypeMap[gameValue] || 'Game';
-            
-            // Update game badge
-            gameBadge.textContent = gameType;
-            
-            // Update game image
-            previewImage.src = gameImageMap[gameValue] || gameImageMap.default;
-            previewImage.alt = this.options[this.selectedIndex].text;
-        });
-    }
-    
-    if (regionSelect && regionPreview) {
-        regionSelect.addEventListener('change', function() {
-            const regionMap = {
-                'na': 'North America',
-                'eu': 'Europe',
-                'asia': 'Asia',
-                'oceania': 'Oceania',
-                'sa': 'South America'
-            };
-            
-            regionPreview.textContent = regionMap[this.value] || this.options[this.selectedIndex].text;
-        });
-    }
-    
-    if (languageSelect && languagePreview) {
-        languageSelect.addEventListener('change', function() {
-            languagePreview.textContent = this.options[this.selectedIndex].text;
-        });
-    }
-    
-    // Apply 3D effect to preview card
-    const previewCard = document.querySelector('.preview-card');
-    if (previewCard) {
-        previewCard.addEventListener('mousemove', function(e) {
-            const rect = this.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            
-            const angleX = (y - centerY) / 20;
-            const angleY = (centerX - x) / 20;
-            
-            this.style.transform = `perspective(1000px) rotateX(${angleX}deg) rotateY(${angleY}deg) scale3d(1.02, 1.02, 1.02)`;
-        });
-        
-        previewCard.addEventListener('mouseleave', function() {
-            this.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
-        });
+        formError.textContent = error.message;
+        formError.classList.remove('hidden');
+        showNotification(error.message, 'error');
     }
 }

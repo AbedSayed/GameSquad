@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - GameSquad</title>
+    <title>Login - GameSquad</title>
     
     <!-- Unified Theme System -->
     <link rel="stylesheet" href="../css/gamesquad-theme.css">
@@ -50,14 +51,10 @@
         <section class="auth-section hexagon-bg">
             <div class="auth-container card pulse-glow rotating-border">
                 <div class="auth-header">
-                    <h2 class="neon-text">Join GameSquad</h2>
-                    <p>Create your account to start finding the perfect gaming squad!</p>
+                    <h2 class="neon-text">Login to GameSquad</h2>
+                    <p>Welcome back, gamer! Sign in to access your account.</p>
                 </div>
-                <form id="registerForm" class="auth-form">
-                    <div class="form-group">
-                        <label for="username"><i class="fas fa-user"></i> Username</label>
-                        <input type="text" id="username" name="username" placeholder="Choose a username" required>
-                    </div>
+                <form id="loginForm" class="auth-form">
                     <div class="form-group">
                         <label for="email"><i class="fas fa-envelope"></i> Email</label>
                         <input type="email" id="email" name="email" placeholder="Enter your email" required>
@@ -65,33 +62,23 @@
                     <div class="form-group">
                         <label for="password"><i class="fas fa-lock"></i> Password</label>
                         <div class="password-input">
-                            <input type="password" id="password" name="password" placeholder="Create a password" required>
+                            <input type="password" id="password" name="password" placeholder="Enter your password" required>
                             <button type="button" id="togglePassword" class="toggle-password">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="confirmPassword"><i class="fas fa-lock"></i> Confirm Password</label>
-                        <div class="password-input">
-                            <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm your password" required>
-                            <button type="button" id="toggleConfirmPassword" class="toggle-password">
-                                <i class="fas fa-eye"></i>
-                            </button>
+                    <div class="form-options">
+                        <div class="remember-me">
+                            <input type="checkbox" id="rememberMe" name="rememberMe">
+                            <label for="rememberMe">Remember me</label>
                         </div>
-                    </div>
-                    <div class="form-check">
-                        <input type="checkbox" id="termsAgree" name="termsAgree" required>
-                        <label for="termsAgree">I agree to the <a href="terms.html" target="_blank">Terms of Service</a> and <a href="privacy.html" target="_blank">Privacy Policy</a></label>
-                    </div>
-                    <div class="form-check">
-                        <input type="checkbox" id="newsletter" name="newsletter">
-                        <label for="newsletter">Send me gaming news and updates (optional)</label>
+                        <a href="forgot-password.html" class="forgot-password">Forgot password?</a>
                     </div>
                     <button type="submit" class="btn btn-primary btn-hover-fx">
-                        <i class="fas fa-user-plus"></i> <span>Create Account</span>
+                        <i class="fas fa-sign-in-alt"></i> <span>Login</span>
                     </button>
-                    <div id="registerError" class="form-error"></div>
+                    <div id="loginError" class="form-error"></div>
                 </form>
                 <div class="auth-divider">
                     <span>OR</span>
@@ -105,7 +92,7 @@
                     </button>
                 </div>
                 <div class="auth-footer">
-                    <p>Already have an account? <a href="login.html" class="login-link neon-text-secondary">Login now</a></p>
+                    <p>Don't have an account? <a href="register.html" class="register-link neon-text-secondary">Register now</a></p>
                 </div>
             </div>
         </section>
@@ -166,10 +153,13 @@
     <!-- Scripts -->
     <script src="../js/gamesquad-ui.js"></script>
     <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Apply particle effect to auth section
-            applyParticleEffect('.auth-section');
+            if (typeof applyParticleEffect === 'function') {
+                applyParticleEffect('.auth-section');
+            }
             
             // Toggle password visibility
             const togglePassword = document.getElementById('togglePassword');
@@ -184,92 +174,138 @@
                 });
             }
             
-            const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
-            const confirmPasswordInput = document.getElementById('confirmPassword');
+            // Login form submission
+            const loginForm = document.getElementById('loginForm');
+            const loginError = document.getElementById('loginError');
             
-            if (toggleConfirmPassword && confirmPasswordInput) {
-                toggleConfirmPassword.addEventListener('click', function() {
-                    const type = confirmPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                    confirmPasswordInput.setAttribute('type', type);
-                    this.querySelector('i').classList.toggle('fa-eye');
-                    this.querySelector('i').classList.toggle('fa-eye-slash');
-                });
-            }
-            
-            // Register form submission
-            const registerForm = document.getElementById('registerForm');
-            const registerError = document.getElementById('registerError');
-            
-            if (registerForm) {
-                registerForm.addEventListener('submit', async function(e) {
+            if (loginForm) {
+                loginForm.addEventListener('submit', async function(e) {
                     e.preventDefault();
                     
-                    // Clear previous error messages
-                    if (registerError) {
-                        registerError.textContent = '';
-                    }
-                    
                     // Get form data
-                    const username = document.getElementById('username').value;
                     const email = document.getElementById('email').value;
                     const password = document.getElementById('password').value;
-                    const confirmPassword = document.getElementById('confirmPassword').value;
-                    const termsAgree = document.getElementById('termsAgree').checked;
-                    const newsletter = document.getElementById('newsletter').checked;
                     
-                    // Basic validation
-                    if (password !== confirmPassword) {
-                        if (registerError) {
-                            registerError.textContent = 'Passwords do not match';
-                        }
-                        showNotification('Passwords do not match', 'error');
+                    // Simple validation
+                    if (!email || !password) {
+                        if (loginError) loginError.textContent = "Please enter both email and password";
                         return;
                     }
                     
-                    if (!termsAgree) {
-                        if (registerError) {
-                            registerError.textContent = 'You must agree to the Terms of Service and Privacy Policy';
-                        }
-                        showNotification('You must agree to the Terms of Service', 'error');
-                        return;
+                    // Show loading state
+                    const loginBtn = document.querySelector('button[type="submit"]');
+                    if (loginBtn) {
+                        loginBtn.disabled = true;
+                        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
                     }
                     
                     try {
-                        // Show loading notification
-                        showNotification('Creating your account...', 'info');
+                        // Determine API URL
+                        const apiUrl = window.APP_CONFIG && window.APP_CONFIG.API_URL 
+                            ? `${window.APP_CONFIG.API_URL}/auth/login`
+                            : 'http://localhost:3000/api/auth/login';
                         
-                        // Demo mode - simulate successful registration
-                        // In a real app, you would make an API call here
-                        setTimeout(() => {
-                            // Save mock user data to localStorage
-                            const userInfo = {
-                                id: '123456',
-                                username: username,
-                                email: email,
-                                avatar: '../recources/avatar-placeholder.jpg'
-                            };
-                            
-                            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                            localStorage.setItem('token', 'mock-jwt-token-for-demo');
-                            
-                            // Show success notification
-                            showNotification('Account created successfully!', 'success');
-                            
-                            // Redirect to home page
-                            setTimeout(() => {
-                                window.location.href = '../home.html';
-                            }, 1000);
-                        }, 1500);
-                    } catch (error) {
-                        // Show error message
-                        if (registerError) {
-                            registerError.textContent = error.message || 'Failed to create account. Please try again.';
+                        console.log('Using login API:', apiUrl);
+                        
+                        // Send login request to server
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ email, password })
+                        });
+                        
+                        console.log('Login response status:', response.status);
+                        
+                        // Get response text for debugging
+                        const responseText = await response.text();
+                        console.log('Login response:', responseText);
+                        
+                        // Parse response if it's JSON
+                        let data;
+                        try {
+                            data = JSON.parse(responseText);
+                        } catch (e) {
+                            console.error('Error parsing response:', e);
+                            throw new Error('Invalid response from server');
                         }
                         
-                        // Show error notification
-                        showNotification('Registration failed. Please try again.', 'error');
+                        // Handle error responses
+                        if (!response.ok) {
+                            throw new Error(data.error || data.message || 'Login failed');
+                        }
+                        
+                        // Check if we have a token and user data
+                        const token = data.token || data.accessToken;
+                        const user = data.user || data.userInfo || data;
+                        
+                        if (!token) {
+                            throw new Error('No token received from server');
+                        }
+                        
+                        // Save token and user info to localStorage
+                        localStorage.setItem('authToken', token);
+                        localStorage.setItem('token', token);
+                        
+                        if (user) {
+                            localStorage.setItem('userInfo', JSON.stringify(user));
+                        }
+                        
+                        // Show success notification
+                        showNotification('Login successful!', 'success');
+                        
+                        // Redirect to lobbies page
+                        setTimeout(() => {
+                            // Check if there's a return URL
+                            const returnUrl = localStorage.getItem('returnUrl');
+                            
+                            if (returnUrl) {
+                                localStorage.removeItem('returnUrl');
+                                window.location.href = returnUrl;
+                            } else {
+                                window.location.href = '../lobbies.html';
+                            }
+                        }, 1500);
+                    } catch (error) {
+                        console.error('Login error:', error);
+                        
+                        // Show error
+                        if (loginError) {
+                            loginError.textContent = error.message || 'Login failed';
+                            loginError.classList.remove('hidden');
+                        }
+                        
+                        showNotification(error.message || 'Login failed', 'error');
+                        
+                        // Reset button state
+                        if (loginBtn) {
+                            loginBtn.disabled = false;
+                            loginBtn.innerHTML = 'Login';
+                        }
                     }
                 });
+            }
+            
+            // Simple notification function
+            function showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.innerHTML = `
+                    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 
+                                       type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                `;
+
+                const container = document.querySelector('.notifications-container');
+                container.appendChild(notification);
+
+                // Remove notification after 5 seconds
+                setTimeout(() => {
+                    notification.classList.add('fade-out');
+                    setTimeout(() => notification.remove(), 300);
+                }, 5000);
             }
             
             // Social login buttons
@@ -279,9 +315,26 @@
                 socialButtons.forEach(btn => {
                     btn.addEventListener('click', function() {
                         // Show notification that this is just a demo
-                        showNotification('Social registration is not implemented in this demo version.', 'info');
+                        showNotification('Social login is not implemented in this demo version.', 'info');
                     });
                 });
+            }
+            
+            // Add demo login button with credentials that match your backend
+            const socialAuth = document.querySelector('.social-auth');
+            if (socialAuth) {
+                const demoButton = document.createElement('button');
+                demoButton.type = 'button';
+                demoButton.className = 'btn social-btn demo btn-hover-fx';
+                demoButton.innerHTML = '<i class="fas fa-user-check"></i> <span>Demo Login (Use real credentials)</span>';
+                demoButton.addEventListener('click', function() {
+                    // Set known demo credentials - modify these to match credentials your backend accepts
+                    document.getElementById('email').value = 'demo@example.com';
+                    document.getElementById('password').value = 'demo1234';
+                    showNotification('Using demo credentials. For real access, use your actual account.', 'info');
+                    // Don't auto-submit - let user click the login button
+                });
+                socialAuth.appendChild(demoButton);
             }
         });
     </script>

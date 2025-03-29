@@ -4,397 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lobbies - GameSquad</title>
+    
+    <!-- Unified Theme System -->
+    <link rel="stylesheet" href="../css/gamesquad-theme.css">
+    <link rel="stylesheet" href="../css/animations.css">
+    <link rel="stylesheet" href="../css/gaming-styles.css">
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/lobby.css">
+    
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        /* Additional styles specific to lobbies page */
-        .lobbies-container {
-            max-width: 1200px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
-        
-        .page-title {
-            color: var(--light-color);
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            text-align: center;
-        }
-        
-        .create-lobby-btn {
-            background-color: var(--accent-color);
-            color: var(--light-color);
-            padding: 10px 20px;
-            border-radius: var(--border-radius);
-            font-weight: 600;
-            transition: var(--transition);
-        }
-        
-        .create-lobby-btn:hover {
-            background-color: #3ca372;
-            color: var(--light-color);
-        }
-        
-        .filters-container {
-            background-color: var(--card-background);
-            padding: 20px;
-            border-radius: var(--border-radius);
-            margin-bottom: 30px;
-        }
-        
-        .filters-title {
-            color: var(--light-color);
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .filters-title button {
-            background: none;
-            border: none;
-            color: var(--primary-color);
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-        
-        .filters-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        
-        .filter-group {
-            margin-bottom: 15px;
-        }
-        
-        .filter-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: var(--light-color);
-            font-size: 0.9rem;
-        }
-        
-        .filter-group select,
-        .filter-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--secondary-color);
-            border-radius: var(--border-radius);
-            background-color: var(--dark-color);
-            color: var(--light-color);
-        }
-        
-        .filter-group select:focus,
-        .filter-group input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-        
-        .filter-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            grid-column: 1 / -1;
-        }
-        
-        .filter-actions button {
-            padding: 10px 20px;
-            border-radius: var(--border-radius);
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-        
-        .apply-filters {
-            background-color: var(--primary-color);
-            color: var(--light-color);
-            border: none;
-        }
-        
-        .apply-filters:hover {
-            background-color: #5b6eae;
-        }
-        
-        .reset-filters {
-            background-color: transparent;
-            color: var(--light-color);
-            border: 1px solid var(--gray-color);
-        }
-        
-        .reset-filters:hover {
-            background-color: var(--secondary-color);
-        }
-        
-        .lobbies-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-            margin-top: 30px;
-        }
-        
-        .lobby-card {
-            background-color: var(--card-background);
-            border-radius: var(--border-radius);
-            overflow: hidden;
-            transition: var(--transition);
-            box-shadow: var(--box-shadow);
-        }
-        
-        .lobby-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .lobby-header {
-            background-color: var(--dark-color);
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .lobby-game {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .lobby-game img {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-        
-        .lobby-game span {
-            color: var(--light-color);
-            font-weight: 600;
-        }
-        
-        .lobby-status {
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
-        .status-open {
-            background-color: var(--accent-color);
-            color: var(--light-color);
-        }
-        
-        .status-full {
-            background-color: var(--danger-color);
-            color: var(--light-color);
-        }
-        
-        .lobby-body {
-            padding: 15px;
-        }
-        
-        .lobby-name {
-            color: var(--light-color);
-            font-size: 1.2rem;
-            margin-bottom: 10px;
-        }
-        
-        .lobby-info {
-            margin-bottom: 15px;
-        }
-        
-        .info-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
-            color: var(--gray-color);
-        }
-        
-        .info-item i {
-            color: var(--primary-color);
-            width: 20px;
-            text-align: center;
-        }
-        
-        .game-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: var(--dark-color);
-            border-radius: var(--border-radius);
-        }
-        
-        .game-detail-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 5px;
-        }
-        
-        .game-detail-item i {
-            color: var(--primary-color);
-            width: 16px;
-            text-align: center;
-        }
-        
-        .game-detail-item span {
-            color: var(--light-color);
-            font-size: 0.9rem;
-        }
-        
-        .lobby-members {
-            margin-bottom: 15px;
-        }
-        
-        .members-title {
-            color: var(--light-color);
-            font-size: 0.9rem;
-            margin-bottom: 10px;
-        }
-        
-        .members-list {
-            display: flex;
-            gap: 5px;
-        }
-        
-        .member {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background-color: var(--dark-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--light-color);
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
-        .member.empty {
-            border: 1px dashed var(--gray-color);
-            color: var(--gray-color);
-        }
-        
-        .lobby-actions {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .lobby-btn {
-            flex: 1;
-            padding: 10px;
-            border-radius: var(--border-radius);
-            font-weight: 600;
-            text-align: center;
-            transition: var(--transition);
-        }
-        
-        .join-btn {
-            background-color: var(--primary-color);
-            color: var(--light-color);
-        }
-        
-        .join-btn:hover {
-            background-color: #5b6eae;
-            color: var(--light-color);
-        }
-        
-        .details-btn {
-            background-color: transparent;
-            color: var(--light-color);
-            border: 1px solid var(--gray-color);
-        }
-        
-        .details-btn:hover {
-            background-color: var(--secondary-color);
-            color: var(--light-color);
-        }
-        
-        .no-lobbies {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 40px;
-            color: var(--gray-color);
-        }
-        
-        .no-lobbies i {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            color: var(--primary-color);
-        }
-        
-        .pagination {
-            display: flex;
-            justify-content: center;
-            margin-top: 30px;
-            gap: 5px;
-        }
-        
-        .pagination-btn {
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: var(--border-radius);
-            background-color: var(--card-background);
-            color: var(--light-color);
-            transition: var(--transition);
-        }
-        
-        .pagination-btn:hover,
-        .pagination-btn.active {
-            background-color: var(--primary-color);
-        }
-        
-        .pagination-btn.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .pagination-btn.disabled:hover {
-            background-color: var(--card-background);
-        }
-        
-        .loading {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 40px;
-            color: var(--gray-color);
-        }
-        
-        .notifications-container {
-            position: fixed;
-            top: 0;
-            right: 0;
-            padding: 20px;
-            z-index: 1000;
-        }
-    </style>
+    
+    <!-- Google fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
         <nav class="navbar">
             <div class="logo">
-                <h1><a href="../index.html">GameSquad</a></h1>
+                <h1 class="sheen"><a href="../index.html">GameSquad</a></h1>
             </div>
             <ul class="nav-links">
-                <li><a href="../index.html">Home</a></li>
+                <li><a href="../home.html">Home</a></li>
                 <li><a href="lobbies.html" class="active">Lobbies</a></li>
+                <li><a href="create-lobby.html">Create Lobby</a></li>
                 <li><a href="players.html">Players</a></li>
+                <li><a href="about.html">About</a></li>
             </ul>
             <div class="user-profile">
-                <span class="username">Username</span>
+                <span class="username">Username <i class="fas fa-chevron-down"></i></span>
                 <div class="profile-dropdown">
-                    <a href="profile.html">My Profile</a>
-                    <a href="create-lobby.html">Create Lobby</a>
-                    <a href="messages.html">Messages</a>
-                    <a href="#" id="logout-btn">Logout</a>
+                    <a href="profile.html"><i class="fas fa-user"></i> My Profile</a>
+                    <a href="my-lobbies.html"><i class="fas fa-gamepad"></i> My Lobbies</a>
+                    <a href="messages.html"><i class="fas fa-envelope"></i> Messages</a>
+                    <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
             <div class="hamburger">
@@ -405,159 +48,290 @@
         </nav>
     </header>
 
-    <main>
-        <div class="lobbies-container">
-            <div class="page-title">
-                <h1>Find a Lobby</h1>
-                <a href="create-lobby.html" class="create-lobby-btn">
-                    <i class="fas fa-plus"></i> Create Lobby
-                </a>
+    <main class="container">
+        <div class="page-header hexagon-bg">
+            <h1 class="neon-text">Game Lobbies</h1>
+            <p>Join existing lobbies or create your own to find the perfect teammates</p>
+        </div>
+
+        <div class="server-status">
+            <div class="status-indicator online"></div>
+            <span class="server-name">Matchmaking Servers:</span>
+            <span class="server-info">All systems operational</span>
+        </div>
+
+        <div class="filter-tabs">
+            <button class="tab-btn active" data-tab="all">All Lobbies</button>
+            <button class="tab-btn" data-tab="fps">FPS</button>
+            <button class="tab-btn" data-tab="moba">MOBA</button>
+            <button class="tab-btn" data-tab="battle-royale">Battle Royale</button>
+            <button class="tab-btn" data-tab="rpg">RPG</button>
+        </div>
+
+        <div class="filters-section rotating-border" style="background-color: rgba(18, 18, 24, 0.85) !important; border: 1px solid rgba(87, 70, 175, 0.3) !important;">
+            <div class="filters-title">
+                <h2>Filters</h2>
+                <button class="toggle-filters-btn btn btn-secondary btn-hover-fx">
+                    <i class="fas fa-filter"></i> <span>Toggle Filters</span>
+                </button>
             </div>
-            
-            <div class="filters-container">
-                <div class="filters-title">
-                    <h3>Filters</h3>
-                    <button id="toggle-filters">Show/Hide Filters</button>
+            <div class="filters-form">
+                <div class="filter-group">
+                    <label for="gameFilter">Game</label>
+                    <select id="gameFilter" class="filter-input" style="background-color: rgba(30, 30, 40, 0.7) !important; color: #fff !important; border: 1px solid rgba(87, 70, 175, 0.3) !important;">
+                        <option value="">Any game</option>
+                        <option value="valorant">Valorant</option>
+                        <option value="csgo">Counter-Strike 2</option>
+                        <option value="lol">League of Legends</option>
+                        <option value="apex">Apex Legends</option>
+                        <option value="fortnite">Fortnite</option>
+                    </select>
                 </div>
-                
-                <form id="filters-form" class="filters-form">
-                    <div class="filter-group">
-                        <label for="game-filter">Game</label>
-                        <select id="game-filter" name="game">
-                            <option value="">All Games</option>
-                            <option value="CS:GO">CS:GO</option>
-                            <option value="Valorant">Valorant</option>
-                            <option value="League of Legends">League of Legends</option>
-                            <option value="Dota 2">Dota 2</option>
-                            <option value="Apex Legends">Apex Legends</option>
-                        </select>
+                <div class="filter-group">
+                    <label for="regionFilter">Region</label>
+                    <select id="regionFilter" class="filter-input" style="background-color: rgba(30, 30, 40, 0.7) !important; color: #fff !important; border: 1px solid rgba(87, 70, 175, 0.3) !important;">
+                        <option value="">Any region</option>
+                        <option value="na">North America</option>
+                        <option value="eu">Europe</option>
+                        <option value="asia">Asia</option>
+                        <option value="sa">South America</option>
+                        <option value="oce">Oceania</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="rankFilter">Skill Level</label>
+                    <select id="rankFilter" class="filter-input" style="background-color: rgba(30, 30, 40, 0.7) !important; color: #fff !important; border: 1px solid rgba(87, 70, 175, 0.3) !important;">
+                        <option value="">Any rank</option>
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                        <option value="expert">Expert</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="statusFilter">Status</label>
+                    <select id="statusFilter" class="filter-input" style="background-color: rgba(30, 30, 40, 0.7) !important; color: #fff !important; border: 1px solid rgba(87, 70, 175, 0.3) !important;">
+                        <option value="">Any status</option>
+                        <option value="waiting">Waiting</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="full">Full</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn reset-filters btn-secondary btn-hover-fx">
+                        <i class="fas fa-undo"></i> <span>Reset</span>
+                    </button>
+                    <button class="btn apply-filters btn-primary btn-hover-fx">
+                        <i class="fas fa-check"></i> <span>Apply</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="lobbies-grid">
+            <div class="my-lobbies-section">
+                <h2 class="section-title neon-text">YOUR LOBBIES</h2>
+                <div class="lobbies-grid-section fade-stagger" id="myLobbies">
+                    <!-- My lobbies will be added here dynamically by the JavaScript -->
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading your lobbies...</p>
                     </div>
-                    
-                    <div class="filter-group">
-                        <label for="rank-filter">Rank</label>
-                        <select id="rank-filter" name="rank">
-                            <option value="">Any Rank</option>
-                            <option value="Bronze">Bronze</option>
-                            <option value="Silver">Silver</option>
-                            <option value="Gold">Gold</option>
-                            <option value="Platinum">Platinum</option>
-                            <option value="Diamond">Diamond</option>
-                            <option value="Master">Master</option>
-                            <option value="Grandmaster">Grandmaster</option>
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label for="language-filter">Language</label>
-                        <select id="language-filter" name="language">
-                            <option value="">Any Language</option>
-                            <option value="English">English</option>
-                            <option value="Spanish">Spanish</option>
-                            <option value="French">French</option>
-                            <option value="German">German</option>
-                            <option value="Russian">Russian</option>
-                            <option value="Chinese">Chinese</option>
-                            <option value="Japanese">Japanese</option>
-                            <option value="Korean">Korean</option>
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label for="status-filter">Status</label>
-                        <select id="status-filter" name="status">
-                            <option value="">Any Status</option>
-                            <option value="open">Open</option>
-                            <option value="full">Full</option>
-                        </select>
-                    </div>
-                    
-                    <div class="filter-actions">
-                        <button type="button" class="reset-filters">Reset</button>
-                        <button type="submit" class="apply-filters">Apply Filters</button>
-                    </div>
-                </form>
+                </div>
             </div>
             
-            <div class="lobbies-grid" id="lobbies-container">
-                <!-- Lobbies will be loaded here dynamically -->
-                <div class="loading">Loading lobbies...</div>
+            <div class="other-lobbies-section">
+                <h2 class="section-title neon-text-secondary">AVAILABLE LOBBIES</h2>
+                <div class="lobbies-grid-section fade-stagger" id="otherLobbies">
+                    <!-- Other lobbies will be added here dynamically by the JavaScript -->
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading available lobbies...</p>
+                    </div>
+                </div>
             </div>
-            
-            <div class="pagination">
-                <a href="#" class="pagination-btn disabled">
-                    <i class="fas fa-angle-double-left"></i>
-                </a>
-                <a href="#" class="pagination-btn disabled">
-                    <i class="fas fa-angle-left"></i>
-                </a>
-                <a href="#" class="pagination-btn active">1</a>
-                <a href="#" class="pagination-btn">2</a>
-                <a href="#" class="pagination-btn">3</a>
-                <a href="#" class="pagination-btn">
-                    <i class="fas fa-angle-right"></i>
-                </a>
-                <a href="#" class="pagination-btn">
-                    <i class="fas fa-angle-double-right"></i>
-                </a>
-            </div>
+        </div>
+        
+        <div class="create-lobby-cta rotating-border">
+            <h2 class="neon-text">Want to create your own lobby?</h2>
+            <p>Customize your gaming experience by setting up a lobby with your preferred game, skill level, and more.</p>
+            <a href="create-lobby.html" class="btn btn-primary btn-hover-fx">
+                <i class="fas fa-plus"></i> <span>Create New Lobby</span>
+            </a>
         </div>
     </main>
 
-    <!-- Add notifications container -->
-    <div class="notifications-container"></div>
-
     <footer>
-        <div class="footer-content">
-            <div class="footer-logo">
-                <h2>GameSquad</h2>
-                <p>Find your perfect gaming team</p>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <h2 class="neon-text">GameSquad</h2>
+                    <p>Find your perfect gaming team</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h3>Navigation</h3>
+                        <ul>
+                            <li><a href="../index.html">Home</a></li>
+                            <li><a href="lobbies.html">Lobbies</a></li>
+                            <li><a href="players.html">Players</a></li>
+                            <li><a href="about.html">About</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h3>Legal</h3>
+                        <ul>
+                            <li><a href="terms.html">Terms of Service</a></li>
+                            <li><a href="privacy.html">Privacy Policy</a></li>
+                            <li><a href="cookies.html">Cookie Policy</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h3>Support</h3>
+                        <ul>
+                            <li><a href="faq.html">FAQ</a></li>
+                            <li><a href="contact.html">Contact Us</a></li>
+                            <li><a href="report.html">Report a Bug</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="footer-social">
+                    <h3>Follow Us</h3>
+                    <div class="social-icons">
+                        <a href="#" class="power-button"><i class="fab fa-discord"></i></a>
+                        <a href="#" class="power-button"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="power-button"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="power-button"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
             </div>
-            <div class="footer-links">
-                <div class="footer-column">
-                    <h3>Navigation</h3>
-                    <ul>
-                        <li><a href="../index.html">Home</a></li>
-                        <li><a href="lobbies.html">Lobbies</a></li>
-                        <li><a href="players.html">Players</a></li>
-                        <li><a href="about.html">About</a></li>
-                    </ul>
-                </div>
-                <div class="footer-column">
-                    <h3>Legal</h3>
-                    <ul>
-                        <li><a href="terms.html">Terms of Service</a></li>
-                        <li><a href="privacy.html">Privacy Policy</a></li>
-                        <li><a href="cookies.html">Cookie Policy</a></li>
-                    </ul>
-                </div>
-                <div class="footer-column">
-                    <h3>Connect</h3>
-                    <ul>
-                        <li><a href="#"><i class="fab fa-discord"></i> Discord</a></li>
-                        <li><a href="#"><i class="fab fa-twitter"></i> Twitter</a></li>
-                        <li><a href="#"><i class="fab fa-instagram"></i> Instagram</a></li>
-                    </ul>
-                </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 GameSquad. All rights reserved.</p>
             </div>
-        </div>
-        <div class="footer-bottom">
-            <p>&copy; 2025 GameSquad. All rights reserved.</p>
         </div>
     </footer>
 
-    <!-- Load configuration first -->
-    <script>
-        // Global configuration
-        window.APP_CONFIG = {
-            API_URL: 'http://localhost:8080/api'
-        };
-    </script>
-    <!-- Add auth check script first -->
-    <script src="../js/checkAuth.js"></script>
-    <!-- Load page-specific scripts -->
+    <div class="notifications-container"></div>
+
+    <!-- Scripts -->
+    <script src="../js/gamesquad-ui.js"></script>
     <script src="../js/config.js"></script>
     <script src="../js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Apply particle effect to header
+            applyParticleEffect('.page-header');
+            
+            // Toggle filters
+            const toggleFiltersBtn = document.querySelector('.toggle-filters-btn');
+            const filtersForm = document.querySelector('.filters-form');
+            
+            if (toggleFiltersBtn && filtersForm) {
+                toggleFiltersBtn.addEventListener('click', function() {
+                    filtersForm.classList.toggle('visible');
+                });
+            }
+            
+            // Tab switching
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const gameCards = document.querySelectorAll('.game-card');
+            
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove active class from all tabs
+                    tabButtons.forEach(b => b.classList.remove('active'));
+                    
+                    // Add active to clicked tab
+                    this.classList.add('active');
+                    
+                    const tabType = this.getAttribute('data-tab');
+                    
+                    // Filter cards
+                    if (tabType === 'all') {
+                        gameCards.forEach(card => {
+                            card.style.display = 'block';
+                        });
+                    } else {
+                        gameCards.forEach(card => {
+                            const badges = card.querySelectorAll('.game-badge');
+                            let hasMatch = false;
+                            
+                            badges.forEach(badge => {
+                                if (badge.classList.contains(tabType)) {
+                                    hasMatch = true;
+                                }
+                            });
+                            
+                            card.style.display = hasMatch ? 'block' : 'none';
+                        });
+                    }
+                });
+            });
+            
+            // Form filters (connect with lobbies.js)
+            const gameFilter = document.getElementById('gameFilter');
+            const regionFilter = document.getElementById('regionFilter');
+            const rankFilter = document.getElementById('rankFilter');
+            const statusFilter = document.getElementById('statusFilter');
+            const resetFilterBtn = document.querySelector('.reset-filters');
+            const applyFilterBtn = document.querySelector('.apply-filters');
+            
+            // Apply filters when the button is clicked
+            if (applyFilterBtn) {
+                applyFilterBtn.addEventListener('click', function() {
+                    const filters = {
+                        game: gameFilter ? gameFilter.value : '',
+                        rank: rankFilter ? rankFilter.value : '',
+                        region: regionFilter ? regionFilter.value : '',
+                        status: statusFilter ? statusFilter.value : ''
+                    };
+                    
+                    // Load lobbies with the selected filters
+                    window.Lobby.loadLobbies(filters);
+                    
+                    // Show notification
+                    showNotification('Filters applied successfully', 'success');
+                });
+            }
+            
+            // Reset filters
+            if (resetFilterBtn) {
+                resetFilterBtn.addEventListener('click', function() {
+                    if (gameFilter) gameFilter.value = '';
+                    if (rankFilter) rankFilter.value = '';
+                    if (regionFilter) regionFilter.value = '';
+                    if (statusFilter) statusFilter.value = '';
+                    
+                    // Load all lobbies
+                    window.Lobby.loadLobbies();
+                    
+                    // Show notification
+                    showNotification('Filters have been reset', 'info');
+                });
+            }
+        });
+        
+        // Helper function to show notifications
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 
+                                   type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+
+            const container = document.querySelector('.notifications-container');
+            container.appendChild(notification);
+
+            // Remove notification after 5 seconds
+            setTimeout(() => {
+                notification.classList.add('fade-out');
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+    </script>
+    <!-- Make sure lobbies.js is loaded after all other scripts -->
     <script src="../js/lobbies.js"></script>
-    <script src="../js/updateUsernameDisplay.js"></script>
 </body>
 </html>

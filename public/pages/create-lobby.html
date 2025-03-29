@@ -4,41 +4,61 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Lobby - GameSquad</title>
+    
+    <!-- Unified Theme System -->
+    <link rel="stylesheet" href="../css/gamesquad-theme.css">
+    <link rel="stylesheet" href="../css/animations.css">
+    <link rel="stylesheet" href="../css/gaming-styles.css">
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/lobby.css">
+    
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Google fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
         <nav class="navbar">
             <div class="logo">
-                <h1><a href="../index.html">GameSquad</a></h1>
+                <h1 class="sheen"><a href="../home.html">GameSquad</a></h1>
             </div>
             <ul class="nav-links">
-                <li><a href="../index.html">Home</a></li>
+                <li><a href="../home.html">Home</a></li>
                 <li><a href="lobbies.html">Lobbies</a></li>
                 <li><a href="create-lobby.html" class="active">Create Lobby</a></li>
                 <li><a href="players.html">Players</a></li>
                 <li><a href="about.html">About</a></li>
             </ul>
-            <div class="nav-user">
-                <span class="username"></span>
-                <button class="btn btn-secondary logout-btn">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </button>
+            <div class="user-profile">
+                <span class="username">Username <i class="fas fa-chevron-down"></i></span>
+                <div class="profile-dropdown">
+                    <a href="profile.html"><i class="fas fa-user"></i> My Profile</a>
+                    <a href="my-lobbies.html"><i class="fas fa-gamepad"></i> My Lobbies</a>
+                    <a href="messages.html"><i class="fas fa-envelope"></i> Messages</a>
+                    <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
             </div>
         </nav>
     </header>
 
     <main class="container">
-        <div class="create-lobby-container">
-            <h1>Create a New Lobby</h1>
-            
+        <div class="page-header hexagon-bg">
+            <h1 class="neon-text">Create Your Lobby</h1>
+            <p>Set up your gaming session and find the perfect teammates</p>
+        </div>
+        
+        <div class="create-lobby-container rotating-border">
             <form id="create-lobby-form" class="lobby-form">
                 <div class="form-group">
                     <label for="name">Lobby Name</label>
-                    <input type="text" id="name" name="name" required>
+                    <input type="text" id="name" name="name" placeholder="Enter a catchy name for your lobby" required>
                 </div>
 
                 <div class="form-group">
@@ -46,11 +66,13 @@
                     <select id="game" name="game" required>
                         <option value="" disabled selected>Select a game</option>
                         <option value="valorant">Valorant</option>
-                        <option value="csgo">CS:GO</option>
+                        <option value="csgo">Counter-Strike 2</option>
                         <option value="lol">League of Legends</option>
                         <option value="apex">Apex Legends</option>
                         <option value="fortnite">Fortnite</option>
                         <option value="dota2">Dota 2</option>
+                        <option value="overwatch">Overwatch 2</option>
+                        <option value="rocketleague">Rocket League</option>
                     </select>
                 </div>
 
@@ -105,23 +127,28 @@
                 <div class="form-group">
                     <label>Requirements</label>
                     <div class="checkbox-group">
-                        <div class="checkbox-item">
+                        <div class="checkbox-item glow-hover">
                             <input type="checkbox" id="micRequired" name="micRequired">
-                            <label for="micRequired">Microphone Required</label>
+                            <label for="micRequired"><i class="fas fa-microphone"></i> Microphone Required</label>
                         </div>
-                        <div class="checkbox-item">
+                        <div class="checkbox-item glow-hover">
                             <input type="checkbox" id="18plus" name="18plus">
-                            <label for="18plus">18+ Only</label>
+                            <label for="18plus"><i class="fas fa-user-check"></i> 18+ Only</label>
                         </div>
-                        <div class="checkbox-item">
+                        <div class="checkbox-item glow-hover">
                             <input type="checkbox" id="casual" name="casual" checked>
-                            <label for="casual">Casual Friendly</label>
+                            <label for="casual"><i class="fas fa-coffee"></i> Casual Friendly</label>
                         </div>
-                        <div class="checkbox-item">
+                        <div class="checkbox-item glow-hover">
                             <input type="checkbox" id="competitive" name="competitive">
-                            <label for="competitive">Competitive Focus</label>
+                            <label for="competitive"><i class="fas fa-trophy"></i> Competitive Focus</label>
                         </div>
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Lobby Description</label>
+                    <textarea id="description" name="description" rows="3" placeholder="Tell players what to expect in your lobby"></textarea>
                 </div>
 
                 <div class="form-group">
@@ -134,28 +161,106 @@
                     <input type="text" id="discord" name="discord" placeholder="Enter your Discord invite link">
                 </div>
 
-                <div class="form-group">
-                    <h3>Preview:</h3>
-                    <div class="preview-info">
-                        <div id="rank-preview">Rank: Any</div>
-                        <div id="region-preview">Region: North America</div>
-                        <div id="language-preview">Language: English</div>
+                <div class="form-group preview-box">
+                    <h3 class="preview-title">Lobby Preview</h3>
+                    <div class="lobby-preview">
+                        <div class="preview-card game-card">
+                            <div class="game-badges">
+                                <span class="game-badge fps">FPS</span>
+                                <span class="status-badge status-waiting">Waiting</span>
+                            </div>
+                            <img src="../recources/default-game.png" alt="Game" id="preview-image">
+                            <div class="game-info">
+                                <h3 class="glow-text" id="preview-name">Your Lobby Name</h3>
+                                <div class="skill-level">
+                                    <span class="skill-level-dot active"></span>
+                                    <span class="skill-level-dot active"></span>
+                                    <span class="skill-level-dot active"></span>
+                                    <span class="skill-level-dot"></span>
+                                    <span class="skill-level-dot"></span>
+                                </div>
+                                <p><i class="fas fa-users"></i> Players: 0/5</p>
+                                <p><i class="fas fa-crown"></i> Host: You</p>
+                                <p><i class="fas fa-globe"></i> <span id="region-preview">North America</span></p>
+                                <p><i class="fas fa-language"></i> <span id="language-preview">English</span></p>
+                                <div class="lobby-actions">
+                                    <button class="btn btn-primary btn-hover-fx" disabled>
+                                        <i class="fas fa-door-open"></i> <span>Preview Only</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div id="form-error" class="error-message hidden"></div>
 
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Create Lobby</button>
-                    <a href="lobbies.html" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary btn-hover-fx">
+                        <i class="fas fa-plus-circle"></i> Create Lobby
+                    </button>
+                    <a href="lobbies.html" class="btn btn-secondary btn-hover-fx">
+                        <i class="fas fa-times-circle"></i> Cancel
+                    </a>
                 </div>
             </form>
         </div>
     </main>
 
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <h2 class="neon-text">GameSquad</h2>
+                    <p>Find your perfect gaming team</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h3>Navigation</h3>
+                        <ul>
+                            <li><a href="../home.html">Home</a></li>
+                            <li><a href="lobbies.html">Lobbies</a></li>
+                            <li><a href="players.html">Players</a></li>
+                            <li><a href="about.html">About</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h3>Legal</h3>
+                        <ul>
+                            <li><a href="terms.html">Terms of Service</a></li>
+                            <li><a href="privacy.html">Privacy Policy</a></li>
+                            <li><a href="cookies.html">Cookie Policy</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h3>Support</h3>
+                        <ul>
+                            <li><a href="faq.html">FAQ</a></li>
+                            <li><a href="contact.html">Contact Us</a></li>
+                            <li><a href="report.html">Report a Bug</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="footer-social">
+                    <h3>Follow Us</h3>
+                    <div class="social-icons">
+                        <a href="#" class="power-button"><i class="fab fa-discord"></i></a>
+                        <a href="#" class="power-button"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="power-button"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="power-button"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 GameSquad. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
     <div class="notifications-container"></div>
 
     <!-- Scripts -->
+    <script src="../js/gamesquad-ui.js"></script>
     <script src="../js/config.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/create-lobby.js"></script>

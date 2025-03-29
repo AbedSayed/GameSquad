@@ -4,15 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lobby - GameSquad</title>
+    
+    <!-- Unified Theme System -->
+    <link rel="stylesheet" href="../css/gamesquad-theme.css">
+    <link rel="stylesheet" href="../css/animations.css">
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/lobby.css">
+    
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Google fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="dark-theme">
+<body>
     <header>
         <nav class="navbar">
             <div class="logo">
-                <h1><a href="../index.html">GameSquad</a></h1>
+                <h1 class="sheen"><a href="../index.html">GameSquad</a></h1>
             </div>
             <ul class="nav-links">
                 <li><a href="../index.html">Home</a></li>
@@ -21,20 +30,27 @@
                 <li><a href="players.html">Players</a></li>
                 <li><a href="about.html">About</a></li>
             </ul>
-            <div class="nav-user">
-                <span class="username"></span>
-                <button class="btn btn-secondary logout-btn">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </button>
+            <div class="user-profile">
+                <span class="username">Username <i class="fas fa-chevron-down"></i></span>
+                <div class="profile-dropdown">
+                    <a href="profile.html"><i class="fas fa-user"></i> My Profile</a>
+                    <a href="my-lobbies.html"><i class="fas fa-gamepad"></i> My Lobbies</a>
+                    <a href="messages.html"><i class="fas fa-envelope"></i> Messages</a>
+                    <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
             </div>
         </nav>
     </header>
 
     <main class="container">
-        <div class="lobby-details">
+        <div class="lobby-details card pulse-glow">
             <div class="lobby-header">
-                <h1 id="lobbyName">
+                <h1 id="lobbyName" class="neon-text">
                     <i class="fas fa-gamepad"></i>
                     <span>Loading...</span>
                     <span class="loading"></span>
@@ -48,13 +64,13 @@
             </div>
 
             <div class="lobby-content">
-                <div class="lobby-info">
-                    <div class="info-section">
-                        <h2>
+                <div class="lobby-info hexagon-bg">
+                    <div class="info-section card">
+                        <h2 class="neon-text-secondary">
                             <i class="fas fa-info-circle"></i>
                             Game Details
                         </h2>
-                        <div class="info-grid">
+                        <div class="info-grid fade-stagger">
                             <div class="info-item">
                                 <i class="fas fa-gamepad"></i>
                                 <span>Game: </span>
@@ -93,51 +109,51 @@
                         </div>
                     </div>
 
-                    <div class="info-section">
-                        <h2>
+                    <div class="info-section card">
+                        <h2 class="neon-text-secondary">
                             <i class="fas fa-users"></i>
                             Players
                         </h2>
-                        <div class="players-list">
+                        <div class="players-list fade-stagger">
                             <!-- Players will be dynamically added here -->
                         </div>
                     </div>
 
                     <!-- Add dedicated ready toggle button -->
-                    <div class="ready-toggle-container">
-                        <button id="readyToggleBtn" class="btn btn-primary">
-                            <i class="fas fa-check"></i> Mark as Ready
+                    <div class="ready-toggle-container rotating-border">
+                        <button id="readyToggleBtn" class="btn btn-primary btn-hover-fx">
+                            <i class="fas fa-check"></i> <span>Mark as Ready</span>
                         </button>
                         <div class="current-status">Your status: <span id="yourStatus" class="status-badge not-ready">Not Ready</span></div>
                     </div>
                 </div>
 
-                <div class="lobby-chat">
-                    <h2>
+                <div class="lobby-chat card">
+                    <h2 class="neon-text">
                         <i class="fas fa-comments"></i>
                         Lobby Chat
                     </h2>
-                    <div class="chat-messages">
+                    <div class="chat-messages cyber-grid">
                         <!-- Chat messages will be dynamically added here -->
                     </div>
                     <div class="chat-input-container">
                         <input type="text" id="chatInput" placeholder="Type your message...">
-                        <button class="btn btn-primary" id="sendMessage">
+                        <button class="btn btn-primary btn-hover-fx" id="sendMessage">
                             <i class="fas fa-paper-plane"></i>
-                            Send
+                            <span>Send</span>
                         </button>
                     </div>
                 </div>
             </div>
 
             <div class="lobby-actions">
-                <button id="readyBtn" class="btn btn-primary">
+                <button id="readyBtn" class="btn btn-primary btn-hover-fx">
                     <i class="fas fa-check"></i>
-                    Ready
+                    <span>Ready</span>
                 </button>
-                <button id="leaveBtn" class="btn btn-danger">
+                <button id="leaveBtn" class="btn btn-danger btn-hover-fx">
                     <i class="fas fa-door-open"></i>
-                    Leave Lobby
+                    <span>Leave Lobby</span>
                 </button>
             </div>
         </div>
@@ -147,23 +163,64 @@
 
     <!-- Scripts -->
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js" integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4" crossorigin="anonymous"></script>
+    <script src="../js/gamesquad-ui.js"></script>
     <script src="../js/config.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/lobby.js"></script>
     
-    <!-- Debug console -->
     <script>
-        console.log('Lobby page loaded');
-        // Add debug info to console
-        setTimeout(() => {
-            console.log('Debug elements:', {
-                chatInput: document.getElementById('chatInput'),
-                sendButton: document.getElementById('sendMessage'),
-                chatMessages: document.querySelector('.chat-messages'),
-                socketScript: document.querySelector('script[src*="socket.io"]'),
-                appConfig: window.APP_CONFIG
-            });
-        }, 1000);
+        document.addEventListener('DOMContentLoaded', function() {
+            // Apply particle effect to lobby chat
+            applyParticleEffect('.chat-messages');
+            
+            // Initialize animations and hover effects
+            const playersList = document.querySelector('.players-list');
+            
+            // Add a placeholder for empty player list
+            if (playersList && playersList.children.length === 0) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'empty-state';
+                emptyState.innerHTML = `
+                    <i class="fas fa-users-slash"></i>
+                    <p>No players have joined yet</p>
+                `;
+                playersList.appendChild(emptyState);
+            }
+            
+            // Set up the ready toggle button
+            const readyToggleBtn = document.getElementById('readyToggleBtn');
+            const yourStatus = document.getElementById('yourStatus');
+            
+            if (readyToggleBtn && yourStatus) {
+                readyToggleBtn.addEventListener('click', function() {
+                    const isReady = readyToggleBtn.classList.contains('ready');
+                    
+                    if (isReady) {
+                        // Toggle to not ready
+                        readyToggleBtn.classList.remove('ready');
+                        readyToggleBtn.classList.add('not-ready');
+                        readyToggleBtn.innerHTML = '<i class="fas fa-check"></i> <span>Mark as Ready</span>';
+                        yourStatus.textContent = 'Not Ready';
+                        yourStatus.className = 'status-badge not-ready';
+                        
+                        // Show notification
+                        showNotification('You are no longer ready', 'info');
+                    } else {
+                        // Toggle to ready
+                        readyToggleBtn.classList.remove('not-ready');
+                        readyToggleBtn.classList.add('ready');
+                        readyToggleBtn.innerHTML = '<i class="fas fa-times"></i> <span>Mark as Not Ready</span>';
+                        yourStatus.textContent = 'Ready';
+                        yourStatus.className = 'status-badge ready';
+                        
+                        // Show notification
+                        showNotification('You are now ready!', 'success');
+                    }
+                    
+                    // Here you would also send this status to your backend
+                });
+            }
+        });
     </script>
 </body>
 </html>

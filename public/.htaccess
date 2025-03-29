@@ -1,0 +1,8 @@
+# Redirect the root URL to landing.html
+DirectoryIndex landing.html index.html
+
+# Redirect index.html to landing.html
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^index\.html$ landing.html [L,R=301]
+</IfModule> 

@@ -1,334 +1,784 @@
-// Lobbies namespace
-window.Lobby = {
-    // Game name mappings to handle variations
-    gameNameMappings: {
-        'cs2': ['csgo', 'cs:go', 'counter-strike', 'counter strike','Counter-Strike 2'],
-        'csgo': ['cs2', 'cs:go', 'counter-strike', 'counter strike'],
-        'cs:go': ['cs2', 'csgo', 'counter-strike', 'counter strike'],
-        'counter-strike': ['cs2', 'csgo', 'cs:go', 'counter strike'],
-        'valorant': ['valorant'],
-        'lol': ['league of legends', 'league'],
-        'league of legends': ['lol', 'league'],
-        'apex': ['apex legends'],
-        'apex legends': ['apex'],
-        'dota 2': ['dota2', 'dota'],
-        'dota2': ['dota 2', 'dota']
-    },
+// Lobbies module for managing game lobbies
+class LobbiesModule {
+    constructor() {
+        // Initialize any needed properties
+        this.lobbiesData = null;
+        this.currentFilters = {};
+        
+        console.log('LobbiesModule initialized');
+        
+        // Bind methods to this instance
+        this.loadLobbies = this.loadLobbies.bind(this);
+        this.displayLobbies = this.displayLobbies.bind(this);
+        this.createLobbyCard = this.createLobbyCard.bind(this);
+        this.filterLobbies = this.filterLobbies.bind(this);
+        this.loadLocalLobbies = this.loadLocalLobbies.bind(this);
+    }
     
-    // Normalize game name to handle variations
-    normalizeGameName(gameName) {
-        if (!gameName) return '';
-        
-        gameName = gameName.trim().toLowerCase();
-        
-        // Common abbreviations and full names mapping
-        const gameNameMap = {
-            'lol': 'league of legends',
-            'league': 'league of legends',
-            'cs': 'counter-strike',
-            'cs2': 'counter-strike 2',
-            'csgo': 'counter-strike: global offensive',
-            'cs:go': 'counter-strike: global offensive',
-            'cod': 'call of duty',
-            'valorant': 'valorant',
-            'val': 'valorant',
-            'ow': 'overwatch',
-            'ow2': 'overwatch 2',
-            'overwatch2': 'overwatch 2',
-            'dota': 'dota 2',
-            'dota2': 'dota 2',
-            'apex': 'apex legends',
-            'fortnite': 'fortnite',
-            'fn': 'fortnite',
-            'r6': 'rainbow six siege',
-            'r6s': 'rainbow six siege',
-            'pubg': 'playerunknown\'s battlegrounds',
-            'tft': 'teamfight tactics',
-            'wow': 'world of warcraft',
-            'rl': 'rocket league'
-        };
-        
-        // Check if the input matches any of our known game names or aliases
-        return gameNameMap[gameName] || gameName;
-    },
-    
-    // Function to load lobbies with filters
+    // Function to load lobbies from localStorage only (demo mode)
     async loadLobbies(filters = {}) {
+        console.log('Loading lobbies with filters:', filters);
+        
+        // Show loading state in containers
+        const myLobbiesContainer = document.getElementById('myLobbies');
+        const otherLobbiesContainer = document.getElementById('otherLobbies');
+        
+        if (myLobbiesContainer) {
+            myLobbiesContainer.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading your lobbies...</p>
+                </div>
+            `;
+        }
+        
+        if (otherLobbiesContainer) {
+            otherLobbiesContainer.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading available lobbies...</p>
+                </div>
+            `;
+        }
+        
         try {
-            // Show loading state
-            const container = document.querySelector('.lobbies-grid');
-            container.innerHTML = '<div class="loading">Loading lobbies...</div>';
-
-            // Normalize game name if present
-            if (filters.game) {
-                const originalGameName = filters.game;
-                filters.game = this.normalizeGameName(filters.game);
-                console.log(`Normalized game filter: "${originalGameName}" → "${filters.game}"`);
-            }
-
-            // Construct query parameters
-            const queryParams = new URLSearchParams();
+            // TEMPORARY: Skip the API call and use localStorage directly
+            // This is useful until the backend API is properly configured
+            console.log('DEVELOPMENT MODE: Loading lobbies from localStorage only');
             
-            // Only add params that are not empty or default values
-            if (filters.game && filters.game !== 'All Games' && filters.game !== '') {
-                // Use the original casing from the create-lobby form for more accurate matching
-                // This helps with case-sensitive databases
-                let gameValue = filters.game;
+            // Simulate network delay for testing UI
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Get lobbies from localStorage
+            let lobbies = JSON.parse(localStorage.getItem('lobbies') || '[]');
+            
+            // Ensure we have at least some demo data for a good user experience
+            if (!lobbies || lobbies.length === 0) {
+                lobbies = this.generateDemoLobbies();
+                localStorage.setItem('lobbies', JSON.stringify(lobbies));
+            }
+            
+            console.log('Loaded lobbies from localStorage:', lobbies);
+            
+            // Apply filters if any
+            if (Object.keys(filters).length > 0) {
+                console.log('Applying filters:', filters);
+                lobbies = this.filterLobbies(lobbies, filters);
+                console.log('Filtered lobbies:', lobbies);
+            }
+            
+            // Display the lobbies
+            this.displayLobbies(lobbies);
+            return lobbies;
+            
+            /* DISABLED UNTIL SERVER API IS CONFIGURED
+            // Get the latest auth token
+            const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+            
+            // Determine the API URL - with fallback if config isn't available
+            const baseApiUrl = window.APP_CONFIG && window.APP_CONFIG.API_URL 
+                ? window.APP_CONFIG.API_URL
+                : '/api';
                 
-                // Convert well-known game names to the format used in the database
-                const gameNameLower = gameValue.toLowerCase();
+            const apiUrl = `${window.location.origin}${baseApiUrl}/lobbies`;
                 
-                // Special handling for Counter-Strike variations
-                if (gameNameLower === 'cs:go' || gameNameLower === 'counter-strike' || 
-                    gameNameLower === 'cs2' || gameNameLower === 'counter-strike 2') {
-                    gameValue = 'csgo';
-                    console.log('Converted CS game name variation to database format:', gameValue);
-                } 
-                else if (gameNameLower === 'league of legends') {
-                    gameValue = 'lol';
-                } 
-                else if (gameNameLower === 'apex legends') {
-                    gameValue = 'apex';
+            console.log('Using API URL:', apiUrl);
+            
+            // Build query string from filters
+            const queryParams = [];
+            for (const [key, value] of Object.entries(filters)) {
+                if (value && value !== 'all' && value !== '') {
+                    queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+                }
+            }
+            
+            const url = queryParams.length > 0 
+                ? `${apiUrl}?${queryParams.join('&')}` 
+                : apiUrl;
+                
+            console.log('Fetching lobbies from:', url);
+            
+            // Request options
+            const options = {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            };
+            
+            // Add auth token if available
+            if (token) {
+                // Make sure we have a proper Bearer token format
+                const tokenValue = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+                console.log('Using auth token:', tokenValue);
+                options.headers['Authorization'] = tokenValue;
+            }
+            
+            // Make API request with timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+            
+            options.signal = controller.signal;
+            
+            let response;
+            try {
+                console.log('Sending API request with options:', options);
+                response = await fetch(url, options);
+                clearTimeout(timeoutId);
+                console.log('API response status:', response.status);
+            } catch (error) {
+                clearTimeout(timeoutId);
+                
+                if (error.name === 'AbortError') {
+                    console.warn('Request timed out, using localStorage fallback');
+                    return this.loadLocalLobbies(filters);
                 }
                 
-                queryParams.append('game', gameValue);
-                console.log('Added game param:', gameValue);
+                console.error('Network error:', error);
+                throw error;
             }
             
-            if (filters.rank && filters.rank !== 'Any Rank') queryParams.append('rank', filters.rank);
-            if (filters.language && filters.language !== 'Any Language') queryParams.append('language', filters.language);
-            if (filters.status && filters.status !== 'Any Status') queryParams.append('status', filters.status);
-
-            // Log the request we're about to make
-            console.log(`Fetching lobbies from: ${APP_CONFIG.API_URL}/lobbies?${queryParams}`);
-            
-            // Make API request
-            const response = await fetch(`${APP_CONFIG.API_URL}/lobbies?${queryParams}`);
-            console.log('Response status:', response.status);
-            
-            const result = await response.json();
-            console.log('API response:', result);
-
-            if (!response.ok || !result.success) {
-                throw new Error(result.error || 'Failed to load lobbies');
+            // Handle API response status
+            if (!response.ok) {
+                // If unauthorized, try using localStorage instead
+                if (response.status === 401) {
+                    console.warn('Unauthorized API access, using localStorage fallback');
+                    return this.loadLocalLobbies(filters);
+                }
+                
+                // For other error codes
+                const errorText = await response.text();
+                console.error(`API error (${response.status}):`, errorText);
+                throw new Error(`Failed to load lobbies: ${response.statusText}`);
             }
-
-            // Log how many lobbies were returned
-            console.log(`Loaded ${result.data.length} lobbies`);
             
-            // Display lobbies using the data property from the response
-            this.displayLobbies(result.data);
+            // Parse JSON response
+            const responseText = await response.text();
+            console.log('API response text:', responseText);
+            
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Error parsing JSON:', e);
+                throw new Error('Invalid JSON response from API');
+            }
+            
+            console.log('Lobbies loaded from API:', data);
+            
+            // Check if data is in expected format (direct array or wrapped in data property)
+            let lobbies = Array.isArray(data) ? data : null;
+            
+            // Check common API response formats
+            if (!lobbies && data) {
+                if (Array.isArray(data.data)) {
+                    lobbies = data.data;
+                } else if (Array.isArray(data.lobbies)) {
+                    lobbies = data.lobbies;
+                } else if (Array.isArray(data.results)) {
+                    lobbies = data.results;
+                } else if (data.success && Array.isArray(data.result)) {
+                    lobbies = data.result;
+                }
+            }
+            
+            // If still no lobbies array found, fallback to localStorage
+            if (!lobbies) {
+                console.warn('Unexpected API response format, using localStorage fallback');
+                return this.loadLocalLobbies(filters);
+            }
+            
+            // Update local cache with the latest lobbies
+            if (lobbies.length > 0) {
+                localStorage.setItem('lobbies', JSON.stringify(lobbies));
+            }
+            
+            // Display the lobbies
+            this.displayLobbies(lobbies);
+            return lobbies;
+            */
         } catch (error) {
             console.error('Error loading lobbies:', error);
-            const container = document.querySelector('.lobbies-grid');
-            container.innerHTML = `
-                <div class="error-message">
+            
+            // Show error notification
+            try {
+                const notification = document.createElement('div');
+                notification.className = 'notification error';
+                notification.innerHTML = `
                     <i class="fas fa-exclamation-circle"></i>
-                    <p>Failed to load lobbies. Please try again later.</p>
-                    <button onclick="window.Lobby.loadLobbies()" class="retry-btn">
-                        <i class="fas fa-sync"></i> Retry
-                    </button>
-                </div>
-            `;
+                    <span>Error loading lobbies: ${error.message}</span>
+                `;
+                
+                const container = document.querySelector('.notifications-container');
+                if (container) container.appendChild(notification);
+                
+                // Remove notification after 5 seconds
+                setTimeout(() => {
+                    notification.classList.add('fade-out');
+                    setTimeout(() => notification.remove(), 300);
+                }, 5000);
+            } catch (e) {
+                console.error('Error displaying notification:', e);
+            }
+            
+            // Fall back to localStorage in any case
+            return this.loadLocalLobbies(filters);
         }
-    },
-
-    // Function to display lobbies
-    displayLobbies(data) {
-        const container = document.querySelector('.lobbies-grid');
-        container.innerHTML = ''; // Clear existing lobbies
-
-        if (!data || !data.length) {
-            container.innerHTML = `
-                <div class="no-lobbies">
-                    <i class="fas fa-users-slash"></i>
-                    <h3>No Lobbies Found</h3>
-                    <p>Be the first to create a lobby!</p>
-                    <a href="create-lobby.html" class="create-lobby-btn">
-                        <i class="fas fa-plus"></i> Create Lobby
-                    </a>
-                </div>
-            `;
-            return;
+    }
+    
+    // Display the lobbies on the page
+    displayLobbies(lobbies) {
+        const myLobbiesContainer = document.getElementById('myLobbies');
+        const otherLobbiesContainer = document.getElementById('otherLobbies');
+        
+        // First, clear out the containers
+        if (myLobbiesContainer) {
+            myLobbiesContainer.innerHTML = '';
         }
-
-        // Get current user info to check if they're the host
-        const userInfo = this.getUserInfo();
-        const currentUserId = userInfo ? userInfo._id : null;
-
-        // Separate lobbies into user's lobbies and other lobbies
+        
+        if (otherLobbiesContainer) {
+            otherLobbiesContainer.innerHTML = '';
+        }
+        
+        // Get current user ID
+        const userId = this.getUserId();
+        console.log('Current user ID:', userId);
+        
+        // Separate lobbies into my lobbies and other lobbies
         const myLobbies = [];
         const otherLobbies = [];
-
-        data.forEach(lobby => {
-            const isHost = currentUserId && lobby.host._id === currentUserId;
-            if (isHost) {
+        
+        lobbies.forEach(lobby => {
+            if (lobby.host === userId || lobby.hostInfo?._id === userId) {
                 myLobbies.push(lobby);
             } else {
                 otherLobbies.push(lobby);
             }
         });
-
-        // Create My Lobbies section first (top section)
-        const myLobbiesSection = document.createElement('div');
-        myLobbiesSection.className = 'lobbies-section my-lobbies-section';
-        myLobbiesSection.innerHTML = `
-            <h2 class="section-title">My Lobbies</h2>
-            <div class="lobbies-grid-section"></div>
-        `;
-        container.appendChild(myLobbiesSection);
-
-        const myLobbiesGrid = myLobbiesSection.querySelector('.lobbies-grid-section');
         
-        // Add my lobbies or show "no lobbies" message
-        if (myLobbies.length > 0) {
-            myLobbies.forEach(lobby => {
-                const lobbyCard = this.createLobbyCard(lobby, true);
-                myLobbiesGrid.appendChild(lobbyCard);
-            });
-        } else {
-            myLobbiesGrid.innerHTML = `
-                <div class="no-lobbies">
-                    <i class="fas fa-users-slash"></i>
-                    <h3>No Owned Lobbies</h3>
-                    <p>You don't own any lobbies yet.</p>
-                </div>
-            `;
-        }
-
-        // Then create Other Lobbies section (bottom section)
-        const otherLobbiesSection = document.createElement('div');
-        otherLobbiesSection.className = 'lobbies-section other-lobbies-section';
-        otherLobbiesSection.innerHTML = `
-            <h2 class="section-title">Other Lobbies</h2>
-            <div class="lobbies-grid-section"></div>
-        `;
-        container.appendChild(otherLobbiesSection);
-
-        const otherLobbiesGrid = otherLobbiesSection.querySelector('.lobbies-grid-section');
+        console.log(`Found ${myLobbies.length} of my lobbies and ${otherLobbies.length} other lobbies`);
         
-        // Add other lobbies or show "no lobbies" message
-        if (otherLobbies.length > 0) {
-            otherLobbies.forEach(lobby => {
-                const lobbyCard = this.createLobbyCard(lobby, false);
-                otherLobbiesGrid.appendChild(lobbyCard);
-            });
-        } else {
-            otherLobbiesGrid.innerHTML = `
-                <div class="no-lobbies">
-                    <i class="fas fa-users-slash"></i>
-                    <h3>No Other Lobbies Found</h3>
-                    <p>There are no other lobbies available at the moment.</p>
-                </div>
-            `;
-        }
-
-        // Add event listeners to join buttons
-        this.setupJoinButtons();
-    },
-
-    // Create lobby card helper function
-    createLobbyCard(lobby, isOwned) {
-        const lobbyCard = document.createElement('div');
-        lobbyCard.className = 'lobby-card';
-        lobbyCard.innerHTML = `
-            <div class="lobby-header">
-                <div class="lobby-game">
-                    <span>${this.escapeHtml(lobby.gameType)}</span>
-                </div>
-                <span class="lobby-status status-${lobby.status}">${lobby.status}</span>
-            </div>
-            <div class="lobby-body">
-                <h3 class="lobby-name">${this.escapeHtml(lobby.name)}</h3>
-                <div class="lobby-info">
-                    <div class="info-item">
-                        <i class="fas fa-user"></i>
-                        <span>Host: ${this.escapeHtml(lobby.host.username)}</span>
+        // Display my lobbies if container exists
+        if (myLobbiesContainer) {
+            if (myLobbies.length > 0) {
+                myLobbies.forEach(lobby => {
+                    const lobbyCard = this.createLobbyCard(lobby, true);
+                    myLobbiesContainer.appendChild(lobbyCard);
+                });
+            } else {
+                myLobbiesContainer.innerHTML = `
+                    <div class="no-lobbies">
+                        <i class="fas fa-info-circle"></i>
+                        <p>You haven't created any lobbies yet</p>
+                        <a href="pages/create-lobby.html" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Create Lobby
+                        </a>
                     </div>
-                    <div class="info-item">
-                        <i class="fas fa-users"></i>
-                        <span>Players: ${lobby.currentPlayers}/${lobby.maxPlayers}</span>
-                    </div>
-                </div>
-                <div class="lobby-actions">
-                    ${isOwned ? 
-                        `<button class="lobby-btn join-btn disabled" disabled>
-                            <i class="fas fa-sign-in-alt"></i> Join
-                        </button>` : 
-                        `<button class="lobby-btn join-btn" data-lobby-id="${lobby._id}">
-                            <i class="fas fa-sign-in-alt"></i> Join
-                        </button>`
-                    }
-                    <a href="lobby.html?id=${lobby._id}" class="lobby-btn details-btn">
-                        <i class="fas fa-info-circle"></i> Details
-                    </a>
-                </div>
-            </div>
-        `;
-
-        return lobbyCard;
-    },
-
-    // Function to setup join button handlers
-    setupJoinButtons() {
-        const joinButtons = document.querySelectorAll('.join-btn:not(.disabled)');
+                `;
+            }
+        }
         
-        joinButtons.forEach(button => {
-            button.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const lobbyId = button.getAttribute('data-lobby-id');
-                
-                if (!lobbyId) return;
-                
-                try {
-                    // Navigate to the lobby page
-                    window.location.href = `lobby.html?id=${lobbyId}`;
-                } catch (error) {
-                    console.error('Error joining lobby:', error);
-                    this.showNotification('Failed to join lobby', 'error');
-                }
-            });
-        });
-    },
-
-    // Function to show notifications
-    showNotification(message, type = 'error') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.innerHTML = `
-            <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
-            <span>${message}</span>
-        `;
-
-        const container = document.querySelector('.notifications-container');
-        container.appendChild(notification);
-
-        // Show notification after 5 seconds
-        setTimeout(() => {
-            notification.classList.add('fade-out');
-            setTimeout(() => notification.remove(), 300);
-        }, 5000);
-    },
-
-    // Helper function to escape HTML
-    escapeHtml(unsafe) {
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    },
-
-    // Get user info from localStorage
-    getUserInfo() {
-        const userInfo = localStorage.getItem('userInfo');
-        return userInfo ? JSON.parse(userInfo) : null;
+        // Display other lobbies if container exists
+        if (otherLobbiesContainer) {
+            if (otherLobbies.length > 0) {
+                otherLobbies.forEach(lobby => {
+                    const lobbyCard = this.createLobbyCard(lobby, false);
+                    otherLobbiesContainer.appendChild(lobbyCard);
+                });
+            } else {
+                otherLobbiesContainer.innerHTML = `
+                    <div class="no-lobbies">
+                        <i class="fas fa-info-circle"></i>
+                        <p>No lobbies available</p>
+                        <p class="sub-message">Check back later or try different filters</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Update lobby counts in the section headers
+        const myLobbiesCount = document.getElementById('myLobbiesCount');
+        const otherLobbiesCount = document.getElementById('otherLobbiesCount');
+        
+        if (myLobbiesCount) {
+            myLobbiesCount.textContent = myLobbies.length;
+        }
+        
+        if (otherLobbiesCount) {
+            otherLobbiesCount.textContent = otherLobbies.length;
+        }
     }
-};
+    
+    // Create a lobby card
+    createLobbyCard(lobby, isOwned) {
+        // Create the card container
+        const card = document.createElement('div');
+        card.className = 'game-card';
+        card.setAttribute('data-lobby-id', lobby._id);
+        
+        // Format the creation date
+        let createdDate = 'Recently';
+        if (lobby.createdAt) {
+            try {
+                const date = new Date(lobby.createdAt);
+                createdDate = date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                });
+            } catch (e) {
+                console.warn('Error formatting date:', e);
+            }
+        }
+        
+        // Set default image path for the game
+        let gameLogo = 'recources/default-game.png';
+        if (lobby.gameImage) {
+            gameLogo = lobby.gameImage;
+        } else if (lobby.game === 'FPS' && lobby.gameName === 'Valorant') {
+            gameLogo = 'recources/Valorant-Logo-PNG-Image.png';
+        }
+        
+        // Get the host name
+        const hostName = lobby.hostInfo?.username || 'Unknown Host';
+        
+        // Get status class
+        let statusClass = 'status-open';
+        if (lobby.status === 'full') {
+            statusClass = 'status-full';
+        } else if (lobby.status === 'in-progress') {
+            statusClass = 'status-in-progress';
+        }
+        
+        // Create the HTML content for the card
+        card.innerHTML = `
+            <div class="game-card-header">
+                <div class="game-logo">
+                    <img src="${gameLogo}" alt="${lobby.game || 'Game'}" onerror="this.src='recources/default-game.png'">
+                </div>
+                <div class="game-type">
+                    <span class="badge badge-${lobby.game?.toLowerCase() || 'default'}">${lobby.game || 'Game'}</span>
+                </div>
+                <div class="game-status">
+                    <span class="badge ${statusClass}">${lobby.status || 'Open'}</span>
+                </div>
+            </div>
+            <div class="game-card-body">
+                <h3 class="game-title">${lobby.name || 'Unnamed Lobby'}</h3>
+                <p class="game-description">${lobby.description || 'No description provided.'}</p>
+                <div class="game-details">
+                    <div class="detail">
+                        <i class="fas fa-user-friends"></i>
+                        <span>${lobby.currentPlayers || 1}/${lobby.maxPlayers || 4}</span>
+                    </div>
+                    <div class="detail">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>${createdDate}</span>
+                    </div>
+                    <div class="detail">
+                        <i class="fas fa-user"></i>
+                        <span>${hostName}</span>
+                    </div>
+                </div>
+                <div class="skill-level">
+                    <span>Skill Level:</span>
+                    <div class="skill-dots">
+                        ${this.generateSkillDots(lobby.skillLevel || 1)}
+                    </div>
+                </div>
+            </div>
+            <div class="game-card-footer">
+                ${isOwned ? 
+                    `<button class="btn btn-primary view-lobby">
+                        <i class="fas fa-edit"></i> Manage
+                    </button>` : 
+                    `<button class="btn btn-primary join-lobby">
+                        <i class="fas fa-sign-in-alt"></i> Join
+                    </button>`
+                }
+            </div>
+        `;
+        
+        // Add click event to the card for lobby detail view
+        card.addEventListener('click', (event) => {
+            // Don't trigger if they clicked specifically on a button in the footer
+            if (!event.target.closest('.game-card-footer')) {
+                window.location.href = `pages/lobby.html?id=${lobby._id}`;
+            }
+        });
+        
+        // Add button click events
+        const viewButton = card.querySelector('.view-lobby');
+        const joinButton = card.querySelector('.join-lobby');
+        
+        if (viewButton) {
+            viewButton.addEventListener('click', (event) => {
+                event.stopPropagation(); // Prevent card click
+                window.location.href = `pages/lobby.html?id=${lobby._id}&manage=true`;
+            });
+        }
+        
+        if (joinButton) {
+            joinButton.addEventListener('click', (event) => {
+                event.stopPropagation(); // Prevent card click
+                
+                // Check if the lobby is full
+                if (lobby.status === 'full') {
+                    this.showNotification('This lobby is already full', 'error');
+                    return;
+                }
+                
+                // Check if the game is in progress
+                if (lobby.status === 'in-progress') {
+                    this.showNotification('This game is already in progress', 'warning');
+                    return;
+                }
+                
+                window.location.href = `pages/lobby.html?id=${lobby._id}&join=true`;
+            });
+        }
+        
+        return card;
+    }
+    
+    // Filter lobbies based on selected filters
+    filterLobbies(lobbies, filters) {
+        return lobbies.filter(lobby => {
+            // Filter by game type if selected
+            if (filters.game && filters.game !== 'all' && lobby.game !== filters.game) {
+                return false;
+            }
+            
+            // Filter by status if selected
+            if (filters.status && filters.status !== 'all') {
+                if (filters.status === 'open' && lobby.status !== 'open') {
+                    return false;
+                }
+                if (filters.status === 'full' && lobby.status !== 'full') {
+                    return false;
+                }
+                if (filters.status === 'in-progress' && lobby.status !== 'in-progress') {
+                    return false;
+                }
+            }
+            
+            // Filter by skill level if selected
+            if (filters.skillLevel && filters.skillLevel !== 'all') {
+                const skillLevel = parseInt(filters.skillLevel);
+                const lobbySkillLevel = parseInt(lobby.skillLevel || 0);
+                
+                if (lobbySkillLevel !== skillLevel) {
+                    return false;
+                }
+            }
+            
+            // Filter by search text if provided
+            if (filters.search && filters.search.trim() !== '') {
+                const searchTerm = filters.search.toLowerCase().trim();
+                const lobbyName = (lobby.name || '').toLowerCase();
+                const lobbyDescription = (lobby.description || '').toLowerCase();
+                const hostName = (lobby.hostInfo?.username || '').toLowerCase();
+                
+                // Check if search term is in the name, description or host name
+                if (!lobbyName.includes(searchTerm) && 
+                    !lobbyDescription.includes(searchTerm) && 
+                    !hostName.includes(searchTerm)) {
+                    return false;
+                }
+            }
+            
+            // Filter by 'my lobbies' if specified
+            if (filters.myLobbies === true) {
+                const userId = this.getUserId();
+                return lobby.host === userId || lobby.hostInfo?._id === userId;
+            }
+            
+            // Filter by 'other lobbies' if specified
+            if (filters.otherLobbies === true) {
+                const userId = this.getUserId();
+                return lobby.host !== userId && lobby.hostInfo?._id !== userId;
+            }
+            
+            // If lobby passed all filters
+            return true;
+        });
+    }
+    
+    // Generate demo lobbies for testing when no real lobbies exist
+    generateDemoLobbies() {
+        const gameTypes = window.APP_CONFIG?.GAME_TYPES || ['FPS', 'MOBA', 'RPG', 'Strategy', 'Sports', 'Racing', 'Other'];
+        const demoUserId = localStorage.getItem('userId') || 'demo-user';
+        
+        const demoLobbies = [
+            {
+                _id: 'demo-lobby-1',
+                name: 'Apex Legends Squad',
+                game: 'FPS',
+                gameName: 'Apex Legends',
+                description: 'Looking for skilled players for ranked grind',
+                maxPlayers: 3,
+                currentPlayers: 1,
+                status: 'open',
+                skillLevel: 4,
+                host: demoUserId,
+                hostInfo: {
+                    _id: demoUserId,
+                    username: localStorage.getItem('username') || 'DemoUser',
+                    email: localStorage.getItem('email') || 'demo@example.com'
+                },
+                createdAt: new Date().toISOString(),
+                gameImage: 'recources/games/apex-legends.png'
+            },
+            {
+                _id: 'demo-lobby-2',
+                name: 'League of Legends Team',
+                game: 'MOBA',
+                gameName: 'League of Legends',
+                description: 'Casual gaming, all ranks welcome',
+                maxPlayers: 5,
+                currentPlayers: 3,
+                status: 'open',
+                skillLevel: 2,
+                host: 'other-user-1',
+                hostInfo: {
+                    _id: 'other-user-1',
+                    username: 'GamerPro99',
+                    email: 'pro@example.com'
+                },
+                createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
+                gameImage: 'recources/games/league-of-legends.png'
+            },
+            {
+                _id: 'demo-lobby-3',
+                name: 'Valorant Competitive',
+                game: 'FPS',
+                gameName: 'Valorant',
+                description: 'Looking for Diamond+ players for competitive team',
+                maxPlayers: 5,
+                currentPlayers: 5,
+                status: 'full',
+                skillLevel: 5,
+                host: 'other-user-2',
+                hostInfo: {
+                    _id: 'other-user-2',
+                    username: 'TacticalGamer',
+                    email: 'tactical@example.com'
+                },
+                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+                gameImage: 'recources/Valorant-Logo-PNG-Image.png'
+            },
+            {
+                _id: 'demo-lobby-4',
+                name: 'Minecraft Building',
+                game: 'Other',
+                gameName: 'Minecraft',
+                description: 'Creative mode building project, bring your ideas!',
+                maxPlayers: 8,
+                currentPlayers: 3,
+                status: 'open',
+                skillLevel: 1,
+                host: 'other-user-3',
+                hostInfo: {
+                    _id: 'other-user-3',
+                    username: 'CreativeMiner',
+                    email: 'miner@example.com'
+                },
+                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
+                gameImage: 'recources/games/minecraft.png'
+            },
+            {
+                _id: 'demo-lobby-5',
+                name: 'Fortnite Squad',
+                game: 'FPS',
+                gameName: 'Fortnite',
+                description: 'Looking for a fourth for squads',
+                maxPlayers: 4,
+                currentPlayers: 3,
+                status: 'open',
+                skillLevel: 3,
+                host: 'other-user-4',
+                hostInfo: {
+                    _id: 'other-user-4',
+                    username: 'FortnitePro',
+                    email: 'fortnite@example.com'
+                },
+                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(), // 8 hours ago
+                gameImage: 'recources/games/fortnite.png'
+            },
+            {
+                _id: 'demo-lobby-6',
+                name: 'Rocket League Tournament',
+                game: 'Sports',
+                gameName: 'Rocket League',
+                description: 'Tournament practice, Champion+ only',
+                maxPlayers: 3,
+                currentPlayers: 2,
+                status: 'open',
+                skillLevel: 5,
+                host: 'other-user-5',
+                hostInfo: {
+                    _id: 'other-user-5',
+                    username: 'AerialMaster',
+                    email: 'aerial@example.com'
+                },
+                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(), // 12 hours ago
+                gameImage: 'recources/games/rocket-league.png'
+            },
+            {
+                _id: 'demo-lobby-7',
+                name: 'Among Us Party',
+                game: 'Other',
+                gameName: 'Among Us',
+                description: 'Just for fun, voice chat required',
+                maxPlayers: 10,
+                currentPlayers: 5,
+                status: 'in-progress',
+                skillLevel: 1,
+                host: 'other-user-6',
+                hostInfo: {
+                    _id: 'other-user-6',
+                    username: 'Impostor',
+                    email: 'impostor@example.com'
+                },
+                createdAt: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString(), // 1 hour ago
+                gameImage: 'recources/games/among-us.png'
+            }
+        ];
+        
+        // Also create a lobby hosted by the demo user
+        if (demoUserId && demoUserId !== 'demo-user') {
+            demoLobbies.push({
+                _id: 'demo-user-lobby',
+                name: 'My Demo Gaming Session',
+                game: 'RPG',
+                gameName: 'World of Warcraft',
+                description: 'Looking for guild members to do a raid',
+                maxPlayers: 6,
+                currentPlayers: 1,
+                status: 'open',
+                skillLevel: 3,
+                host: demoUserId,
+                hostInfo: {
+                    _id: demoUserId,
+                    username: localStorage.getItem('username') || 'DemoUser',
+                    email: localStorage.getItem('email') || 'demo@example.com'
+                },
+                createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 minutes ago
+                gameImage: 'recources/games/wow.png'
+            });
+        }
+        
+        return demoLobbies;
+    }
+    
+    // Helper to get current user ID
+    getUserId() {
+        // Try to get user ID from local storage
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+        return userInfo._id || localStorage.getItem('userId') || null;
+    }
+    
+    // Helper to load lobbies from localStorage (used as fallback)
+    loadLocalLobbies(filters = {}) {
+        console.log('Loading lobbies from localStorage with filters:', filters);
+        
+        // Get lobbies from localStorage
+        let lobbies = JSON.parse(localStorage.getItem('lobbies') || '[]');
+        
+        // Create demo lobbies if none exist
+        if (!lobbies || lobbies.length === 0) {
+            lobbies = this.generateDemoLobbies();
+            localStorage.setItem('lobbies', JSON.stringify(lobbies));
+        }
+        
+        // Apply filters if any
+        if (Object.keys(filters).length > 0) {
+            lobbies = this.filterLobbies(lobbies, filters);
+        }
+        
+        // Display the lobbies
+        this.displayLobbies(lobbies);
+        return lobbies;
+    }
+    
+    // Generate skill level dots
+    generateSkillDots(level) {
+        level = parseInt(level) || 1;
+        let dots = '';
+        
+        // Make sure level is between 1 and 5
+        level = Math.max(1, Math.min(5, level));
+        
+        for (let i = 1; i <= 5; i++) {
+            if (i <= level) {
+                dots += '<span class="skill-dot active"></span>';
+            } else {
+                dots += '<span class="skill-dot"></span>';
+            }
+        }
+        
+        return dots;
+    }
+    
+    // Show notification
+    showNotification(message, type = 'info') {
+        try {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            // Icon based on notification type
+            let icon = 'info-circle';
+            if (type === 'success') icon = 'check-circle';
+            if (type === 'error') icon = 'exclamation-circle';
+            if (type === 'warning') icon = 'exclamation-triangle';
+            
+            notification.innerHTML = `
+                <i class="fas fa-${icon}"></i>
+                <span>${message}</span>
+            `;
+            
+            const container = document.querySelector('.notifications-container');
+            if (container) {
+                container.appendChild(notification);
+                
+                // Auto-remove notification after 5 seconds
+                setTimeout(() => {
+                    notification.classList.add('fade-out');
+                    setTimeout(() => notification.remove(), 300);
+                }, 5000);
+            } else {
+                console.warn('Notification container not found');
+                console.log(message, type);
+            }
+        } catch (e) {
+            console.error('Error showing notification:', e);
+        }
+    }
+}
+
+// Attach to window object for global access
+window.LobbiesModule = LobbiesModule;
 
 // Initialize when the page loads
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM content loaded in lobbies.js');
+    
+    // Check if essential elements exist
+    const myLobbiesElement = document.getElementById('myLobbies');
+    const otherLobbiesElement = document.getElementById('otherLobbies');
+    
+    console.log('Essential elements check:', {
+        myLobbies: myLobbiesElement ? 'Found' : 'Missing',
+        otherLobbies: otherLobbiesElement ? 'Found' : 'Missing'
+    });
+    
+    if (!myLobbiesElement || !otherLobbiesElement) {
+        console.error('Essential lobby container elements missing!');
+        alert('Error loading lobby data. Please try refreshing the page.');
+    }
+    
     // Check for URL parameters to apply filters
     const urlParams = new URLSearchParams(window.location.search);
     const initialFilters = {};
@@ -336,64 +786,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Get game parameter from URL, if present
     const gameParam = urlParams.get('game');
     if (gameParam) {
-        // Store the original parameter value
-        const originalGameParam = gameParam;
-        
-        // Normalize the game name using our new helper function
-        const normalizedGameName = window.Lobby.normalizeGameName(gameParam);
-        initialFilters.game = normalizedGameName;
-        
-        console.log('Found game parameter in URL:', originalGameParam);
-        console.log('Normalized to:', normalizedGameName);
-        
-        // If we have a filter form, update the game filter dropdown to match
-        const gameFilter = document.getElementById('game-filter');
-        if (gameFilter) {
-            // Find the option that matches our normalized game name (case insensitive)
-            const gameOptions = Array.from(gameFilter.options);
-            const matchedOption = gameOptions.find(option => 
-                option.value.toLowerCase() === normalizedGameName.toLowerCase()
-            );
-            
-            if (matchedOption) {
-                gameFilter.value = matchedOption.value;
-                console.log('Set game filter dropdown to:', matchedOption.value);
-            } else {
-                console.log('No exact match found in dropdown for:', normalizedGameName);
-                
-                // If no perfect match is found, try all options by value and text
-                const fuzzyMatch = gameOptions.find(option => {
-                    const optionValue = option.value.toLowerCase();
-                    const optionText = option.textContent.toLowerCase();
-                    const normalized = normalizedGameName.toLowerCase();
-                    
-                    return optionValue.includes(normalized) || 
-                           normalized.includes(optionValue) ||
-                           optionText.includes(normalized) ||
-                           normalized.includes(optionText);
-                });
-                
-                if (fuzzyMatch) {
-                    gameFilter.value = fuzzyMatch.value;
-                    console.log('Set game filter to fuzzy match:', fuzzyMatch.value);
-                } else {
-                    console.log('No match found in dropdown, filter may not apply correctly');
-                }
-            }
-        }
+        initialFilters.game = window.Lobby.normalizeGameName(gameParam);
+        console.log('Found game parameter in URL:', gameParam);
+        console.log('Normalized to:', initialFilters.game);
     }
     
-    // Get additional filters from URL (rank, language, status) if present
-    ['rank', 'language', 'status'].forEach(param => {
+    // Get additional filters from URL (rank, region, status) if present
+    ['rank', 'region', 'status'].forEach(param => {
         const value = urlParams.get(param);
         if (value) {
             initialFilters[param] = value;
-            
-            // Update the corresponding form element if it exists
-            const filterElement = document.getElementById(`${param}-filter`);
-            if (filterElement) {
-                filterElement.value = value;
-            }
         }
     });
     
@@ -402,36 +804,4 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Load lobbies with URL parameters as filters
     window.Lobby.loadLobbies(initialFilters);
-
-    // Setup filter form
-    const filterForm = document.getElementById('filters-form');
-    if (filterForm) {
-        filterForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const filters = {
-                game: document.getElementById('game-filter').value,
-                rank: document.getElementById('rank-filter').value,
-                language: document.getElementById('language-filter').value,
-                status: document.getElementById('status-filter').value
-            };
-            window.Lobby.loadLobbies(filters);
-        });
-
-        // Setup reset button
-        const resetButton = filterForm.querySelector('.reset-filters');
-        if (resetButton) {
-            resetButton.addEventListener('click', () => {
-                filterForm.reset();
-                window.Lobby.loadLobbies();
-            });
-        }
-    }
-
-    // Setup toggle filters button
-    const toggleFiltersBtn = document.getElementById('toggle-filters');
-    if (toggleFiltersBtn) {
-        toggleFiltersBtn.addEventListener('click', () => {
-            filterForm.classList.toggle('hidden');
-        });
-    }
 });

@@ -4,252 +4,119 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - GameSquad</title>
+    
+    <!-- Unified Theme System -->
+    <link rel="stylesheet" href="../css/gamesquad-theme.css">
+    <link rel="stylesheet" href="../css/animations.css">
+    <link rel="stylesheet" href="../css/gaming-styles.css">
     <link rel="stylesheet" href="../css/style.css">
+    
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Google fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        /* Additional styles specific to login page */
-        .auth-container {
-            max-width: 500px;
-            margin: 80px auto;
-            padding: 30px;
-            background-color: var(--card-background);
-            border-radius: var(--border-radius);
-            box-shadow: var(--box-shadow);
-        }
-        
-        .auth-container h2 {
-            text-align: center;
-            margin-bottom: 30px;
-            color: var(--light-color);
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-            position: relative;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: var(--light-color);
-        }
-        
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--secondary-color);
-            border-radius: var(--border-radius);
-            background-color: var(--dark-color);
-            color: var(--light-color);
-            transition: border-color 0.3s ease;
-        }
-        
-        .form-group input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-        
-        .form-group input.error {
-            border-color: var(--danger-color);
-            animation: shake 0.5s ease-in-out;
-        }
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-5px); }
-            40%, 80% { transform: translateX(5px); }
+        /* Error message styling */
+        .form-error {
+            color: #ff3e3e;
+            background-color: rgba(255, 62, 62, 0.1);
+            border-left: 3px solid #ff3e3e;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 0 4px 4px 0;
+            font-size: 0.9rem;
+            display: none;
         }
         
         .error-message {
-            color: var(--danger-color);
-            font-size: 0.9rem;
+            color: #ff3e3e;
+            font-size: 0.8rem;
             margin-top: 5px;
-            min-height: 18px;
+            animation: fadeIn 0.3s ease-in-out;
         }
         
-        #login-error {
-            font-weight: 500;
-            font-size: 1rem;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
-        .auth-btn {
-            width: 100%;
-            padding: 12px;
-            background-color: var(--primary-color);
-            color: var(--light-color);
-            border: none;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            transition: var(--transition);
-        }
-        
-        .auth-btn:hover:not(:disabled) {
-            background-color: #5b6eae;
-        }
-        
-        .auth-btn:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-        }
-        
-        .auth-links {
-            margin-top: 20px;
-            text-align: center;
-        }
-        
-        .auth-links a {
-            color: var(--primary-color);
-        }
-        
-        .auth-links a:hover {
-            text-decoration: underline;
-        }
-        
-        .auth-separator {
-            display: flex;
-            align-items: center;
-            margin: 20px 0;
-        }
-        
-        .auth-separator hr {
-            flex: 1;
-            border: none;
-            height: 1px;
-            background-color: var(--secondary-color);
-        }
-        
-        .auth-separator span {
-            padding: 0 10px;
-            color: var(--gray-color);
-        }
-        
-        .social-login {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-        
-        .social-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background-color: var(--dark-color);
-            color: var(--light-color);
-            transition: var(--transition);
-        }
-        
-        .social-btn:hover {
-            transform: translateY(-3px);
-        }
-        
-        .social-btn i {
-            font-size: 1.5rem;
-        }
-        
-        .discord {
-            background-color: #7289da;
-        }
-        
-        .steam {
-            background-color: #171a21;
-        }
-        
-        .google {
-            background-color: #DB4437;
-        }
-        
-        /* Notifications styles */
+        /* Notifications styling */
         .notifications-container {
             position: fixed;
             top: 20px;
             right: 20px;
-            z-index: 1000;
+            z-index: 9999;
             display: flex;
             flex-direction: column;
+            align-items: flex-end;
             gap: 10px;
-            max-width: 350px;
-            width: 100%;
         }
         
         .notification {
-            padding: 15px;
-            border-radius: var(--border-radius);
+            padding: 12px 20px;
+            border-radius: 4px;
             color: white;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            animation: slide-in 0.3s ease forwards;
-            cursor: pointer;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 300px;
+            animation: slideIn 0.3s ease-out forwards;
+            position: relative;
+            overflow: hidden;
         }
         
         .notification.success {
-            background-color: #4CAF50;
+            background-color: #2ecc71;
         }
         
         .notification.error {
-            background-color: #f44336;
+            background-color: #e74c3c;
+        }
+        
+        .notification.warning {
+            background-color: #f39c12;
         }
         
         .notification.info {
-            background-color: #2196F3;
+            background-color: #3498db;
         }
         
         .notification.fade-out {
-            animation: fade-out 0.3s ease forwards;
+            animation: fadeOut 0.3s ease-out forwards;
         }
         
-        @keyframes slide-in {
+        @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
         
-        @keyframes fade-out {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
         }
     </style>
-    <script>
-        // Clear any existing auth data immediately when login page loads
-        (function() {
-            localStorage.removeItem('userInfo');
-            localStorage.removeItem('token');
-            console.log('Auth data cleared on login page load');
-            
-            // Make sure UI reflects logged out state when document loads
-            document.addEventListener('DOMContentLoaded', function() {
-                // Hide user profile in navbar
-                const userProfile = document.querySelector('.user-profile');
-                if (userProfile) {
-                    userProfile.classList.add('hidden');
-                }
-                
-                // Show auth buttons if they exist
-                const authButtons = document.querySelector('.auth-buttons');
-                if (authButtons) {
-                    authButtons.classList.remove('hidden');
-                }
-            });
-        })();
-    </script>
 </head>
-<body class="auth-page">
+<body>
     <header>
         <nav class="navbar">
             <div class="logo">
-                <h1><a href="../index.html">GameSquad</a></h1>
+                <h1 class="sheen"><a href="../index.html">GameSquad</a></h1>
             </div>
             <ul class="nav-links">
-                <li><a href="../index.html">Home</a></li>
+                <li><a href="../home.html">Home</a></li>
                 <li><a href="lobbies.html">Lobbies</a></li>
                 <li><a href="players.html">Players</a></li>
                 <li><a href="about.html">About</a></li>
             </ul>
-            <div class="auth-buttons">
-                <a href="login.html" class="btn btn-secondary">Login</a>
-                <a href="register.html" class="btn btn-primary">Register</a>
+            <div class="user-profile hidden">
+                <span class="username">Username <i class="fas fa-chevron-down"></i></span>
+                <div class="profile-dropdown">
+                    <a href="profile.html"><i class="fas fa-user"></i> My Profile</a>
+                    <a href="my-lobbies.html"><i class="fas fa-gamepad"></i> My Lobbies</a>
+                    <a href="messages.html"><i class="fas fa-envelope"></i> Messages</a>
+                    <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
             </div>
             <div class="hamburger">
                 <span class="bar"></span>
@@ -259,98 +126,251 @@
         </nav>
     </header>
 
-    <div class="notifications-container"></div>
-
-    <main>
-        <div class="auth-container">
-            <h2>Login to GameSquad</h2>
-            
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" required>
-                    <div class="error-message" id="email-error"></div>
+    <main class="container">
+        <section class="auth-section hexagon-bg">
+            <div class="auth-container card pulse-glow rotating-border">
+                <div class="auth-header">
+                    <h2 class="neon-text">Login to GameSquad</h2>
+                    <p>Welcome back, gamer! Sign in to access your account.</p>
                 </div>
-                
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required>
-                    <div class="error-message" id="password-error"></div>
+                <form id="loginForm" class="auth-form">
+                    <div class="form-group">
+                        <label for="email"><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password"><i class="fas fa-lock"></i> Password</label>
+                        <div class="password-input">
+                            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                            <button type="button" id="togglePassword" class="toggle-password">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-options">
+                        <div class="remember-me">
+                            <input type="checkbox" id="rememberMe" name="rememberMe">
+                            <label for="rememberMe">Remember me</label>
+                        </div>
+                        <a href="forgot-password.html" class="forgot-password">Forgot password?</a>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-hover-fx">
+                        <i class="fas fa-sign-in-alt"></i> <span>Login</span>
+                    </button>
+                    <div id="loginError" class="form-error"></div>
+                </form>
+                <div class="auth-divider">
+                    <span>OR</span>
                 </div>
-                
-                <div class="error-message" id="login-error" style="margin-bottom: 15px; text-align: center;"></div>
-                
-                <button type="submit" class="auth-btn" id="login-btn">Login</button>
-            </form>
-            
-            <div class="auth-links">
-                <a href="#">Forgot password?</a>
-                <p>Don't have an account? <a href="register.html">Register</a></p>
+                <div class="social-auth">
+                    <button class="btn social-btn discord btn-hover-fx">
+                        <i class="fab fa-discord"></i> <span>Continue with Discord</span>
+                    </button>
+                    <button class="btn social-btn google btn-hover-fx">
+                        <i class="fab fa-google"></i> <span>Continue with Google</span>
+                    </button>
+                </div>
+                <div class="auth-footer">
+                    <p>Don't have an account? <a href="register.html" class="register-link neon-text-secondary">Register now</a></p>
+                </div>
             </div>
-            
-            <div class="auth-separator">
-                <hr>
-                <span>OR</span>
-                <hr>
-            </div>
-            
-            <div class="social-login">
-                <a href="#" class="social-btn discord">
-                    <i class="fab fa-discord"></i>
-                </a>
-                <a href="#" class="social-btn steam">
-                    <i class="fab fa-steam"></i>
-                </a>
-                <a href="#" class="social-btn google">
-                    <i class="fab fa-google"></i>
-                </a>
-            </div>
-        </div>
+        </section>
     </main>
 
     <footer>
-        <div class="footer-content">
-            <div class="footer-logo">
-                <h2>GameSquad</h2>
-                <p>Find your perfect gaming team</p>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <h2 class="neon-text">GameSquad</h2>
+                    <p>Find your perfect gaming team</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h3>Navigation</h3>
+                        <ul>
+                            <li><a href="../index.html">Home</a></li>
+                            <li><a href="lobbies.html">Lobbies</a></li>
+                            <li><a href="players.html">Players</a></li>
+                            <li><a href="about.html">About</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h3>Legal</h3>
+                        <ul>
+                            <li><a href="terms.html">Terms of Service</a></li>
+                            <li><a href="privacy.html">Privacy Policy</a></li>
+                            <li><a href="cookies.html">Cookie Policy</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h3>Support</h3>
+                        <ul>
+                            <li><a href="faq.html">FAQ</a></li>
+                            <li><a href="contact.html">Contact Us</a></li>
+                            <li><a href="report.html">Report a Bug</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="footer-social">
+                    <h3>Follow Us</h3>
+                    <div class="social-icons">
+                        <a href="#" class="power-button"><i class="fab fa-discord"></i></a>
+                        <a href="#" class="power-button"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="power-button"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="power-button"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
             </div>
-            <div class="footer-links">
-                <div class="footer-column">
-                    <h3>Navigation</h3>
-                    <ul>
-                        <li><a href="../index.html">Home</a></li>
-                        <li><a href="lobbies.html">Lobbies</a></li>
-                        <li><a href="players.html">Players</a></li>
-                        <li><a href="about.html">About</a></li>
-                    </ul>
-                </div>
-                <div class="footer-column">
-                    <h3>Legal</h3>
-                    <ul>
-                        <li><a href="terms.html">Terms of Service</a></li>
-                        <li><a href="privacy.html">Privacy Policy</a></li>
-                        <li><a href="cookies.html">Cookie Policy</a></li>
-                    </ul>
-                </div>
-                <div class="footer-column">
-                    <h3>Support</h3>
-                    <ul>
-                        <li><a href="faq.html">FAQ</a></li>
-                        <li><a href="contact.html">Contact Us</a></li>
-                        <li><a href="report.html">Report a Bug</a></li>
-                    </ul>
-                </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 GameSquad. All rights reserved.</p>
             </div>
-        </div>
-        <div class="footer-bottom">
-            <p>&copy; 2025 GameSquad. All rights reserved.</p>
         </div>
     </footer>
 
-    <!-- Load configuration first -->
+    <div class="notifications-container"></div>
+
+    <!-- Scripts -->
+    <script src="../js/gamesquad-ui.js"></script>
     <script src="../js/config.js"></script>
-    <!-- Load page-specific scripts -->
-    <script src="../js/login.js"></script>
-    <script src="../js/reset-ui.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Apply particle effect to auth section
+            if (typeof applyParticleEffect === 'function') {
+                applyParticleEffect('.auth-section');
+            }
+            
+            // Toggle password visibility
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            
+            if (togglePassword && passwordInput) {
+                togglePassword.addEventListener('click', function() {
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    this.querySelector('i').classList.toggle('fa-eye');
+                    this.querySelector('i').classList.toggle('fa-eye-slash');
+                });
+            }
+            
+            // Login form submission
+            const loginForm = document.getElementById('loginForm');
+            const loginError = document.getElementById('loginError');
+            
+            if (loginForm) {
+                loginForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    // Get form data
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+                    
+                    // Simple validation
+                    if (!email || !password) {
+                        if (loginError) loginError.textContent = "Please enter both email and password";
+                        loginError.style.display = "block";
+                        return;
+                    }
+                    
+                    // Show loading state
+                    const loginBtn = document.querySelector('button[type="submit"]');
+                    if (loginBtn) {
+                        loginBtn.disabled = true;
+                        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+                    }
+                    
+                    try {
+                        // Use the Auth.loginUser method which now has proper validation
+                        console.log('Attempting to login with Auth.loginUser...');
+                        const user = await window.Auth.loginUser(email, password);
+                        
+                        console.log('Login successful:', user);
+                        
+                        // Show success notification
+                        showNotification('Login successful!', 'success');
+                        
+                        // Redirect to lobbies page after short delay
+                        setTimeout(() => {
+                            // Check if there's a return URL
+                            const returnUrl = localStorage.getItem('returnUrl');
+                            
+                            if (returnUrl) {
+                                localStorage.removeItem('returnUrl');
+                                window.location.href = returnUrl;
+                            } else {
+                                window.location.href = 'lobbies.html';
+                            }
+                        }, 1500);
+                    } catch (error) {
+                        console.error('Login error:', error);
+                        
+                        // Display error in the form
+                        if (loginError) {
+                            loginError.textContent = error.message || "Login failed. Please check your credentials.";
+                            loginError.style.display = "block";
+                        }
+                        
+                        // Also show as notification
+                        showNotification(error.message || "Login failed. Please check your credentials.", 'error');
+                        
+                        // Reset button state
+                        if (loginBtn) {
+                            loginBtn.disabled = false;
+                            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> <span>Login</span>';
+                        }
+                    }
+                });
+            }
+            
+            // Simple notification function
+            function showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.innerHTML = `
+                    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 
+                                       type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                `;
+
+                const container = document.querySelector('.notifications-container');
+                container.appendChild(notification);
+
+                // Remove notification after 5 seconds
+                setTimeout(() => {
+                    notification.classList.add('fade-out');
+                    setTimeout(() => notification.remove(), 300);
+                }, 5000);
+            }
+            
+            // Social login buttons
+            const socialButtons = document.querySelectorAll('.social-btn');
+            
+            if (socialButtons) {
+                socialButtons.forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        // Show notification that this is just a demo
+                        showNotification('Social login is not implemented in this demo version.', 'info');
+                    });
+                });
+            }
+            
+            // Add demo login button with credentials that match your backend
+            const socialAuth = document.querySelector('.social-auth');
+            if (socialAuth) {
+                const demoButton = document.createElement('button');
+                demoButton.type = 'button';
+                demoButton.className = 'btn social-btn demo btn-hover-fx';
+                demoButton.innerHTML = '<i class="fas fa-user-check"></i> <span>Demo Login (Use real credentials)</span>';
+                demoButton.addEventListener('click', function() {
+                    // Set known demo credentials - modify these to match credentials your backend accepts
+                    document.getElementById('email').value = 'demo@example.com';
+                    document.getElementById('password').value = 'demo1234';
+                    showNotification('Using demo credentials. For real access, use your actual account.', 'info');
+                    // Don't auto-submit - let user click the login button
+                });
+                socialAuth.appendChild(demoButton);
+            }
+        });
+    </script>
 </body>
 </html>
