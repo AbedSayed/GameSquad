@@ -722,7 +722,7 @@ function addSystemMessage(text) {
 }
 
 // Update the addChatMessage function to handle system messages
-function addChatMessage(message) {
+function addChatMessage(message, currentUserInfo) {
     const chatMessages = document.querySelector('.chat-messages');
     if (!chatMessages) {
         console.error('Chat messages container not found');
@@ -735,7 +735,7 @@ function addChatMessage(message) {
     // Add system message class if it's a system message
     if (message.isSystem) {
         messageElement.classList.add('system-message');
-    } else if (userInfo && message.username === userInfo.username) {
+    } else if (currentUserInfo && message.username === currentUserInfo.username) {
         messageElement.classList.add('own-message');
     }
     
@@ -1259,7 +1259,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         text: message.text,
                         timestamp: message.timestamp,
                         isSystem: message.isSystem
-                    });
+                    }, userInfo);
                 });
                 
                 // Add welcome message after history is loaded
@@ -1314,7 +1314,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Listen for chat messages
         socket.on('chat-message', function(message) {
             console.log('Received chat message:', message);
-            addChatMessage(message);
+            addChatMessage(message, userInfo);
         });
         
         // Listen for user joined event
