@@ -12,7 +12,7 @@ const GAME_IMAGES = {
     'lol': '../resources/leageofLegend.png.png',
     'apex': '../resources/apex.png.png',
     'fortnite': '../assets/images/games/Fortnite.jpg',
-    'dota2': '../resources/default-game.png',
+    'dota2': '../assets/images/games/dota2.jpg',
     'overwatch': '../assets/images/games/OW.png',
     'rocketleague': '../assets/images/games/RL.png',
     'default': '../resources/default-game.png'
