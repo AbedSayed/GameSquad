@@ -1032,9 +1032,22 @@ function getAllUserLobbies() {
 function sendInvite(lobby, playerId, playerName) {
     // Get current user
     const currentUser = getCurrentUser();
+    if (!currentUser || !currentUser._id || !currentUser.username) {
+        console.error('Current user information is missing');
+        showNotification('Unable to send invite: User information missing', 'error');
+        return;
+    }
+    
+    if (!lobby || !lobby._id) {
+        console.error('Invalid lobby data:', lobby);
+        showNotification('Unable to send invite: Lobby information missing', 'error');
+        return;
+    }
     
     // Generate a unique invite ID
-    const inviteId = 'inv_' + Math.random().toString(36).substring(2, 15);
+    const inviteId = 'inv_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+    
+    console.log(`Sending invite to ${playerName} (${playerId}) for lobby: ${lobby.name} (${lobby._id})`);
     
     // Create the invite object
     const invite = {
@@ -1043,43 +1056,71 @@ function sendInvite(lobby, playerId, playerName) {
         senderName: currentUser.username,
         recipientId: playerId,
         recipientName: playerName,
-        type: 'lobby_invite',
         lobbyId: lobby._id,
         lobbyName: lobby.name,
         gameType: lobby.gameType || 'Unknown',
-        message: `${currentUser.username} has invited you to join their lobby!`,
+        message: `${currentUser.username} has invited you to join "${lobby.name}"!`,
         timestamp: new Date().toISOString(),
         status: 'pending'
     };
     
-    // Store the invite in localStorage (as fallback)
-    let existingInvites = localStorage.getItem('lobby_invites');
-    let invites = [];
+    console.log('Created invite object:', invite);
     
-    if (existingInvites) {
+    // First try to use socket.io to deliver the invite in real-time
+    if (window.io && typeof window.io === 'function') {
         try {
-            invites = JSON.parse(existingInvites);
-        } catch (e) {
-            console.error('Error parsing existing invites:', e);
+            const apiUrl = window.API_URL || window.APP_CONFIG?.API_URL || 'http://localhost:8080';
+            const socket = io(apiUrl);
+            
+            console.log('Sending invite via socket');
+            socket.emit('send-invite', invite);
+            
+            // Even if socket fails, we still try the API and fallback
+        } catch (socketError) {
+            console.warn('Socket delivery failed:', socketError);
         }
     }
     
-    // Add new invite to the array
-    invites.push(invite);
-    
-    // Save back to localStorage
-    localStorage.setItem('lobby_invites', JSON.stringify(invites));
+    // Store the invite in localStorage (as fallback)
+    try {
+        console.log('Storing invite in localStorage as fallback');
+        let invites = [];
+        const invitesStr = localStorage.getItem('invites');
+        
+        if (invitesStr) {
+            try {
+                invites = JSON.parse(invitesStr);
+            } catch (e) {
+                console.error('Error parsing existing invites:', e);
+                invites = [];
+            }
+        }
+        
+        // Add new invite to the array
+        invites.push(invite);
+        
+        // Save back to localStorage
+        localStorage.setItem('invites', JSON.stringify(invites));
+        console.log('Invite saved to localStorage');
+    } catch (localStorageError) {
+        console.error('Error saving invite to localStorage:', localStorageError);
+    }
     
     // Send the invite to the API 
     try {
-        // Send invite to the server
-        fetch(`${window.APP_CONFIG.API_URL}/invites/send`, {
+        console.log('Sending invite to API');
+        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+        
+        fetch(`${apiUrl}/invites/send`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
             body: JSON.stringify({
+                id: inviteId,
+                senderId: currentUser._id,
+                senderName: currentUser.username,
                 recipientId: playerId,
                 recipientName: playerName,
                 lobbyId: lobby._id,
@@ -1089,24 +1130,35 @@ function sendInvite(lobby, playerId, playerName) {
             })
         })
         .then(response => {
+            console.log('API response status:', response.status);
+            
             if (!response.ok) {
-                throw new Error('Failed to send invite through API');
+                return response.text().then(text => {
+                    try {
+                        // Try to parse as JSON
+                        const errorData = JSON.parse(text);
+                        throw new Error(errorData.message || 'Failed to send invite through API');
+                    } catch (e) {
+                        // If parsing fails, use the raw text
+                        throw new Error(`API Error (${response.status}): ${text || 'Unknown error'}`);
+                    }
+                });
             }
             return response.json();
         })
         .then(data => {
-            console.log('Invite sent successfully:', data);
+            console.log('Invite sent successfully via API:', data);
             showNotification(`Invitation sent to ${playerName}`, 'success');
         })
         .catch(error => {
             console.warn('API invite error:', error);
             // Still show success since we saved to localStorage as fallback
-            showNotification(`Invitation sent to ${playerName}`, 'success');
+            showNotification(`Invitation sent to ${playerName} (using fallback method)`, 'info');
         });
     } catch (error) {
         console.warn('Error sending invite to server:', error);
         // Still show success since we saved to localStorage
-        showNotification(`Invitation sent to ${playerName}`, 'success');
+        showNotification(`Invitation sent to ${playerName} (using fallback method)`, 'info');
     }
 }
 

@@ -4,102 +4,645 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Messages - GameSquad</title>
+    
+    <!-- Unified Theme System -->
+    <link rel="stylesheet" href="../css/gamesquad-theme.css">
+    <link rel="stylesheet" href="../css/animations.css">
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/messages.css">
+    
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Google fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        .messages-container {
+            display: flex;
+            flex-direction: column;
+            background-color: rgba(16, 16, 28, 0.95);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(126, 34, 206, 0.5);
+            border: 1px solid;
+            border-image: linear-gradient(to right, #7e22ce, #22d3ee) 1;
+            margin: 20px auto;
+            padding: 0;
+            max-width: 1200px;
+        }
+        
+        .page-header {
+            padding: 15px 25px;
+            border-bottom: 1px solid rgba(126, 34, 206, 0.3);
+            display: flex;
+            align-items: center;
+        }
+        
+        .page-header .fa-envelope {
+            margin-right: 15px;
+            font-size: 1.2em;
+        }
+        
+        .page-title {
+            font-size: 2em;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .messages-body {
+            display: flex;
+            min-height: 500px;
+        }
+        
+        .messages-sidebar {
+            width: 250px;
+            border-right: 1px solid rgba(126, 34, 206, 0.3);
+            background-color: rgba(13, 13, 23, 0.9);
+        }
+        
+        .sidebar-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .sidebar-nav li {
+            border-bottom: 1px solid rgba(126, 34, 206, 0.2);
+        }
+        
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: #fff;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        
+        .sidebar-nav a:hover {
+            background-color: rgba(126, 34, 206, 0.2);
+        }
+        
+        .sidebar-nav a.active {
+            background-color: rgba(126, 34, 206, 0.4);
+            border-left: 4px solid #7e22ce;
+        }
+        
+        .sidebar-nav i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .messages-content {
+            flex: 1;
+            padding: 20px;
+            background-color: rgba(16, 16, 28, 0.9);
+        }
+        
+        .content-header {
+            margin-bottom: 20px;
+        }
+        
+        .content-header h2 {
+            color: #22d3ee;
+            font-size: 1.5em;
+            text-transform: uppercase;
+            margin: 0;
+            letter-spacing: 1px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: rgba(255,255,255,0.6);
+            font-style: italic;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+        }
+        
+        .empty-state i {
+            font-size: 2em;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Notification Badge */
+        .notification-badge, .invite-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f43f5e;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-left: 5px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .notification-badge.show, .invite-badge.show {
+            opacity: 1;
+        }
+        
+        /* Animated invite item */
+        .invite-item {
+            border: 1px solid rgba(126, 34, 206, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: rgba(13, 13, 25, 0.6);
+            transition: all 0.3s ease;
+        }
+        
+        .invite-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(126, 34, 206, 0.3);
+        }
+        
+        .invite-item.fade-out {
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+        }
+        
+        .invite-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(126, 34, 206, 0.2);
+        }
+        
+        .invite-body {
+            margin-bottom: 15px;
+        }
+        
+        .invite-message {
+            font-style: italic;
+            opacity: 0.8;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        .invite-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background-color: #7e22ce;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .btn-primary:hover {
+            background-color: #9333ea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(126, 34, 206, 0.3);
+        }
+        
+        .btn-danger {
+            background-color: rgba(239, 68, 68, 0.8);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .btn-danger:hover {
+            background-color: rgb(239, 68, 68);
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
 <body>
-    <!-- Navigation bar -->
-    <nav class="navbar">
-        <div class="navbar-logo">
-            <a href="../home.html">
-                <img src="../images/logo.png" alt="GameSquad Logo">
-                <span>GameSquad</span>
-            </a>
-        </div>
-        <div class="navbar-links">
-            <a href="../home.html">Home</a>
-            <a href="browse-lobbies.html">Browse Lobbies</a>
-            <a href="create-lobby.html">Create Lobby</a>
-            <a href="profile.html" id="profile-link">Profile</a>
-            <a href="messages.html" class="active">Messages</a>
-            <a href="#" id="logout-button">Logout</a>
-        </div>
-        <div class="navbar-toggle">
-            <i class="fas fa-bars"></i>
-        </div>
-    </nav>
-
-    <!-- Main content -->
-    <main class="container">
-        <h1 class="page-title">Messages & Notifications</h1>
-        
-        <div class="messages-container">
-            <div class="messages-sidebar">
-                <div class="messages-tabs">
-                    <button class="tab-button active" data-tab="invites">Invites</button>
-                    <button class="tab-button" data-tab="notifications">Notifications</button>
-                    <button class="tab-button" data-tab="friends">Friends</button>
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <h1 class="sheen"><a href="../index.html">GameSquad</a></h1>
+            </div>
+            <ul class="nav-links">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lobbies.html">Lobbies</a></li>
+                <li><a href="create-lobby.html">Create Lobby</a></li>
+                <li><a href="players.html">Players</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+            <div class="user-profile">
+                <span class="username">Username <i class="fas fa-chevron-down"></i></span>
+                <div class="profile-dropdown">
+                    <a href="profile.html"><i class="fas fa-user"></i> My Profile</a>
+                    <a href="my-lobbies.html"><i class="fas fa-gamepad"></i> My Lobbies</a>
+                    <a href="messages.html" class="active"><i class="fas fa-envelope"></i> Messages</a>
+                    <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="messages-container pulse-glow">
+            <div class="page-header">
+                <i class="fas fa-envelope neon-text"></i>
+                <h1 class="page-title neon-text">MESSAGES & NOTIFICATIONS</h1>
+            </div>
             
-            <div class="messages-content">
-                <!-- Invites Tab -->
-                <div class="tab-content active" id="invites-tab">
-                    <h2>Lobby Invites</h2>
-                    <div id="invites-container" class="invites-list">
-                        <!-- Invites will be populated here -->
-                        <div class="empty-state">No invites</div>
-                    </div>
+            <div class="messages-body">
+                <div class="messages-sidebar">
+                    <ul class="sidebar-nav">
+                        <li><a href="#" class="nav-link active" data-tab="invites"><i class="fas fa-envelope-open-text"></i> Invites <span class="badge invite-badge"></span></a></li>
+                        <li><a href="#" class="nav-link" data-tab="notifications"><i class="fas fa-bell"></i> Notifications</a></li>
+                        <li><a href="#" class="nav-link" data-tab="friends"><i class="fas fa-user-friends"></i> Friends</a></li>
+                    </ul>
                 </div>
                 
-                <!-- Notifications Tab -->
-                <div class="tab-content" id="notifications-tab">
-                    <h2>Notifications</h2>
-                    <div id="notifications-container" class="notifications-list">
-                        <!-- Notifications will be populated here -->
-                        <div class="empty-state">No notifications</div>
-                    </div>
-                </div>
-                
-                <!-- Friends Tab -->
-                <div class="tab-content" id="friends-tab">
-                    <h2>Friend Requests</h2>
-                    <div id="friend-requests-container" class="friend-requests-list">
-                        <!-- Friend requests will be populated here -->
-                        <div class="empty-state">No friend requests</div>
+                <div class="messages-content">
+                    <!-- Invites Tab -->
+                    <div class="tab-content active" id="invites-tab">
+                        <div class="content-header">
+                            <h2>LOBBY INVITES</h2>
+                        </div>
+                        <div id="invites-container" class="invites-list">
+                            <!-- Invites will be populated here -->
+                            <div class="empty-state">
+                                <i class="fas fa-envelope-open"></i>
+                                <p>No invites</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Debug Tools (visible on localhost only) -->
+                        <div id="debug-tools" style="display: none; margin-top: 30px; padding: 15px; border: 1px dashed rgba(126, 34, 206, 0.5); border-radius: 8px;">
+                            <h3 style="color: #22d3ee; margin-bottom: 15px;">Debugging Tools</h3>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <button id="createTestInvite" class="btn btn-primary">
+                                    <i class="fas fa-plus-circle"></i> Create Test Invite
+                                </button>
+                                <button id="refreshInvites" class="btn btn-primary" style="margin-left: 10px;">
+                                    <i class="fas fa-sync"></i> Refresh Invites
+                                </button>
+                                <button id="clearInvites" class="btn btn-danger" style="margin-left: 10px;">
+                                    <i class="fas fa-trash"></i> Clear All Invites
+                                </button>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <button id="checkSocket" class="btn btn-primary">
+                                    <i class="fas fa-plug"></i> Check Socket Connection
+                                </button>
+                                <button id="dumpLocalStorage" class="btn btn-primary" style="margin-left: 10px;">
+                                    <i class="fas fa-database"></i> Show LocalStorage
+                                </button>
+                            </div>
+                            
+                            <div id="debug-output" style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px; color: #ffffff; font-family: monospace; max-height: 150px; overflow-y: auto;">
+                                Debug output will appear here...
+                            </div>
+                        </div>
                     </div>
                     
-                    <h2>Friends</h2>
-                    <div id="friends-container" class="friends-list">
-                        <!-- Friends will be populated here -->
-                        <div class="empty-state">No friends</div>
+                    <!-- Notifications Tab -->
+                    <div class="tab-content" id="notifications-tab">
+                        <div class="content-header">
+                            <h2>NOTIFICATIONS</h2>
+                        </div>
+                        <div id="notifications-container" class="notifications-list">
+                            <!-- Notifications will be populated here -->
+                            <div class="empty-state">
+                                <i class="fas fa-bell-slash"></i>
+                                <p>No notifications</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Friends Tab -->
+                    <div class="tab-content" id="friends-tab">
+                        <div class="content-section">
+                            <h2>FRIEND REQUESTS</h2>
+                            <div id="friend-requests-container" class="friend-requests-list">
+                                <!-- Friend requests will be populated here -->
+                                <div class="empty-state">
+                                    <i class="fas fa-user-plus"></i>
+                                    <p>No friend requests</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="content-section">
+                            <h2>FRIENDS</h2>
+                            <div id="friends-container" class="friends-list">
+                                <!-- Friends will be populated here -->
+                                <div class="empty-state">
+                                    <i class="fas fa-users-slash"></i>
+                                    <p>No friends</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer>
-        <p>&copy; 2023 GameSquad. All rights reserved.</p>
-    </footer>
-    
-    <!-- Notification element -->
-    <div id="notification" class="notification">
-        <div class="notification-content">
-            <span class="notification-title">Title</span>
-            <span class="notification-message">Message</span>
-        </div>
-        <button class="notification-close">&times;</button>
-    </div>
+    <div class="notifications-container"></div>
 
     <!-- Scripts -->
-    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js" integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4" crossorigin="anonymous"></script>
+    <script src="../js/gamesquad-ui.js"></script>
     <script src="../js/config.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/socket-handler.js"></script>
     <script src="../js/messages.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Apply particle effect to messages content
+            applyParticleEffect('body');
+            
+            // Tab switching functionality
+            const navLinks = document.querySelectorAll('.nav-link');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const tab = link.dataset.tab;
+                    
+                    // Update active state for nav links
+                    navLinks.forEach(navLink => navLink.classList.remove('active'));
+                    link.classList.add('active');
+                    
+                    // Update active state for content
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    document.getElementById(`${tab}-tab`).classList.add('active');
+                    
+                    // If the invites tab is clicked, clear the badge
+                    if (tab === 'invites') {
+                        const badge = document.querySelector('.invite-badge');
+                        if (badge) {
+                            badge.textContent = '';
+                            badge.classList.remove('show');
+                        }
+                    }
+                });
+            });
+            
+            // Debug Tools initialization
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                const debugTools = document.getElementById('debug-tools');
+                if (debugTools) {
+                    debugTools.style.display = 'block';
+                    
+                    // Debug output function
+                    window.debugLog = function(message) {
+                        const output = document.getElementById('debug-output');
+                        if (output) {
+                            output.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${message}</div>`;
+                            output.scrollTop = output.scrollHeight;
+                        }
+                    };
+                    
+                    // Create test invite button
+                    document.getElementById('createTestInvite').addEventListener('click', function() {
+                        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                        const userId = userInfo._id;
+                        
+                        if (!userId) {
+                            debugLog('ERROR: User not logged in');
+                            return;
+                        }
+                        
+                        const testInvite = {
+                            id: 'test-' + Date.now(),
+                            lobbyId: 'test-lobby-' + Date.now(),
+                            senderName: 'Test Sender',
+                            senderId: 'test-sender-id',
+                            recipientId: userId,
+                            lobbyName: 'Test Lobby',
+                            gameType: 'Test Game',
+                            message: 'This is a test invite created at ' + new Date().toLocaleTimeString(),
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        debugLog('Creating test invite: ' + testInvite.id);
+                        
+                        if (typeof SocketHandler !== 'undefined' && SocketHandler.manuallyProcessInvite) {
+                            SocketHandler.manuallyProcessInvite(testInvite);
+                            debugLog('Test invite created and processed');
+                        } else {
+                            // Fallback to direct localStorage manipulation
+                            let invites = [];
+                            const invitesStr = localStorage.getItem('invites');
+                            
+                            if (invitesStr) {
+                                try {
+                                    invites = JSON.parse(invitesStr);
+                                } catch (e) {
+                                    debugLog('ERROR: Failed to parse invites: ' + e.message);
+                                }
+                            }
+                            
+                            invites.push(testInvite);
+                            localStorage.setItem('invites', JSON.stringify(invites));
+                            
+                            debugLog('Test invite added to localStorage');
+                            debugLog('Please refresh invites to see changes');
+                        }
+                    });
+                    
+                    // Refresh invites button
+                    document.getElementById('refreshInvites').addEventListener('click', function() {
+                        debugLog('Refreshing invites...');
+                        
+                        if (typeof SocketHandler !== 'undefined' && SocketHandler.updateInvitesUI) {
+                            SocketHandler.updateInvitesUI();
+                            debugLog('Invites refreshed via SocketHandler');
+                        } else if (typeof displayUserInvites === 'function') {
+                            displayUserInvites();
+                            debugLog('Invites refreshed via displayUserInvites()');
+                        } else {
+                            debugLog('ERROR: No refresh function found');
+                        }
+                    });
+                    
+                    // Clear all invites button
+                    document.getElementById('clearInvites').addEventListener('click', function() {
+                        localStorage.removeItem('invites');
+                        debugLog('Cleared all invites from localStorage');
+                        
+                        if (typeof SocketHandler !== 'undefined' && SocketHandler.updateInvitesUI) {
+                            SocketHandler.updateInvitesUI();
+                            debugLog('Invites UI refreshed after clearing');
+                        }
+                    });
+                    
+                    // Check socket connection button
+                    document.getElementById('checkSocket').addEventListener('click', function() {
+                        if (typeof SocketHandler !== 'undefined') {
+                            debugLog('Socket initialized: ' + (SocketHandler.socket ? 'YES' : 'NO'));
+                            debugLog('Socket connected: ' + (SocketHandler.isConnected ? 'YES' : 'NO'));
+                            debugLog('Socket ID: ' + (SocketHandler.socket ? SocketHandler.socket.id : 'N/A'));
+                        } else {
+                            debugLog('ERROR: SocketHandler not available');
+                        }
+                    });
+                    
+                    // Show localStorage button
+                    document.getElementById('dumpLocalStorage').addEventListener('click', function() {
+                        const invitesStr = localStorage.getItem('invites');
+                        if (invitesStr) {
+                            try {
+                                const invites = JSON.parse(invitesStr);
+                                debugLog(`Found ${invites.length} invites in localStorage`);
+                                debugLog('First invite: ' + JSON.stringify(invites[0] || {}));
+                            } catch (e) {
+                                debugLog('ERROR: Failed to parse invites: ' + e.message);
+                            }
+                        } else {
+                            debugLog('No invites found in localStorage');
+                        }
+                        
+                        const userInfoStr = localStorage.getItem('userInfo');
+                        if (userInfoStr) {
+                            try {
+                                const userInfo = JSON.parse(userInfoStr);
+                                debugLog('User ID: ' + userInfo._id);
+                                debugLog('Username: ' + userInfo.username);
+                            } catch (e) {
+                                debugLog('ERROR: Failed to parse user info: ' + e.message);
+                            }
+                        } else {
+                            debugLog('No user info found in localStorage');
+                        }
+                    });
+                    
+                    debugLog('Debug tools initialized');
+                }
+            }
+            
+            // Update invite badge on load
+            updateInviteBadge();
+            
+            // Debug localStorage for invites
+            console.log('Checking for invites in localStorage...');
+            const invitesStr = localStorage.getItem('invites');
+            if (invitesStr) {
+                try {
+                    const invites = JSON.parse(invitesStr);
+                    console.log(`Found ${invites.length} invites in localStorage:`, invites);
+                } catch (err) {
+                    console.error('Error parsing invites from localStorage:', err);
+                }
+            } else {
+                console.log('No invites found in localStorage');
+            }
+            
+            // Debug user info
+            console.log('Checking user info...');
+            const userInfoStr = localStorage.getItem('userInfo');
+            if (userInfoStr) {
+                try {
+                    const userInfo = JSON.parse(userInfoStr);
+                    console.log('Current user:', userInfo);
+                } catch (err) {
+                    console.error('Error parsing user info from localStorage:', err);
+                }
+            } else {
+                console.log('No user info found in localStorage');
+            }
+            
+            // Force update invites UI
+            if (typeof SocketHandler !== 'undefined') {
+                console.log('Forcing update of invites UI...');
+                SocketHandler.updateInvitesUI();
+            }
+            
+            // Poll for new invites every 30 seconds
+            setInterval(updateInviteBadge, 30000);
+        });
+        
+        function updateInviteBadge() {
+            try {
+                // Get current user ID
+                const userInfoStr = localStorage.getItem('userInfo');
+                if (!userInfoStr) return;
+                
+                const userInfo = JSON.parse(userInfoStr);
+                const userId = userInfo._id;
+                
+                // Count unread invites
+                let inviteCount = 0;
+                const invitesStr = localStorage.getItem('invites');
+                
+                if (invitesStr) {
+                    const invites = JSON.parse(invitesStr);
+                    inviteCount = invites.filter(invite => 
+                        (invite.recipientId === userId || invite.recipientId === userId.toString())
+                    ).length;
+                }
+                
+                // Update badge
+                const badge = document.querySelector('.invite-badge');
+                if (badge) {
+                    if (inviteCount > 0) {
+                        badge.textContent = inviteCount;
+                        badge.classList.add('show');
+                        
+                        // If not already on the invites tab, keep badge visible
+                        const invitesTab = document.querySelector('[data-tab="invites"]');
+                        if (invitesTab && !invitesTab.classList.contains('active')) {
+                            badge.classList.add('show');
+                        } else {
+                            badge.classList.remove('show');
+                        }
+                    } else {
+                        badge.classList.remove('show');
+                    }
+                }
+            } catch (err) {
+                console.error('Error updating invite badge:', err);
+            }
+        }
+    </script>
 </body>
 </html> 
