@@ -29,69 +29,119 @@ let currentUser = null;
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Players page loaded');
-    loadPlayers();
+    console.log('Players page loaded - DOM is ready');
+    // First setup the event listeners
     setupEventListeners();
+    
+    // Then load the players data
+    setTimeout(() => {
+        loadPlayers();
+    }, 100); // Small delay to ensure everything is ready
 });
 
 function setupEventListeners() {
-    // Game filter
-    const gameFilter = document.getElementById('game-filter');
-    if (gameFilter) {
-        gameFilter.addEventListener('change', filterPlayers);
-    }
-    
-    // Rank filter
-    const rankFilter = document.getElementById('rank-filter');
-    if (rankFilter) {
-        rankFilter.addEventListener('change', filterPlayers);
-    }
-    
-    // Search input
-    const playerSearch = document.getElementById('player-search');
-    if (playerSearch) {
-        playerSearch.addEventListener('input', filterPlayers);
-    } else {
-        // Try alternative ID that might be in the HTML
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.addEventListener('input', filterPlayers);
-        }
-    }
-    
-    // Reset filters button
-    const resetBtn = document.getElementById('reset-filters');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', resetFilters);
-    } else {
-        // Try alternative ID that might be in the HTML
-        const resetFiltersBtn = document.getElementById('resetFilters');
-        if (resetFiltersBtn) {
-            resetFiltersBtn.addEventListener('click', resetFilters);
-        }
-    }
+    console.log('Setting up event listeners...');
     
     // Toggle filters button
     const toggleFiltersBtn = document.getElementById('toggleFilters');
     if (toggleFiltersBtn) {
+        console.log('Toggle filters button found');
         toggleFiltersBtn.addEventListener('click', function() {
             const filtersForm = document.querySelector('.filters-form');
             if (filtersForm) {
                 const isVisible = filtersForm.style.display !== 'none';
                 filtersForm.style.display = isVisible ? 'none' : 'block';
-                this.textContent = isVisible ? 'Show Filters' : 'Hide Filters';
+                const btnText = toggleFiltersBtn.querySelector('span');
+                if (btnText) {
+                    btnText.textContent = isVisible ? 'Show Filters' : 'Hide Filters';
+                } else {
+                    this.textContent = isVisible ? 'Show Filters' : 'Hide Filters';
+                }
+            }
+        });
+    } else {
+        console.error('Toggle filters button not found!');
+    }
+    
+    // Search button
+    const searchBtn = document.getElementById('searchBtn');
+    if (searchBtn) {
+        console.log('Search button found');
+        searchBtn.addEventListener('click', filterPlayers);
+    }
+    
+    // Reset filters button
+    const resetFiltersBtn = document.getElementById('resetFilters');
+    if (resetFiltersBtn) {
+        console.log('Reset filters button found');
+        resetFiltersBtn.addEventListener('click', resetFilters);
+    }
+    
+    // Search input (for typing)
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        console.log('Search input found');
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                filterPlayers();
             }
         });
     }
+    
+    console.log('Event listeners setup complete');
+}
+
+// Generate mock player data for testing purposes
+function generateMockPlayers() {
+    console.log('Generating mock player data');
+    
+    const games = ['Valorant', 'CS:GO', 'League of Legends', 'Apex Legends', 'Fortnite'];
+    const regions = ['EU', 'NA', 'Asia', 'Oceania'];
+    const ranks = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
+    
+    const mockPlayers = [];
+    
+    // Generate 8 mock players
+    for (let i = 1; i <= 8; i++) {
+        const username = `player${i}`;
+        const randomGame = games[Math.floor(Math.random() * games.length)];
+        const randomRegion = regions[Math.floor(Math.random() * regions.length)];
+        const randomRank = ranks[Math.floor(Math.random() * ranks.length)];
+        const level = Math.floor(Math.random() * 100) + 1;
+        const gamesPlayed = Math.floor(Math.random() * 500) + 10;
+        
+        mockPlayers.push({
+            _id: `mock_${i}`,
+            username: username,
+            profile: {
+                displayName: `${randomGame} Player ${i}`,
+                level: level,
+                gamesPlayed: gamesPlayed,
+                bio: `I'm a ${randomRank} ${randomGame} player from ${randomRegion}. Looking for teammates!`,
+                favoriteGame: randomGame,
+                region: randomRegion,
+                rank: randomRank
+            },
+            createdAt: new Date(Date.now() - Math.floor(Math.random() * 10000000000)).toISOString()
+        });
+    }
+    
+    return mockPlayers;
 }
 
 async function loadPlayers() {
     try {
+        console.log('Starting to load players...');
         showLoadingIndicator();
         
+        // Get API URL from config
+        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+        console.log('Using API URL:', apiUrl);
+        
         // Get all users
-        fetch('/api/users/all')
+        fetch(`${apiUrl}/users/all`)
             .then(response => {
+                console.log('Received response:', response.status);
                 if (!response.ok) {
                     throw new Error(`Failed to fetch players: ${response.status}`);
                 }
@@ -99,25 +149,62 @@ async function loadPlayers() {
             })
             .then(players => {
                 console.log('Players loaded:', players);
+                if (!players || !Array.isArray(players)) {
+                    console.error('Invalid players data received:', players);
+                    showErrorMessage('Failed to load players: Invalid data format');
+                    
+                    // Fall back to mock data
+                    displayPlayers(generateMockPlayers());
+                    return;
+                }
+                
+                if (players.length === 0) {
+                    console.log('No players found in the database');
+                    // Show a message in the UI
+                    const noPlayersMessage = document.getElementById('noPlayersMessage');
+                    if (noPlayersMessage) {
+                        noPlayersMessage.classList.remove('d-none');
+                    }
+                    
+                    // Fall back to mock data
+                    displayPlayers(generateMockPlayers());
+                    return;
+                }
                 
                 // Filter out the current user
                 const currentUser = getCurrentUser();
+                console.log('Current user:', currentUser);
+                
                 const filteredPlayers = currentUser ? 
                     players.filter(player => player._id !== currentUser._id) : 
                     players;
                 
-                displayPlayers(filteredPlayers);
+                console.log('Filtered players (excluding current user):', filteredPlayers);
+                
+                if (filteredPlayers.length === 0) {
+                    // If no players after filtering, use mock data
+                    displayPlayers(generateMockPlayers());
+                } else {
+                    displayPlayers(filteredPlayers);
+                }
+                
                 hideLoadingIndicator();
             })
             .catch(error => {
                 console.error('Error loading players:', error);
-                showErrorMessage('Failed to load players. Please try again later.');
+                showErrorMessage('Failed to load players. Using demo data instead.');
                 hideLoadingIndicator();
+                
+                // Use mock data for demo purposes
+                displayPlayers(generateMockPlayers());
             });
     } catch (error) {
         console.error('Error in loadPlayers function:', error);
-        showErrorMessage('An error occurred while loading players.');
+        showErrorMessage('An error occurred while loading players. Using demo data instead.');
         hideLoadingIndicator();
+        
+        // Use mock data for demo purposes
+        displayPlayers(generateMockPlayers());
     }
 }
 
@@ -148,7 +235,7 @@ function createPlayerCard(player) {
     console.log('Creating player card for:', player);
     
     const card = document.createElement('div');
-    card.className = 'player-card';
+    card.className = 'player-card glow-effect';
     card.setAttribute('data-player-id', player._id);
     
     // Extract profile data safely
@@ -159,7 +246,6 @@ function createPlayerCard(player) {
     // Use default values if properties are missing
     const avatar = profile.avatar || 'default-avatar.png';
     const level = profile.level || 1;
-    const isOnline = profile.isOnline || false;
     
     // For demo purposes, if no avatar, use initials
     let avatarHtml;
@@ -176,17 +262,17 @@ function createPlayerCard(player) {
     
     if (friendStatus === 'friend') {
         // Already friends
-        friendBtnHtml = `<button class="btn friend-added" data-id="${player._id}" style="background-color: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: default;">
+        friendBtnHtml = `<button class="btn btn-secondary" data-id="${player._id}">
             <i class="fas fa-check"></i> Friend
         </button>`;
     } else if (friendStatus === 'pending') {
         // Request pending
-        friendBtnHtml = `<button class="btn friend-requested" data-id="${player._id}" style="background-color: #ffc107; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: default;">
+        friendBtnHtml = `<button class="btn btn-secondary" data-id="${player._id}">
             <i class="fas fa-clock"></i> Pending
         </button>`;
     } else {
         // Not friends yet
-        friendBtnHtml = `<button class="btn add-friend-btn" data-id="${player._id}" style="background-color: var(--secondary-color); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+        friendBtnHtml = `<button class="btn btn-secondary add-friend-btn" data-id="${player._id}">
             <i class="fas fa-user-plus"></i> Add
         </button>`;
     }
@@ -196,9 +282,6 @@ function createPlayerCard(player) {
             <div class="player-info">
                 ${avatarHtml}
                 <div class="player-name">${displayName}</div>
-            </div>
-            <div class="player-status ${isOnline ? 'online' : 'offline'}">
-                ${isOnline ? 'Online' : 'Offline'}
             </div>
         </div>
         <div class="player-body">
@@ -210,12 +293,23 @@ function createPlayerCard(player) {
                 <i class="fas fa-trophy"></i>
                 <span>Level ${level}</span>
             </div>
-            <div class="player-actions" style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
-                <button class="btn view-profile-btn" data-id="${player._id}" style="background-color: var(--primary-color); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+            <div class="info-item">
+                <i class="fas fa-gamepad"></i>
+                <span>Games: ${profile.gamesPlayed || 0}</span>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Joined: ${formatJoinDate(player.createdAt)}</span>
+            </div>
+            <div class="player-bio">
+                <p>${profile.bio || 'No bio available'}</p>
+            </div>
+            <div class="player-actions">
+                <button class="btn btn-primary view-profile-btn" data-id="${player._id}">
                     <i class="fas fa-user"></i> Profile
                 </button>
                 ${friendBtnHtml}
-                <button class="btn invite-lobby-btn" data-id="${player._id}" style="background-color: #17a2b8; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                <button class="btn btn-primary invite-lobby-btn" data-id="${player._id}">
                     <i class="fas fa-gamepad"></i> Invite
                 </button>
             </div>
@@ -241,6 +335,23 @@ function createPlayerCard(player) {
     });
     
     return card;
+}
+
+// Helper function to format join date
+function formatJoinDate(dateString) {
+    if (!dateString) return 'Unknown';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+        });
+    } catch (e) {
+        console.error('Error formatting date:', e);
+        return 'Unknown';
+    }
 }
 
 // Add friend function - now sends a friend request instead of directly adding
@@ -647,22 +758,34 @@ function hideLoadingIndicator() {
 }
 
 function showErrorMessage(message) {
-    const errorContainer = document.createElement('div');
-    errorContainer.className = 'alert alert-danger';
-    errorContainer.textContent = message;
+    console.error('Error:', message);
     
-    const playersContainer = document.getElementById('playersContainer');
-    if (playersContainer) {
-        // Clear the container first
-        playersContainer.innerHTML = '';
-        // Add the error message
-        playersContainer.appendChild(errorContainer);
+    // Display error in UI
+    const noPlayersMessage = document.getElementById('noPlayersMessage');
+    if (noPlayersMessage) {
+        noPlayersMessage.textContent = message;
+        noPlayersMessage.classList.remove('d-none');
     } else {
-        console.error('Players container not found when trying to show error message');
+        // If element doesn't exist, create one
+        const playersContainer = document.getElementById('playersContainer');
+        if (playersContainer) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger';
+            errorDiv.textContent = message;
+            
+            // Clear container first
+            playersContainer.innerHTML = '';
+            playersContainer.appendChild(errorDiv);
+        }
     }
     
-    // Also show the message in the console
-    console.error(message);
+    // Also show as notification
+    if (typeof showNotification === 'function') {
+        showNotification(message, 'error');
+    }
+    
+    // Hide loading spinner
+    hideLoadingIndicator();
 }
 
 // Modified showNotification to allow for persistent notifications

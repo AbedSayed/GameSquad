@@ -4,13 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Players - GameSquad</title>
+    
+    <!-- Unified Theme System -->
+    <link rel="stylesheet" href="../css/gamesquad-theme.css">
+    <link rel="stylesheet" href="../css/animations.css">
+    <link rel="stylesheet" href="../css/gaming-styles.css">
     <link rel="stylesheet" href="../css/style.css">
+
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Google fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="../js/checkAuth.js"></script>
+    
     <style>
         .players-container {
             max-width: 1200px;
             margin: 40px auto;
             padding: 0 20px;
+            position: relative;
+            z-index: 10;
         }
         
         .page-title {
@@ -21,11 +35,23 @@
             align-items: center;
         }
         
+        .page-title h1 {
+            font-size: 2.5rem;
+            margin: 0;
+            color: var(--light-color);
+            text-shadow: 0 0 10px rgba(108, 92, 231, 0.4);
+        }
+        
         .filters-container {
-            background-color: var(--card-background);
+            background-color: rgba(26, 26, 36, 0.7);
             padding: 20px;
             border-radius: var(--border-radius);
             margin-bottom: 30px;
+            box-shadow: var(--box-shadow);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(108, 92, 231, 0.1);
+            position: relative;
+            overflow: hidden;
         }
         
         .filters-title {
@@ -36,18 +62,21 @@
             align-items: center;
         }
         
-        .filters-title button {
+        .toggle-filters-btn {
             padding: 8px 16px;
             background-color: var(--primary-color);
             color: var(--light-color);
             border: none;
             border-radius: var(--border-radius);
             cursor: pointer;
-            transition: var(--transition);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
         
-        .filters-title button:hover {
+        .toggle-filters-btn:hover {
             background-color: var(--primary-color-dark);
+            box-shadow: 0 0 15px rgba(108, 92, 231, 0.6);
         }
         
         .filters-form {
@@ -55,8 +84,9 @@
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
             padding: 15px;
-            background-color: var(--dark-color);
+            background-color: rgba(20, 20, 30, 0.7);
             border-radius: var(--border-radius);
+            backdrop-filter: blur(5px);
         }
         
         .filter-group {
@@ -74,16 +104,18 @@
         .filter-group select {
             width: 100%;
             padding: 10px;
-            border: 1px solid var(--secondary-color);
+            border: 1px solid rgba(108, 92, 231, 0.3);
             border-radius: var(--border-radius);
-            background-color: var(--dark-color);
+            background-color: rgba(15, 15, 25, 0.7);
             color: var(--light-color);
+            transition: all 0.3s ease;
         }
         
         .filter-group input:focus,
         .filter-group select:focus {
             outline: none;
             border-color: var(--primary-color);
+            box-shadow: 0 0 8px rgba(108, 92, 231, 0.4);
         }
         
         .filter-actions {
@@ -97,8 +129,10 @@
             border: none;
             border-radius: var(--border-radius);
             cursor: pointer;
-            transition: var(--transition);
+            transition: all 0.3s ease;
             font-weight: 600;
+            position: relative;
+            overflow: hidden;
         }
         
         .reset-filters {
@@ -113,107 +147,179 @@
         
         .reset-filters:hover {
             background-color: var(--secondary-color-dark);
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.4);
         }
         
         .apply-filters:hover {
             background-color: var(--primary-color-dark);
+            box-shadow: 0 0 15px rgba(108, 92, 231, 0.6);
         }
         
         .players-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+            position: relative;
+            z-index: 20;
         }
         
         .player-card {
-            background-color: var(--card-background);
+            background-color: rgba(26, 26, 36, 0.9) !important;
             border-radius: var(--border-radius);
             overflow: hidden;
-            transition: var(--transition);
-            box-shadow: var(--box-shadow);
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
             cursor: pointer;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(108, 92, 231, 0.3);
+            position: relative;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
         }
         
         .player-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-10px);
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.2);
+            border-color: rgba(108, 92, 231, 0.4);
+        }
+        
+        .player-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), #43b5de);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .player-card:hover::before {
+            opacity: 1;
         }
         
         .player-header {
-            background-color: var(--dark-color);
-            padding: 15px;
+            padding: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-bottom: 2px solid rgba(108, 92, 231, 0.3);
         }
         
         .player-info {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
         }
         
         .player-avatar {
-            width: 40px;
-            height: 40px;
+            width: 60px;
+            height: 60px;
             border-radius: 50%;
-            background-color: var(--primary-color);
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
             display: flex;
             align-items: center;
             justify-content: center;
             color: var(--light-color);
             font-weight: 600;
+            font-size: 1.5rem;
+            box-shadow: 0 0 10px rgba(108, 92, 231, 0.3);
         }
         
         .player-name {
-            color: var(--light-color);
+            color: var(--light-color) !important;
             font-weight: 600;
-        }
-        
-        .player-status {
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
-        .player-status.online {
-            background-color: #28a745;
-            color: white;
-        }
-        
-        .player-status.offline {
-            background-color: #dc3545;
-            color: white;
+            font-size: 1.25rem;
+            text-shadow: 0 0 10px rgba(108, 92, 231, 0.4);
         }
         
         .player-body {
-            padding: 15px;
+            padding: 25px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: rgba(26, 26, 36, 0.9) !important;
+            color: var(--light-color) !important;
         }
         
         .info-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
-            color: var(--gray-color);
+            gap: 15px;
+            margin-bottom: 12px;
+            color: var(--light-color) !important;
+            font-size: 1.05rem;
         }
         
         .info-item i {
             color: var(--primary-color);
-            width: 20px;
+            width: 24px;
             text-align: center;
+            font-size: 1.2rem;
         }
         
         .player-bio {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid var(--secondary-color);
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(108, 92, 231, 0.2);
+            flex-grow: 1;
         }
         
         .player-bio p {
-            color: var(--gray-color);
+            color: var(--light-color) !important;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        
+        .player-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .player-actions .btn {
+            flex: 1;
+            padding: 12px 15px;
+            text-align: center;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             font-size: 0.9rem;
-            line-height: 1.4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .player-actions .btn-primary {
+            background-color: var(--primary-color);
+            color: var(--light-color);
+        }
+        
+        .player-actions .btn-secondary {
+            background-color: var(--secondary-color);
+            color: var(--light-color);
+        }
+        
+        .player-actions .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 14px rgba(0, 0, 0, 0.2);
+        }
+        
+        .player-actions .btn-primary:hover {
+            background-color: var(--primary-color-dark);
+        }
+        
+        .player-actions .btn-secondary:hover {
+            background-color: var(--secondary-color-dark);
         }
         
         .d-none {
@@ -232,11 +338,35 @@
             padding: 15px;
             border-radius: var(--border-radius);
             margin-bottom: 20px;
+            background-color: rgba(26, 26, 36, 0.7);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(108, 92, 231, 0.2);
+            color: var(--light-color);
         }
         
-        .alert-danger {
-            background-color: #dc3545;
-            color: white;
+        .glow-effect {
+            animation: subtle-glow 4s infinite alternate;
+        }
+        
+        @keyframes subtle-glow {
+            0% {
+                box-shadow: 0 5px 15px rgba(108, 92, 231, 0.1);
+            }
+            100% {
+                box-shadow: 0 10px 25px rgba(108, 92, 231, 0.4);
+            }
+        }
+        
+        /* Force visibility fixes */
+        .force-visible {
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: flex !important;
+        }
+        
+        #playersContainer {
+            position: relative;
+            z-index: 20;
         }
     </style>
 </head>
@@ -244,21 +374,21 @@
     <header>
         <nav class="navbar">
             <div class="logo">
-                <h1>GameSquad</h1>
+                <h1 class="sheen">GameSquad</h1>
             </div>
             <ul class="nav-links">
-                <li><a href="../index.html">Home</a></li>
+                <li><a href="../home.html">Home</a></li>
                 <li><a href="lobbies.html">Lobbies</a></li>
                 <li><a href="players.html" class="active">Players</a></li>
                 <li><a href="about.html">About</a></li>
             </ul>
             <div class="user-profile hidden">
-                <span class="username">Username</span>
+                <span class="username">Username <i class="fas fa-chevron-down"></i></span>
                 <div class="profile-dropdown">
-                    <a href="profile.html">My Profile</a>
-                    <a href="my-lobbies.html">My Lobbies</a>
-                    <a href="messages.html">Messages</a>
-                    <a href="#" id="logout-btn">Logout</a>
+                    <a href="profile.html"><i class="fas fa-user"></i> My Profile</a>
+                    <a href="my-lobbies.html"><i class="fas fa-gamepad"></i> My Lobbies</a>
+                    <a href="messages.html"><i class="fas fa-envelope"></i> Messages</a>
+                    <a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
             <div class="hamburger">
@@ -271,13 +401,15 @@
 
     <main class="players-container">
         <div class="page-title">
-            <h1>Find Players</h1>
+            <h1 class="neon-text">Find Players</h1>
         </div>
 
-        <div class="filters-container">
+        <div class="filters-container glow-effect">
             <div class="filters-title">
                 <h2>Filters</h2>
-                <button type="button" id="toggleFilters" class="toggle-filters-btn">Show Filters</button>
+                <button type="button" id="toggleFilters" class="toggle-filters-btn btn-hover-fx">
+                    <i class="fas fa-filter"></i> <span>Show Filters</span>
+                </button>
             </div>
             <div class="filters-form" style="display: none;">
                 <div class="filter-group">
@@ -294,13 +426,17 @@
                     </select>
                 </div>
                 <div class="filter-actions">
-                    <button type="button" class="reset-filters" id="resetFilters">Reset</button>
-                    <button type="button" class="apply-filters" id="searchBtn">Apply Filters</button>
+                    <button type="button" class="reset-filters btn-hover-fx" id="resetFilters">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                    <button type="button" class="apply-filters btn-hover-fx" id="searchBtn">
+                        <i class="fas fa-search"></i> Apply Filters
+                    </button>
                 </div>
             </div>
         </div>
 
-        <div class="players-grid" id="playersContainer">
+        <div class="players-grid fade-stagger" id="playersContainer">
             <!-- Players will be dynamically loaded here -->
         </div>
 
@@ -310,16 +446,204 @@
             </div>
         </div>
 
-        <div class="alert d-none" id="noPlayersMessage" 
-             style="background-color: var(--card-background); color: var(--text-color); border-color: var(--secondary-color);">
+        <div class="alert d-none" id="noPlayersMessage">
             No players found matching your search criteria.
         </div>
     </main>
 
+    <div class="notifications-container"></div>
+
+    <!-- Scripts -->
+    <script src="../js/gamesquad-ui.js"></script>
     <!-- Load configuration first -->
     <script src="../js/config.js"></script>
     <!-- Load other scripts with defer -->
     <script src="../js/auth.js" defer></script>
     <script src="../js/players.js" defer></script>
+    
+    <script>
+        // Global configuration
+        window.APP_CONFIG = {
+            API_URL: '/api'
+        };
+        
+        // Immediate check for auth state (runs before DOM is loaded)
+        (function() {
+            const userInfoStr = localStorage.getItem('userInfo');
+            const token = localStorage.getItem('token');
+            
+            const isAuthenticated = userInfoStr && token;
+            
+            // If authenticated, add class to html element
+            if (isAuthenticated) {
+                document.documentElement.classList.add('user-authenticated');
+            } else {
+                document.documentElement.classList.add('user-unauthenticated');
+            }
+        })();
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update auth UI (this will show/hide elements based on auth state)
+            updateAuthUI();
+            
+            // Set up logout handler
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Clear auth data
+                    localStorage.removeItem('userInfo');
+                    localStorage.removeItem('token');
+                    
+                    // Update UI
+                    updateAuthUI();
+                    
+                    // Show notification
+                    showNotification('You have been logged out successfully', 'success');
+                    
+                    // Redirect to landing page
+                    setTimeout(() => {
+                        window.location.href = '../index.html';
+                    }, 1000);
+                });
+            }
+            
+            // Fix to ensure player cards are visible
+            setTimeout(() => {
+                const playersContainer = document.getElementById('playersContainer');
+                if (playersContainer) {
+                    // Force recalculation of the container
+                    playersContainer.style.display = 'none';
+                    setTimeout(() => {
+                        playersContainer.style.display = 'grid';
+                        
+                        // Add extra class to help with visibility
+                        const playerCards = document.querySelectorAll('.player-card');
+                        playerCards.forEach(card => {
+                            card.classList.add('force-visible');
+                        });
+                        
+                        console.log('Applied visibility fix to', playerCards.length, 'player cards');
+                    }, 100);
+                }
+            }, 500);
+
+            // Don't create mock players since the API is working correctly
+            // createMockPlayerCards();
+        });
+
+        // Create mock player cards directly
+        function createMockPlayerCards() {
+            console.log('Creating mock player cards directly from HTML');
+            const playersContainer = document.getElementById('playersContainer');
+            
+            if (!playersContainer) {
+                console.error('Players container not found!');
+                return;
+            }
+
+            // Clear container
+            playersContainer.innerHTML = '';
+            
+            // Game types
+            const games = ['Valorant', 'CS:GO', 'League of Legends', 'Apex Legends', 'Fortnite'];
+            const regions = ['EU', 'NA', 'Asia', 'Oceania'];
+            const ranks = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
+            
+            // Create 8 mock player cards
+            for (let i = 1; i <= 8; i++) {
+                const randomGame = games[Math.floor(Math.random() * games.length)];
+                const randomRegion = regions[Math.floor(Math.random() * regions.length)];
+                const randomRank = ranks[Math.floor(Math.random() * ranks.length)];
+                const username = `player${i}`;
+                const displayName = `${randomGame} Player ${i}`;
+                const level = Math.floor(Math.random() * 100) + 1;
+                const gamesPlayed = Math.floor(Math.random() * 500) + 10;
+                const bio = `I'm a ${randomRank} ${randomGame} player from ${randomRegion}. Looking for teammates!`;
+                const joinDate = new Date(Date.now() - Math.floor(Math.random() * 10000000000)).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                
+                // Get first two letters for avatar
+                const initials = username.slice(0, 2).toUpperCase();
+                
+                // Create card element
+                const card = document.createElement('div');
+                card.className = 'player-card glow-effect';
+                
+                card.innerHTML = `
+                    <div class="player-header">
+                        <div class="player-info">
+                            <div class="player-avatar">${initials}</div>
+                            <div class="player-name">${displayName}</div>
+                        </div>
+                    </div>
+                    <div class="player-body">
+                        <div class="info-item">
+                            <i class="fas fa-user"></i>
+                            <span>@${username}</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-trophy"></i>
+                            <span>Level ${level}</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-gamepad"></i>
+                            <span>Games: ${gamesPlayed}</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Joined: ${joinDate}</span>
+                        </div>
+                        <div class="player-bio">
+                            <p>${bio}</p>
+                        </div>
+                        <div class="player-actions">
+                            <button class="btn btn-primary">
+                                <i class="fas fa-user"></i> Profile
+                            </button>
+                            <button class="btn btn-secondary">
+                                <i class="fas fa-user-plus"></i> Add
+                            </button>
+                            <button class="btn btn-primary">
+                                <i class="fas fa-gamepad"></i> Invite
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Add to container
+                playersContainer.appendChild(card);
+            }
+        }
+
+        // Simple notification function
+        function showNotification(message, type = 'info') {
+            const notificationsContainer = document.querySelector('.notifications-container');
+            if (!notificationsContainer) return;
+
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            notificationsContainer.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+    </script>
 </body>
 </html>
