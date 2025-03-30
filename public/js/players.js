@@ -314,6 +314,58 @@ function resetFilters() {
     filterPlayers();
 }
 
+// Simple function to filter players by username
+function filterPlayers() {
+    console.log('Filtering players by username');
+    
+    const searchInput = document.getElementById('searchInput');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    
+    console.log(`Filtering with search term: "${searchTerm}"`);
+    
+    // Get all player cards
+    const playerCards = document.querySelectorAll('.player-card');
+    let visibleCount = 0;
+    
+    // Filter player cards by username
+    playerCards.forEach(card => {
+        const username = card.querySelector('.player-name').textContent.toLowerCase();
+        const shouldShow = username.includes(searchTerm) || searchTerm === '';
+        
+        card.style.display = shouldShow ? 'flex' : 'none';
+        if (shouldShow) visibleCount++;
+    });
+    
+    // Show or hide the "no players found" message
+    const noPlayersMessage = document.getElementById('noPlayersMessage');
+    if (noPlayersMessage) {
+        noPlayersMessage.classList.toggle('d-none', visibleCount > 0);
+    }
+    
+    console.log(`Found ${visibleCount} players matching "${searchTerm}"`);
+}
+
+// Simple function to reset filters
+function resetFilters() {
+    console.log('Resetting filters');
+    
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+    
+    // Show all player cards
+    document.querySelectorAll('.player-card').forEach(card => {
+        card.style.display = 'flex';
+    });
+    
+    // Hide the "no players found" message
+    const noPlayersMessage = document.getElementById('noPlayersMessage');
+    if (noPlayersMessage) {
+        noPlayersMessage.classList.add('d-none');
+    }
+    
+    console.log('Filters reset - showing all players');
+}
+
 // Function to fix duplicate friend entries in localStorage
 function fixDuplicateFriendEntries() {
     console.log('Checking for duplicate friend entries in localStorage...');
@@ -378,10 +430,10 @@ function fixDuplicateFriendEntries() {
         const friendsStr = localStorage.getItem('friends');
         if (friendsStr) {
             try {
-                const friends = JSON.parse(friendsStr);
-                if (Array.isArray(friends)) {
-                    const originalLength = friends.length;
-                    const uniqueFriends = deduplicateFriends(friends);
+                const friendsData = JSON.parse(friendsStr);
+                if (Array.isArray(friendsData)) {
+                    const originalLength = friendsData.length;
+                    const uniqueFriends = deduplicateFriends(friendsData);
                     
                     if (originalLength !== uniqueFriends.length) {
                         console.log(`Removed ${originalLength - uniqueFriends.length} duplicate entries from separate friends storage`);
@@ -469,6 +521,17 @@ function setupEventListeners() {
     if (searchBtn) {
         searchBtn.addEventListener('click', filterPlayers);
     }
+        
+        // Add event listener for Enter key on search input
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    filterPlayers();
+                }
+            });
+        }
     
         // Reset filters
         const resetBtn = filterForm.querySelector('#resetFilters');
@@ -1602,18 +1665,16 @@ function checkIfFriend(playerId) {
             try {
                 const friendsData = JSON.parse(friendsStr);
                 if (Array.isArray(friendsData)) {
-                    const isFriend = friendsData.some(friend => {
-                        const friendId = String(friend._id || friend.id || friend.userId || '');
-                        return friendId === String(playerId);
-                    });
+                    const originalLength = friendsData.length;
+                    const uniqueFriends = deduplicateFriends(friendsData);
                     
-                    if (isFriend) {
-                        console.log(`[players.js] Player ${playerId} is found in separate friends storage`);
-                        return { status: 'friend' };
+                    if (originalLength !== uniqueFriends.length) {
+                        console.log(`Removed ${originalLength - uniqueFriends.length} duplicate entries from separate friends storage`);
+                        localStorage.setItem('friends', JSON.stringify(uniqueFriends));
                     }
                 }
             } catch (e) {
-                console.error('[players.js] Error parsing friends from localStorage:', e);
+                console.error('Error processing separate friends storage:', e);
             }
         }
         
@@ -3290,4 +3351,16 @@ async function inviteFriendToLobby(friendId, lobbyId) {
         console.error('Invite friend to lobby error:', error);
         throw error;
     }
+}
+
+// Toggle filters visibility
+const toggleFiltersBtn = document.getElementById('hideFilters');
+if (toggleFiltersBtn) {
+    toggleFiltersBtn.addEventListener('click', function() {
+        const filtersForm = document.querySelector('.filters-form');
+        const isVisible = filtersForm.style.display !== 'none';
+        
+        filtersForm.style.display = isVisible ? 'none' : 'grid';
+        this.querySelector('span').textContent = isVisible ? 'Show Filters' : 'Hide Filters';
+    });
 }
