@@ -1,6 +1,35 @@
 // Messages page JavaScript
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('[messages.js] DOMContentLoaded - Initializing messages page');
+    console.log('⚙️ [messages.js] DOMContentLoaded - Initializing messages page');
+    
+    // Set up periodic refresh of friend data
+    const FRIEND_DATA_REFRESH_INTERVAL = 30000; // 30 seconds
+    console.log(`⏱️ Setting up automatic friend data refresh every ${FRIEND_DATA_REFRESH_INTERVAL/1000} seconds`);
+    
+    // Initial data fetch after the page loads completely
+    setTimeout(() => {
+        console.log('🔄 Running initial friend data refresh...');
+        fetchLatestFriendData()
+            .then(data => {
+                console.log('✅ Friend data refreshed successfully');
+                // Refresh UI with new data
+                displayFriendRequests();
+                displayFriends();
+            })
+            .catch(console.error);
+    }, 2000);
+    
+    // Set up periodic refresh
+    setInterval(() => {
+        console.log('🔄 Running periodic friend data refresh...');
+        fetchLatestFriendData()
+            .then(data => {
+                // Refresh UI with new data
+                displayFriendRequests();
+                displayFriends();
+            })
+            .catch(console.error);
+    }, FRIEND_DATA_REFRESH_INTERVAL);
     
     // Check if user is logged in first
     requireLogin();
@@ -75,16 +104,169 @@ function initLayout() {
 
 // Function to initialize socket events for real-time messaging
 function initSocketEvents() {
+    console.log('🔌 [messages.js] Initializing socket event handlers');
+    
     // Make sure SocketHandler is initialized
     if (typeof SocketHandler === 'undefined') {
-        console.error('SocketHandler is not defined');
+        console.error('❌ SocketHandler is not defined');
         return;
     }
     
     // If socket is already initialized, update invites UI
     if (SocketHandler.socket && SocketHandler.isConnected) {
         SocketHandler.updateInvitesUI();
+        
+        // Set up event handlers for friend-related events
+        setupFriendSocketEvents();
+    } else {
+        // If not connected yet, wait for it
+        console.log('⏳ Waiting for socket connection to be established');
+        
+        // Check every second if socket is available
+        const socketCheckInterval = setInterval(() => {
+            if (SocketHandler && SocketHandler.socket && SocketHandler.isConnected) {
+                console.log('✅ Socket connection now available, setting up event handlers');
+                clearInterval(socketCheckInterval);
+                
+                // Set up event handlers for friend-related events
+                setupFriendSocketEvents();
+            }
+        }, 1000);
+        
+        // Clear interval after 10 seconds regardless
+        setTimeout(() => clearInterval(socketCheckInterval), 10000);
     }
+}
+
+// Set up socket event handlers for friend-related events
+function setupFriendSocketEvents() {
+    console.log('👥 [messages.js] Setting up friend-related socket events');
+    
+    if (!SocketHandler || !SocketHandler.socket) {
+        console.error('❌ Cannot set up friend socket events - SocketHandler not available');
+        return;
+    }
+    
+    // Remove existing handlers to prevent duplicates
+    SocketHandler.socket.off('new-friend-request');
+    SocketHandler.socket.off('friend-request-accepted');
+    SocketHandler.socket.off('friend-request-rejected');
+    
+    // Listen for new friend requests
+    SocketHandler.socket.on('new-friend-request', (data) => {
+        console.log('📨 [messages.js] New friend request received:', data);
+        
+        // Show notification
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(
+                'New Friend Request', 
+                `${data.senderName || 'Someone'} sent you a friend request`, 
+                'info'
+            );
+        } else {
+            showNotification(
+                'New Friend Request', 
+                `${data.senderName || 'Someone'} sent you a friend request`, 
+                'info'
+            );
+        }
+        
+        // Create a global set for deduplication if it doesn't exist
+        if (!window.processedFriendRequests) {
+            window.processedFriendRequests = new Set();
+        }
+        
+        // Add the request ID to the processed set
+        if (data.requestId) {
+            window.processedFriendRequests.add(data.requestId);
+            console.log(`✅ Added request ${data.requestId} to global deduplication set`);
+        }
+        
+        // Fetch latest data and update UI
+        fetchLatestFriendData()
+            .then(() => {
+                // Update the friend requests display
+                displayFriendRequests();
+            })
+            .catch(console.error);
+    });
+    
+    // Friend request accepted event
+    SocketHandler.socket.on('friend-request-accepted', (data) => {
+        console.log('👍 [messages.js] Friend request accepted event:', data);
+        
+        // Create a global set for deduplication if it doesn't exist
+        if (!window.processedFriendRequests) {
+            window.processedFriendRequests = new Set();
+        }
+        
+        // Check for duplicate events using requestId
+        const requestId = data.requestId || '';
+        if (requestId && window.processedFriendRequests.has(requestId)) {
+            console.log(`🚫 [messages.js] Duplicate friend request accepted event: ${requestId}`);
+            return;
+        }
+        
+        // Add to processed set
+        if (requestId) {
+            window.processedFriendRequests.add(requestId);
+            console.log(`✅ [messages.js] Added request ${requestId} to processed set`);
+        }
+        
+        // Show notification
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(
+                'Friend Request Accepted', 
+                `${data.acceptorName || 'Someone'} accepted your friend request`, 
+                'success'
+            );
+        } else {
+            showNotification(
+                'Friend Request Accepted', 
+                `${data.acceptorName || 'Someone'} accepted your friend request`, 
+                'success'
+            );
+        }
+        
+        // Fetch latest data and update UI
+        fetchLatestFriendData()
+            .then(() => {
+                // Update both friend requests and friends lists
+                displayFriendRequests();
+                displayFriends();
+            })
+            .catch(console.error);
+    });
+    
+    // Friend request rejected event
+    SocketHandler.socket.on('friend-request-rejected', (data) => {
+        console.log('👎 [messages.js] Friend request rejected event:', data);
+        
+        // Show notification
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(
+                'Friend Request Declined', 
+                `${data.rejectorName || 'Someone'} declined your friend request`, 
+                'info'
+            );
+        } else {
+            showNotification(
+                'Friend Request Declined', 
+                `${data.rejectorName || 'Someone'} declined your friend request`, 
+                'info'
+            );
+        }
+        
+        // Fetch latest data and update UI
+        fetchLatestFriendData()
+            .then(() => {
+                // Update friend requests display
+                displayFriendRequests();
+            })
+            .catch(console.error);
+    });
+    
+    console.log('✅ [messages.js] Friend-related socket events setup complete');
 }
 
 // Function to load all messages and notifications
@@ -138,10 +320,10 @@ function requireLogin() {
 
 // Function to display friend requests
 function displayFriendRequests() {
-    console.log('[messages.js] Displaying friend requests');
+    console.log('🔍 [messages.js] Displaying friend requests');
     const requestsContainer = document.getElementById('friend-requests-container');
     if (!requestsContainer) {
-        console.error('Friend requests container not found');
+        console.error('❌ Friend requests container not found');
         return;
     }
     
@@ -153,142 +335,115 @@ function displayFriendRequests() {
                 <p>Loading friend requests...</p>
             </div>`;
         
-        // Get the API URL from config
-        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
-        const token = localStorage.getItem('token');
-        
-        if (!token) {
-            console.error('[messages.js] No token found, cannot fetch friend requests');
-            requestsContainer.innerHTML = `
-                <div class="empty-state error">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <p>Authentication error</p>
-                </div>`;
-            return;
-        }
-        
-        // Fetch friend requests directly from the database API
-        fetch(`${apiUrl}/friends/requests`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-        .then(response => {
-            console.log('[messages.js] Friend requests API response status:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('[messages.js] Friend requests API response data:', data);
-        
-        // Clear container
-        requestsContainer.innerHTML = '';
-            
-            // Check if we have pending friend requests
-            const friendRequests = data.received?.filter(req => 
-                req && (req.status === 'pending' || req.status === undefined)
-            ) || [];
-            
-            console.log(`[messages.js] Found ${friendRequests.length} friend requests from API`);
-        
-        // If no friend requests, show empty state
-        if (!friendRequests.length) {
-            requestsContainer.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-user-plus"></i>
-                    <p>No friend requests</p>
-                </div>`;
-            return;
-        }
-        
-        // Sort requests by date (newest first)
-        friendRequests.sort((a, b) => {
-            const dateA = new Date(a.createdAt || 0);
-            const dateB = new Date(b.createdAt || 0);
-            return dateB - dateA;
-        });
-        
-        // Add each request to UI
-        friendRequests.forEach(request => {
-            // Debug the request structure
-            console.log('[messages.js] Processing friend request:', request);
-            
-            // Validate the request has minimum required data
-            if (!request || (!request._id && !request.sender)) {
-                console.warn('[messages.js] Skipping invalid friend request:', request);
-                return; // Skip this request
-            }
-            
-            const requestEl = document.createElement('div');
-            requestEl.className = 'invite-item friend-request-item pulse-glow';
-            
-                // Ensure we have a valid request ID
-                const requestId = request._id ? request._id.toString() : request.id;
-            requestEl.dataset.id = requestId;
-            
-            // Get sender info - handle different possible structures
-            let senderId, senderName;
-            
-            if (typeof request.sender === 'object' && request.sender !== null) {
-                    // If sender is populated as an object
-                    senderId = request.sender._id || request.sender;
-                    senderName = request.sender.username || request.senderName || 'Unknown User';
-                } else {
-                // If sender is just the ID string
-                senderId = request.sender;
-                senderName = request.senderName || 'Unknown User';
-            }
-            
-            console.log(`[messages.js] Request ${requestId} from ${senderName} (${senderId})`);
-            
-            const message = request.message || `${senderName} would like to be your friend!`;
-            
-            // Format date
-            const requestDate = request.createdAt ? new Date(request.createdAt) : new Date();
-            const time = requestDate.toLocaleTimeString();
-            const date = requestDate.toLocaleDateString();
-            
-            requestEl.innerHTML = `
-                <div class="invite-header">
-                    <span class="invite-game neon-text-secondary">Friend Request</span>
-                    <span class="invite-time">${time} ${date}</span>
-                </div>
-                <div class="invite-body">
-                    <p><strong>${senderName}</strong> sent you a friend request</p>
-                    <p class="invite-message">${message}</p>
-                </div>
-                <div class="invite-actions">
-                    <button class="btn btn-primary accept-friend-request" 
-                        data-id="${senderId}" 
-                        data-request-id="${requestId}"
-                        data-sender-name="${senderName}">
-                        <i class="fas fa-check"></i> Accept
-                    </button>
-                    <button class="btn btn-danger reject-friend-request" 
-                        data-id="${senderId}" 
-                        data-request-id="${requestId}"
-                        data-sender-name="${senderName}">
-                        <i class="fas fa-times"></i> Decline
-                    </button>
-                </div>
-            `;
-            
-            requestsContainer.appendChild(requestEl);
-        });
-        
-        // Add event listeners for buttons
-        addFriendRequestButtonListeners();
-        })
-        .catch(error => {
-            console.error('Error fetching friend requests:', error);
-            requestsContainer.innerHTML = `
-                <div class="empty-state error">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <p>Error loading friend requests</p>
-                    <p class="error-details">${error.message}</p>
-                </div>`;
-        });
+        // First, fetch fresh data from server to ensure we have the latest
+        fetchLatestFriendData()
+            .then(data => {
+                // Clear container
+                requestsContainer.innerHTML = '';
+                
+                // Get friend requests from the data
+                const friendRequests = data.friendRequests?.received?.filter(req => 
+                    req && (req.status === 'pending' || req.status === undefined)
+                ) || [];
+                
+                console.log(`✅ [messages.js] Found ${friendRequests.length} friend requests from API`);
+                
+                // If no friend requests, show empty state
+                if (!friendRequests.length) {
+                    requestsContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-user-plus"></i>
+                            <p>No friend requests</p>
+                        </div>`;
+                    return;
+                }
+                
+                // Sort requests by date (newest first)
+                friendRequests.sort((a, b) => {
+                    const dateA = new Date(a.createdAt || 0);
+                    const dateB = new Date(b.createdAt || 0);
+                    return dateB - dateA;
+                });
+                
+                // Add each request to UI
+                friendRequests.forEach(request => {
+                    // Validate the request has minimum required data
+                    if (!request || (!request._id && !request.sender)) {
+                        console.warn('⚠️ [messages.js] Skipping invalid friend request:', request);
+                        return; // Skip this request
+                    }
+                    
+                    const requestEl = document.createElement('div');
+                    requestEl.className = 'invite-item friend-request-item pulse-glow';
+                    
+                    // Ensure we have a valid request ID
+                    const requestId = request._id ? request._id.toString() : request.id;
+                    requestEl.dataset.id = requestId;
+                    
+                    // Get sender info - handle different possible structures
+                    let senderId, senderName;
+                    
+                    if (typeof request.sender === 'object' && request.sender !== null) {
+                        // If sender is populated as an object
+                        senderId = request.sender._id || request.sender;
+                        senderName = request.sender.username || request.senderName || 'Unknown User';
+                    } else {
+                        // If sender is just the ID string
+                        senderId = request.sender;
+                        senderName = request.senderName || 'Unknown User';
+                    }
+                    
+                    console.log(`👤 [messages.js] Request ${requestId} from ${senderName} (${senderId})`);
+                    
+                    const message = request.message || `${senderName} would like to be your friend!`;
+                    
+                    // Format date
+                    const requestDate = request.createdAt ? new Date(request.createdAt) : new Date();
+                    const time = requestDate.toLocaleTimeString();
+                    const date = requestDate.toLocaleDateString();
+                    
+                    requestEl.innerHTML = `
+                        <div class="invite-header">
+                            <span class="invite-game neon-text-secondary">Friend Request</span>
+                            <span class="invite-time">${time} ${date}</span>
+                        </div>
+                        <div class="invite-body">
+                            <p><strong>${senderName}</strong> sent you a friend request</p>
+                            <p class="invite-message">${message}</p>
+                        </div>
+                        <div class="invite-actions">
+                            <button class="btn btn-primary accept-friend-request" 
+                                data-id="${senderId}" 
+                                data-request-id="${requestId}"
+                                data-sender-name="${senderName}">
+                                <i class="fas fa-check"></i> Accept
+                            </button>
+                            <button class="btn btn-danger reject-friend-request" 
+                                data-id="${senderId}" 
+                                data-request-id="${requestId}"
+                                data-sender-name="${senderName}">
+                                <i class="fas fa-times"></i> Decline
+                            </button>
+                        </div>
+                    `;
+                    
+                    requestsContainer.appendChild(requestEl);
+                });
+                
+                // Add event listeners for buttons
+                addFriendRequestButtonListeners();
+            })
+            .catch(error => {
+                console.error('❌ Error fetching friend requests:', error);
+                requestsContainer.innerHTML = `
+                    <div class="empty-state error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Error loading friend requests</p>
+                        <p class="error-details">${error.message}</p>
+                    </div>`;
+            });
     } catch (err) {
-        console.error('Error displaying friend requests:', err);
+        console.error('❌ Error displaying friend requests:', err);
         requestsContainer.innerHTML = `
             <div class="empty-state error">
                 <i class="fas fa-exclamation-circle"></i>
@@ -298,12 +453,101 @@ function displayFriendRequests() {
     }
 }
 
+// Function to fetch the latest friend data from server
+async function fetchLatestFriendData() {
+    console.log('🔄 [messages.js] Fetching latest friend data from server...');
+    
+    // Get token for authentication
+    const token = localStorage.getItem('token');
+    if (!token) {
+        console.warn('⚠️ Cannot fetch friends - not authenticated');
+        return { friends: [], friendRequests: { sent: [], received: [] } };
+    }
+    
+    try {
+        // Get the API URL from config
+        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+        
+        // First fetch friends list
+        const friendsResponse = await fetch(`${apiUrl}/friends`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!friendsResponse.ok) {
+            throw new Error(`Failed to fetch friends: ${friendsResponse.status}`);
+        }
+        
+        const friendsResult = await friendsResponse.json();
+        console.log('📥 [messages.js] Fetched friends from API:', friendsResult);
+        
+        let friends = [];
+        let friendRequests = { sent: [], received: [] };
+        
+        if (friendsResult.success) {
+            friends = friendsResult.data || [];
+            
+            // Store to localStorage
+            localStorage.setItem('friends', JSON.stringify(friends));
+            
+            // Now fetch friend requests
+            const requestsResponse = await fetch(`${apiUrl}/friends/requests`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!requestsResponse.ok) {
+                throw new Error(`Failed to fetch friend requests: ${requestsResponse.status}`);
+            }
+            
+            const requestsResult = await requestsResponse.json();
+            console.log('📥 [messages.js] Fetched friend requests from API:', requestsResult);
+            
+            if (requestsResult.success) {
+                friendRequests = requestsResult.data || { sent: [], received: [] };
+                
+                // Get existing user info
+                const userInfoStr = localStorage.getItem('userInfo');
+                if (userInfoStr) {
+                    const userInfo = JSON.parse(userInfoStr);
+                    
+                    // Update friend data in userInfo
+                    userInfo.friends = friends.map(friend => friend._id);
+                    userInfo.friendsData = friends;
+                    userInfo.friendRequests = friendRequests;
+                    
+                    // Save updated userInfo back to localStorage
+                    localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                    console.log('💾 [messages.js] Updated userInfo in localStorage with latest friend data');
+                }
+                
+                // Also update FriendsService if available
+                if (window.FriendsService) {
+                    window.FriendsService.friends = friends;
+                    window.FriendsService.friendRequests = friendRequests;
+                }
+            }
+        }
+        
+        return { friends, friendRequests };
+    } catch (error) {
+        console.error('❌ [messages.js] Error fetching friend data from API:', error);
+        return { friends: [], friendRequests: { sent: [], received: [] } };
+    }
+}
+
 // Function to display friends list
 function displayFriends() {
-    console.log('[messages.js] Displaying friends list');
+    console.log('👥 [messages.js] Displaying friends list');
     const friendsContainer = document.getElementById('friends-container');
     if (!friendsContainer) {
-        console.error('Friends container not found');
+        console.error('❌ Friends container not found');
         return;
     }
     
@@ -315,112 +559,97 @@ function displayFriends() {
                 <p>Loading friends...</p>
             </div>`;
             
-        // Get the API URL from config
-        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
-        const token = localStorage.getItem('token');
-        
-        if (!token) {
-            console.error('[messages.js] No token found, cannot fetch friends data');
-            friendsContainer.innerHTML = `
-                <div class="empty-state error">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <p>Authentication error</p>
-                </div>`;
-            return;
-        }
-        
-        // Fetch friends data directly from the database API
-        fetch(`${apiUrl}/friends`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-        .then(response => {
-            console.log('[messages.js] Friends API response status:', response.status);
-            return response.json();
-        })
+        // Fetch the latest friend data from server
+        fetchLatestFriendData()
         .then(data => {
-            console.log('[messages.js] Friends API response data:', data);
+                // Get friends from the response
+                const friends = data.friends || [];
+                console.log(`✅ [messages.js] Found ${friends.length} friends from API`);
             
             // Clear container
             friendsContainer.innerHTML = '';
             
-            // Get the friends data
-            const friends = data.data || [];
-            
+                // If no friends, show empty state
             if (!friends.length) {
                 friendsContainer.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-user-friends"></i>
                         <p>No friends yet</p>
-                        <button class="btn btn-primary mt-3" onclick="window.location.href='players.html'">
-                            <i class="fas fa-user-plus"></i> Find Friends
+                            <button class="btn btn-primary find-friends-btn">
+                                <i class="fas fa-user-plus"></i> FIND FRIENDS
                         </button>
                     </div>`;
+                    
+                    // Add event listener to find friends button
+                    const findFriendsBtn = friendsContainer.querySelector('.find-friends-btn');
+                    if (findFriendsBtn) {
+                        findFriendsBtn.addEventListener('click', () => {
+                            window.location.href = 'players.html';
+                        });
+                    }
+                    
                 return;
             }
             
-            // Sort friends by username
+                // Sort friends alphabetically
             friends.sort((a, b) => {
-                const nameA = a.username || 'Unknown';
-                const nameB = b.username || 'Unknown';
+                    const nameA = a.username || '';
+                    const nameB = b.username || '';
                 return nameA.localeCompare(nameB);
             });
+                
+                // Create a wrapper for friends
+                const friendsWrapper = document.createElement('div');
+                friendsWrapper.className = 'friends-list';
             
             // Add each friend to UI
             friends.forEach(friend => {
+                    const username = friend.username || 'Unknown User';
+                    const friendId = friend._id || friend;
+                    
+                    // Create the HTML for this friend
                 const friendEl = document.createElement('div');
                 friendEl.className = 'friend-item';
-                friendEl.dataset.id = friend._id;
-                
-                // Determine status class (default to offline)
-                const statusClass = (friend.isOnline || friend.profile?.isOnline) ? 'online' : 'offline';
-                
-                // Create avatar with first letter of username or default to '?'
-                const avatarLetter = (friend.username && friend.username !== 'Unknown User' && friend.username[0]) 
-                    ? friend.username[0].toUpperCase() 
-                    : '?';
-                
-                // Get the best possible name to display
-                const displayName = friend.username && friend.username !== 'Unknown User' 
-                    ? friend.username 
-                    : friend.email && friend.email !== 'Unknown User' 
-                    ? friend.email.split('@')[0] 
-                    : 'User ' + friend._id.substring(0, 6);
-                
-                const avatarUrl = friend.profile?.avatar || null;
+                    friendEl.dataset.id = friendId;
+                    
+                    // Determine if the friend is online (if status info exists)
+                    const isOnline = friend.onlineStatus === 'online';
+                    const statusClass = isOnline ? 'online' : 'offline';
+                    const statusText = isOnline ? 'Online' : 'Offline';
+                    
+                    // Create friend avatar (first letter of username)
+                    const avatarText = (username && username.charAt(0)) || '?';
                 
                 friendEl.innerHTML = `
                     <div class="friend-avatar">
-                        ${avatarUrl ? 
-                            `<img src="${avatarUrl}" alt="${displayName}">` : 
-                            `<div class="avatar-placeholder">${avatarLetter}</div>`
-                        }
+                            <span>${avatarText}</span>
+                            <span class="status-indicator ${statusClass}"></span>
                     </div>
                     <div class="friend-info">
-                        <div class="friend-name">${displayName}</div>
-                        <div class="friend-status ${statusClass}">
-                            <i class="fas fa-circle"></i> ${statusClass === 'online' ? 'Online' : 'Offline'}
-                        </div>
+                            <span class="friend-name">${username}</span>
+                            <span class="friend-status ${statusClass}">${statusText}</span>
                     </div>
                     <div class="friend-actions">
-                        <button class="btn btn-primary message-friend" data-id="${friend._id}" data-name="${displayName}">
+                            <button class="btn btn-primary message-friend-btn" data-id="${friendId}" data-name="${username}">
                             <i class="fas fa-comment"></i> Message
                         </button>
-                        <button class="btn btn-danger remove-friend" data-id="${friend._id}" data-name="${displayName}">
-                            <i class="fas fa-user-minus"></i>
+                            <button class="btn btn-danger remove-friend-btn" data-id="${friendId}" data-name="${username}">
+                                <i class="fas fa-user-times"></i>
                         </button>
                     </div>
                 `;
                 
-                friendsContainer.appendChild(friendEl);
+                    friendsWrapper.appendChild(friendEl);
             });
             
-            // Add event listeners to the action buttons
+                // Add friends wrapper to container
+                friendsContainer.appendChild(friendsWrapper);
+                
+                // Add event listeners for friend actions
             addFriendActionListeners();
         })
         .catch(error => {
-            console.error('Error fetching friends:', error);
+                console.error('❌ Error fetching friends:', error);
             friendsContainer.innerHTML = `
                 <div class="empty-state error">
                     <i class="fas fa-exclamation-circle"></i>
@@ -429,7 +658,7 @@ function displayFriends() {
                 </div>`;
         });
     } catch (err) {
-        console.error('Error displaying friends list:', err);
+        console.error('❌ Error displaying friends:', err);
         friendsContainer.innerHTML = `
             <div class="empty-state error">
                 <i class="fas fa-exclamation-circle"></i>
