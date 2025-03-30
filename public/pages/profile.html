@@ -24,8 +24,9 @@
     <script src="../js/profile.js"></script>
     <script src="../js/friends-service.js"></script>
     <script src="../js/utils.js"></script>
-    <script src="../js/moment.min.js"></script>
-    <script src="../js/axios.min.js"></script>
+    <!-- Fix script loading issues for moment.js and axios -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
     <script src="../js/gamesquad-ui.js"></script>
 </head>
 <body>
@@ -85,9 +86,9 @@
                                 <span id="profile-games-played">Games: 0</span>
                             </div>
                         </div>
-                        <button id="edit-profile-btn" class="btn-primary glow-on-hover">
+                        <a href="edit-profile.html" class="btn-primary glow-on-hover" id="edit-profile-btn">
                             <i class="fas fa-edit"></i> Edit Profile
-                        </button>
+                        </a>
                     </div>
                 </div>
 
@@ -207,122 +208,33 @@
     <!-- Notifications Container -->
     <div class="notifications-container"></div>
 
-    <!-- Edit Profile Modal -->
-    <div id="edit-profile-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Edit Profile</h2>
-                <span class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="edit-profile-form">
-                    <div class="form-group">
-                        <label for="edit-display-name">Display Name</label>
-                        <input type="text" id="edit-display-name" name="displayName" placeholder="Your display name">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="edit-bio">Bio</label>
-                        <textarea id="edit-bio" name="bio" placeholder="Tell us about yourself"></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="edit-avatar">Avatar URL</label>
-                        <input type="text" id="edit-avatar" name="avatar" placeholder="URL to your avatar image">
-                    </div>
-                    
-                    <h3>Preferences</h3>
-                    
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label for="edit-play-style">Play Style</label>
-                            <select id="edit-play-style" name="playStyle">
-                                <option value="Casual">Casual</option>
-                                <option value="Competitive">Competitive</option>
-                                <option value="Mix">Mix</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group half">
-                            <label for="edit-communication">Communication</label>
-                            <select id="edit-communication" name="communication">
-                                <option value="Voice">Voice</option>
-                                <option value="Text">Text</option>
-                                <option value="Both">Both</option>
-                                <option value="None">None</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label for="edit-play-time">Play Time</label>
-                            <select id="edit-play-time" name="playTime">
-                                <option value="Morning">Morning</option>
-                                <option value="Afternoon">Afternoon</option>
-                                <option value="Evening">Evening</option>
-                                <option value="Night">Night</option>
-                                <option value="Weekends">Weekends</option>
-                                <option value="Flexible">Flexible</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group half">
-                            <label for="edit-region">Region</label>
-                            <select id="edit-region" name="region">
-                                <option value="North America">North America</option>
-                                <option value="Europe">Europe</option>
-                                <option value="Asia">Asia</option>
-                                <option value="South America">South America</option>
-                                <option value="Oceania">Oceania</option>
-                                <option value="Africa">Africa</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="edit-languages">Languages (comma separated)</label>
-                        <input type="text" id="edit-languages" name="languages" placeholder="English, Spanish, etc.">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="edit-interests">Interests (comma separated)</label>
-                        <input type="text" id="edit-interests" name="interests" placeholder="RPGs, FPS, Strategy, etc.">
-                    </div>
-                    
-                    <h3>Game Ranks</h3>
-                    <div class="form-group">
-                        <div id="game-ranks-editor">
-                            <!-- Existing game ranks will be added here -->
-                        </div>
-                        <div class="game-rank-add">
-                            <div class="form-row">
-                                <div class="form-group half">
-                                    <input type="text" id="new-game-name" placeholder="Game name">
-                                </div>
-                                <div class="form-group half">
-                                    <input type="text" id="new-game-rank" placeholder="Your rank">
-                                </div>
-                            </div>
-                            <button type="button" id="add-game-rank" class="btn-secondary">
-                                <i class="fas fa-plus"></i> Add Game
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <button type="submit" class="btn-primary">Save Changes</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <!-- Main JS -->
     <script src="../js/main.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Check if we need to force a complete page reload (if coming from edit page with refresh parameter)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('refresh') && urlParams.get('refresh') === 'true') {
+                // Remove the refresh parameter from the URL to prevent infinite reload loops
+                const newUrl = window.location.pathname;
+                console.log('Force refreshing page to ensure fresh data from server...');
+                
+                // Remove the query parameters from the URL
+                history.replaceState({}, document.title, newUrl);
+                
+                // Force a HARD reload of the page - this is more aggressive than location.reload(true)
+                window.location.href = window.location.href.split('?')[0] + 
+                    '?forceRefresh=' + new Date().getTime();
+                return;
+            }
+
+            // If we have a forceRefresh parameter, we've already reloaded once, so just remove it
+            if (urlParams.has('forceRefresh')) {
+                // Remove the force refresh parameter
+                history.replaceState({}, document.title, window.location.pathname);
+            }
+
             // Initialize animation elements
             const fadeElements = document.querySelectorAll('.fade-element');
             fadeElements.forEach(element => {
@@ -350,27 +262,9 @@
         // Load user profile data from database
         async function loadUserProfile() {
             try {
-                // Check if user is logged in - fix the function reference issue
-                // Try multiple possible locations of the function
-                let isUserLoggedIn = false;
-                
-                if (typeof window.Auth !== 'undefined') {
-                    if (typeof window.Auth.isLoggedIn === 'function') {
-                        isUserLoggedIn = window.Auth.isLoggedIn();
-                    } else if (typeof window.isLoggedIn === 'function') {
-                        isUserLoggedIn = window.isLoggedIn();
-                    } else if (typeof window.AUTH !== 'undefined' && typeof window.AUTH.isLoggedIn === 'function') {
-                        isUserLoggedIn = window.AUTH.isLoggedIn();
-                    } else {
-                        // Fallback method - check if token exists
-                        isUserLoggedIn = !!localStorage.getItem('token');
-                    }
-                } else {
-                    // Fallback to checking token directly
-                    isUserLoggedIn = !!localStorage.getItem('token');
-                }
-                
-                if (!isUserLoggedIn) {
+                // Check if user is logged in
+                const token = localStorage.getItem('token');
+                if (!token) {
                     window.location.href = 'login.html';
                     return;
                 }
@@ -378,93 +272,114 @@
                 // Show loading state
                 showLoadingState();
                 
-                let profileData;
-                
-                // Use getAllProfiles function to get all profiles from the database
-                if (typeof window.Profile !== 'undefined' && typeof window.Profile.getAllProfiles === 'function') {
-                    try {
-                        console.log('Getting all profiles from Profile.getAllProfiles API');
-                        const allProfiles = await window.Profile.getAllProfiles();
-                        console.log('All profiles retrieved from API:', allProfiles);
-                        
-                        // Get the current user's ID
-                        const userInfoStr = localStorage.getItem('userInfo');
-                        if (!userInfoStr) {
-                            throw new Error('No user info found. Please log in again.');
-                        }
-                        
-                        const userInfo = JSON.parse(userInfoStr);
-                        const currentUserId = userInfo._id || userInfo.id || userInfo.userId;
-                        
-                        // Find the current user's profile from all profiles
-                        profileData = allProfiles.find(profile => 
-                            profile._id === currentUserId || 
-                            (profile.user && profile.user._id === currentUserId)
-                        );
-                        
-                        if (!profileData && allProfiles.length > 0) {
-                            // If we couldn't find the exact profile, use the first one (for demo purposes)
-                            console.warn('Could not find exact profile match, using first profile');
-                            profileData = allProfiles[0];
-                            showNotification('Demo mode: Showing sample profile data', 'info');
-                        }
-                        
-                        console.log('Current user profile found:', profileData);
-                    } catch (apiError) {
-                        console.error('Error calling Profile.getAllProfiles:', apiError);
-                        throw new Error('Failed to fetch profiles from API: ' + apiError.message);
-                    }
-                } 
-                // Try to get profile using Auth.getUserProfile (fallback)
-                else if (typeof window.Auth !== 'undefined' && typeof window.Auth.getUserProfile === 'function') {
-                    try {
-                        console.log('Getting profile from Auth.getUserProfile API');
-                        profileData = await window.Auth.getUserProfile();
-                        console.log('Profile retrieved from API:', profileData);
-                    } catch (apiError) {
-                        console.error('Error calling Auth.getUserProfile:', apiError);
-                        throw new Error('Failed to fetch profile from API: ' + apiError.message);
-                    }
-                } 
-                // Fallback to Profile.getMyProfile if Auth.getUserProfile is not available
-                else if (typeof window.Profile !== 'undefined' && typeof window.Profile.getMyProfile === 'function') {
-                    try {
-                        console.log('Getting profile from Profile.getMyProfile API');
-                        profileData = await window.Profile.getMyProfile();
-                        console.log('Profile retrieved from API:', profileData);
-                    } catch (apiError) {
-                        console.error('Error calling Profile.getMyProfile:', apiError);
-                        throw new Error('Failed to fetch profile from API: ' + apiError.message);
-                    }
-                } 
-                // If no APIs are available, get minimal data from localStorage
-                else {
-                    console.warn('No profile API functions available');
-                    // Get minimal data from localStorage
-                    const userInfoStr = localStorage.getItem('userInfo');
-                    if (!userInfoStr) {
-                        throw new Error('No user profile found. Please log in again.');
-                    }
-                    
-                    const userInfo = JSON.parse(userInfoStr);
-                    profileData = userInfo.profile || {
-                        user: {
-                            _id: userInfo._id,
-                            username: userInfo.username,
-                            email: userInfo.email
-                        },
-                        displayName: userInfo.username
-                    };
-                    
-                    console.log('Using minimal profile data from localStorage');
-                    showNotification('Limited profile data available. Some features may not work properly.', 'info');
+                // Set API URL
+                const API_URL = window.APP_CONFIG?.API_URL || '';
+                if (!API_URL) {
+                    console.error('API URL not defined in APP_CONFIG');
+                    throw new Error('API configuration missing');
                 }
+
+                // ALWAYS force a direct database fetch, never using cached data
+                console.log('Forcing direct database fetch for profile data');
                 
-                console.log('Profile data loaded:', profileData);
-                
-                // Update UI with profile data
-                updateProfileUI(profileData);
-                
+                // Always fetch directly from the server with strong anti-caching measures
+                try {
+                    // Generate unique cache-busting parameters
+                    const timestamp = new Date().getTime();
+                    const nonce = Math.random().toString(36).substring(2, 15);
+                    
+                    // First try to fetch from the profiles/me endpoint which might have the complete data
+                    console.log(`Fetching profile from database at ${API_URL}/profiles/me with cache busting`);
+                    
+                    let response;
+                    let profileData;
+                    
+                    try {
+                        response = await fetch(`${API_URL}/profiles/me?t=${timestamp}&nonce=${nonce}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`,
+                                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                'Pragma': 'no-cache',
+                                'Expires': '0'
+                            },
+                            cache: 'no-store'
+                        });
+                        
+                        // If successful, use this data
+                        if (response.ok) {
+                            profileData = await response.json();
+                            console.log('Fresh profile data fetched from profiles/me endpoint:', profileData);
+                        } else {
+                            // If failed, fall back to the users/profile endpoint
+                            console.log('Could not fetch from profiles/me, falling back to users/profile endpoint');
+                            response = await fetch(`${API_URL}/users/profile?t=${timestamp}&nonce=${nonce}`, {
+                                method: 'GET',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`,
+                                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                    'Pragma': 'no-cache',
+                                    'Expires': '0'
+                                },
+                                cache: 'no-store'
+                            });
+                            
+                            if (!response.ok) {
+                                const errorData = await response.json().catch(() => ({}));
+                                console.error('Profile database fetch error:', errorData);
+                                throw new Error(errorData.message || `Failed to fetch profile: ${response.status} ${response.statusText}`);
+                            }
+                            
+                            profileData = await response.json();
+                            console.log('Fresh profile data fetched from users/profile endpoint:', profileData);
+                        }
+                    } catch (firstAttemptError) {
+                        console.warn('Error with first profile fetch attempt, trying alternate endpoint:', firstAttemptError);
+                        
+                        // Try the alternate endpoint if the first one fails
+                        response = await fetch(`${API_URL}/users/profile?t=${timestamp}&nonce=${nonce}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`,
+                                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                'Pragma': 'no-cache',
+                                'Expires': '0'
+                            },
+                            cache: 'no-store'
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            console.error('Profile database fetch error:', errorData);
+                            throw new Error(errorData.message || `Failed to fetch profile: ${response.status} ${response.statusText}`);
+                        }
+                        
+                        profileData = await response.json();
+                        console.log('Fresh profile data fetched from alternate endpoint:', profileData);
+                    }
+                    
+                    // Remove any stored profile data from localStorage to prevent stale data
+                    try {
+                        const userInfoStr = localStorage.getItem('userInfo');
+                        if (userInfoStr) {
+                            const userInfo = JSON.parse(userInfoStr);
+                            delete userInfo.profile;
+                            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                        }
+                    } catch (e) {
+                        console.warn('Error clearing profile cache:', e);
+                    }
+                    
+                    // Update UI with fresh database data
+                    updateProfileUI(profileData);
+                    return;
+                } catch (fetchError) {
+                    console.error('Error fetching fresh profile data from database:', fetchError);
+                    throw new Error('Could not fetch profile from database: ' + fetchError.message);
+                }
             } catch (error) {
                 console.error('Error loading profile:', error);
                 showNotification('Failed to load profile: ' + error.message, 'error');
@@ -481,10 +396,48 @@
         
         // Update UI with profile data
         function updateProfileUI(profile) {
-            // Basic user info
-            const displayName = profile.displayName || (profile.user ? profile.user.username : 'User');
-            const username = profile.user ? profile.user.username : '';
+            console.log('Updating UI with profile data (full object):', JSON.stringify(profile, null, 2));
             
+            // Make sure profile is an object
+            if (!profile || typeof profile !== 'object') {
+                console.error('Invalid profile data received:', profile);
+                showNotification('Error: Invalid profile data received from server', 'error');
+                return;
+            }
+
+            // Log specific parts of the profile to understand structure
+            console.log('displayName:', profile.displayName);
+            console.log('bio:', profile.bio);
+            console.log('gameRanks:', profile.gameRanks);
+            console.log('languages:', profile.languages);
+            console.log('interests:', profile.interests);
+            console.log('preferences:', profile.preferences);
+
+            // Basic user info - handle different possible data structures
+            let displayName = '';
+            let username = '';
+            
+            // Try to extract displayName and username from different possible structures
+            if (profile.displayName) {
+                displayName = profile.displayName;
+            } else if (profile.user && profile.user.username) {
+                displayName = profile.user.username;
+            } else if (profile.username) {
+                displayName = profile.username;
+            } else {
+                displayName = 'User';
+            }
+            
+            // Extract username
+            if (profile.user && profile.user.username) {
+                username = profile.user.username;
+            } else if (profile.username) {
+                username = profile.username;
+            } else if (profile.email) {
+                username = profile.email;
+            }
+            
+            // Update display name and username in UI
             document.getElementById('profile-display-name').textContent = displayName;
             document.getElementById('profile-username').textContent = username ? `@${username}` : '';
             
@@ -499,45 +452,94 @@
                 }
             }
             
-            // Bio
+            // Bio - ensure we're getting the actual bio from the database
             const bioEl = document.getElementById('profile-bio');
             if (bioEl) {
                 bioEl.textContent = profile.bio || 'No bio provided';
             }
             
-            // Join date
+            // Join date - try different date fields
             const joinedEl = document.getElementById('profile-joined');
-            if (joinedEl && profile.createdAt) {
-                const date = new Date(profile.createdAt);
-                joinedEl.textContent = `Joined: ${date.toLocaleDateString()}`;
+            if (joinedEl) {
+                let dateString = 'Unknown date';
+                if (profile.createdAt) {
+                    const date = new Date(profile.createdAt);
+                    dateString = `Joined: ${date.toLocaleDateString()}`;
+                } else if (profile.user && profile.user.createdAt) {
+                    const date = new Date(profile.user.createdAt);
+                    dateString = `Joined: ${date.toLocaleDateString()}`;
+                }
+                joinedEl.textContent = dateString;
             }
             
             // Games played count for the profile card
-            if (profile.gamesPlayed !== undefined) {
-                const gamesPlayedEl = document.getElementById('profile-games-played');
-                if (gamesPlayedEl) {
-                    gamesPlayedEl.textContent = `Games: ${profile.gamesPlayed}`;
-                }
+            const gamesPlayedEl = document.getElementById('profile-games-played');
+            if (gamesPlayedEl) {
+                const gamesPlayed = profile.gamesPlayed || 0;
+                gamesPlayedEl.textContent = `Games: ${gamesPlayed}`;
             }
             
-            // Game ranks
+            // Game ranks - handle all possible structures
             const gameRanksContainer = document.getElementById('game-ranks-container');
             if (gameRanksContainer) {
-                // Find game ranks from either location in the data structure
-                const gameRanks = profile.gameRanks || (profile.profile ? profile.profile.gameRanks : []) || [];
+                // Try to get game ranks from the profile
+                let gameRanks = [];
                 
-                if (Array.isArray(gameRanks) && gameRanks.length > 0) {
+                // First try gameRanks as an array
+                if (Array.isArray(profile.gameRanks)) {
+                    gameRanks = profile.gameRanks;
+                    console.log('GameRanks found as an array:', gameRanks);
+                } 
+                // Then try gameRanks as an object (MongoDB sometimes returns this way)
+                else if (profile.gameRanks && typeof profile.gameRanks === 'object') {
+                    // Extract values from the gameRanks object
+                    gameRanks = Object.values(profile.gameRanks);
+                    console.log('GameRanks found as an object, converted to array:', gameRanks);
+                }
+                
+                if (gameRanks.length > 0) {
                     gameRanksContainer.innerHTML = ''; // Clear the container
                     
                     // Create game rank cards
                     gameRanks.forEach(gameRank => {
-                        const gameRankCard = document.createElement('div');
-                        gameRankCard.className = 'game-rank-card';
-                        gameRankCard.innerHTML = `
-                            <h4>${gameRank.game}</h4>
-                            <div class="rank-badge">${gameRank.rank}</div>
-                        `;
-                        gameRanksContainer.appendChild(gameRankCard);
+                        console.log('Processing gameRank item:', gameRank);
+                        
+                        // Try to extract game name and rank from different possible structures
+                        let gameName, rankValue;
+                        
+                        if (typeof gameRank === 'object' && gameRank !== null) {
+                            // Try standard format
+                            if (gameRank.game !== undefined) {
+                                gameName = gameRank.game;
+                                rankValue = gameRank.rank;
+                            } 
+                            // Try alternate format
+                            else if (gameRank.name !== undefined) {
+                                gameName = gameRank.name;
+                                rankValue = gameRank.value || gameRank.level || gameRank.rank;
+                            }
+                            // If the object only has one key, assume it's the game name
+                            else if (Object.keys(gameRank).length === 1) {
+                                const key = Object.keys(gameRank)[0];
+                                gameName = key;
+                                rankValue = gameRank[key];
+                            }
+                        } else if (typeof gameRank === 'string') {
+                            // If it's just a string, use that as the game name
+                            gameName = gameRank;
+                            rankValue = 'Unranked';
+                        }
+                        
+                        // Only add if we have a game name
+                        if (gameName) {
+                            const gameRankCard = document.createElement('div');
+                            gameRankCard.className = 'game-rank-card';
+                            gameRankCard.innerHTML = `
+                                <h4>${gameName}</h4>
+                                <div class="rank-badge">${rankValue || 'Unranked'}</div>
+                            `;
+                            gameRanksContainer.appendChild(gameRankCard);
+                        }
                     });
                 } else {
                     // Show empty state
@@ -550,50 +552,115 @@
                 }
             }
             
-            // Preferences
-            if (profile.preferences) {
-                if (profile.preferences.playStyle) {
-                    document.getElementById('pref-play-style').textContent = profile.preferences.playStyle;
-                }
-                
-                if (profile.preferences.communication) {
-                    document.getElementById('pref-communication').textContent = profile.preferences.communication;
-                }
-                
-                if (profile.preferences.playTime) {
-                    document.getElementById('pref-play-time').textContent = profile.preferences.playTime;
-                }
-                
-                if (profile.preferences.region) {
-                    document.getElementById('pref-region').textContent = profile.preferences.region;
-                }
+            // Preferences - directly use the preferences object from the profile
+            const preferences = profile.preferences || {};
+            
+            // Play Style
+            const prefPlayStyleEl = document.getElementById('pref-play-style');
+            if (prefPlayStyleEl) {
+                prefPlayStyleEl.textContent = preferences.playStyle || 'Casual';
             }
             
-            // Languages
+            // Communication
+            const prefCommunicationEl = document.getElementById('pref-communication');
+            if (prefCommunicationEl) {
+                prefCommunicationEl.textContent = preferences.communication || 'Both';
+            }
+            
+            // Play Time
+            const prefPlayTimeEl = document.getElementById('pref-play-time');
+            if (prefPlayTimeEl) {
+                prefPlayTimeEl.textContent = preferences.playTime || 'Evening';
+            }
+            
+            // Region
+            const prefRegionEl = document.getElementById('pref-region');
+            if (prefRegionEl) {
+                prefRegionEl.textContent = preferences.region || 'North America';
+            }
+            
+            // Languages - directly use the languages array from the profile
             const languagesContainer = document.getElementById('languages-container');
-            if (languagesContainer && profile.languages && profile.languages.length > 0) {
-                languagesContainer.innerHTML = '';
+            if (languagesContainer) {
+                // Try to get languages from the profile
+                let languages = [];
                 
-                profile.languages.forEach(language => {
-                    const tag = document.createElement('span');
-                    tag.className = 'tag';
-                    tag.textContent = language;
-                    languagesContainer.appendChild(tag);
-                });
+                // First try languages as an array
+                if (Array.isArray(profile.languages)) {
+                    languages = profile.languages;
+                    console.log('Languages found as an array:', languages);
+                } 
+                // Then try languages as an object (MongoDB sometimes returns this way)
+                else if (profile.languages && typeof profile.languages === 'object') {
+                    // Extract values from the languages object
+                    languages = Object.values(profile.languages);
+                    console.log('Languages found as an object, converted to array:', languages);
+                }
+                
+                if (languages.length > 0) {
+                    languagesContainer.innerHTML = '';
+                    
+                    languages.forEach(language => {
+                        if (language) {
+                            const tag = document.createElement('span');
+                            tag.className = 'tag';
+                            tag.textContent = language;
+                            languagesContainer.appendChild(tag);
+                        }
+                    });
+                } else {
+                    // Show empty state
+                    languagesContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-comment-slash"></i>
+                            <p>No languages added</p>
+                        </div>
+                    `;
+                }
             }
             
-            // Interests
+            // Interests - directly use the interests array from the profile
             const interestsContainer = document.getElementById('interests-container');
-            if (interestsContainer && profile.interests && profile.interests.length > 0) {
-                interestsContainer.innerHTML = '';
+            if (interestsContainer) {
+                // Try to get interests from the profile
+                let interests = [];
                 
-                profile.interests.forEach(interest => {
-                    const tag = document.createElement('span');
-                    tag.className = 'tag';
-                    tag.textContent = interest;
-                    interestsContainer.appendChild(tag);
-                });
+                // First try interests as an array
+                if (Array.isArray(profile.interests)) {
+                    interests = profile.interests;
+                    console.log('Interests found as an array:', interests);
+                } 
+                // Then try interests as an object (MongoDB sometimes returns this way)
+                else if (profile.interests && typeof profile.interests === 'object') {
+                    // Extract values from the interests object
+                    interests = Object.values(profile.interests);
+                    console.log('Interests found as an object, converted to array:', interests);
+                }
+                
+                if (interests.length > 0) {
+                    interestsContainer.innerHTML = '';
+                    
+                    interests.forEach(interest => {
+                        if (interest) {
+                            const tag = document.createElement('span');
+                            tag.className = 'tag';
+                            tag.textContent = interest;
+                            interestsContainer.appendChild(tag);
+                        }
+                    });
+                } else {
+                    // Show empty state
+                    interestsContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-heart-broken"></i>
+                            <p>No interests added</p>
+                        </div>
+                    `;
+                }
             }
+            
+            // Show a success notification that data was loaded from database
+            showNotification('Profile data loaded fresh from database', 'success');
         }
         
         // Show notification
@@ -614,556 +681,6 @@
                 }, 300);
             }, 5000);
         }
-
-        // Edit Profile Functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const editButton = document.getElementById('edit-profile-btn');
-            const modal = document.getElementById('edit-profile-modal');
-            const closeButton = modal.querySelector('.close-modal');
-            const form = document.getElementById('edit-profile-form');
-            
-            let currentProfile = null;
-            
-            // Open modal when edit button is clicked
-            editButton.addEventListener('click', function() {
-                if (!currentProfile) {
-                    // Try to get profile data from local storage if not already loaded
-                    const userInfoStr = localStorage.getItem('userInfo');
-                    if (userInfoStr) {
-                        const userInfo = JSON.parse(userInfoStr);
-                        currentProfile = userInfo.profile || {};
-                    }
-                }
-                
-                // Populate form with current profile data
-                populateEditForm(currentProfile);
-                
-                // Show modal
-                modal.style.display = 'block';
-                document.body.classList.add('modal-open');
-            });
-            
-            // Close modal when X is clicked
-            closeButton.addEventListener('click', function() {
-                modal.style.display = 'none';
-                document.body.classList.remove('modal-open');
-            });
-            
-            // Close modal when clicking outside of it
-            window.addEventListener('click', function(event) {
-                if (event.target === modal) {
-                    modal.style.display = 'none';
-                    document.body.classList.remove('modal-open');
-                }
-            });
-            
-            // Handle form submission
-            form.addEventListener('submit', async function(event) {
-                event.preventDefault();
-                
-                // Define originalButtonText outside the try block so it's accessible in finally
-                const submitButton = form.querySelector('button[type="submit"]');
-                const originalButtonText = submitButton.textContent;
-                
-                try {
-                    // Show loading state
-                    submitButton.textContent = 'Saving...';
-                    submitButton.disabled = true;
-                    
-                    // Gather form data
-                    const formData = {
-                        displayName: document.getElementById('edit-display-name').value,
-                        bio: document.getElementById('edit-bio').value,
-                        avatar: document.getElementById('edit-avatar').value,
-                        preferences: {
-                            playStyle: document.getElementById('edit-play-style').value,
-                            communication: document.getElementById('edit-communication').value,
-                            playTime: document.getElementById('edit-play-time').value,
-                            region: document.getElementById('edit-region').value
-                        }
-                    };
-                    
-                    // Handle languages (comma separated string to array)
-                    const languagesStr = document.getElementById('edit-languages').value;
-                    if (languagesStr.trim()) {
-                        formData.languages = languagesStr.split(',').map(lang => lang.trim());
-                    }
-                    
-                    // Handle interests (comma separated string to array)
-                    const interestsStr = document.getElementById('edit-interests').value;
-                    if (interestsStr.trim()) {
-                        formData.interests = interestsStr.split(',').map(interest => interest.trim());
-                    }
-                    
-                    // Collect game ranks
-                    formData.gameRanks = [];
-                    document.querySelectorAll('.game-rank-item').forEach(item => {
-                        const gameName = item.querySelector('.game-name').value.trim();
-                        const gameRank = item.querySelector('.game-rank').value.trim();
-                        
-                        if (gameName && gameRank) {
-                            formData.gameRanks.push({
-                                game: gameName,
-                                rank: gameRank
-                            });
-                        }
-                    });
-                    
-                    console.log('Updating profile with data:', formData);
-                    
-                    // Call the API to update profile
-                    let updatedProfile;
-                    
-                    try {
-                        // Try direct database update first using fetch
-                        const token = localStorage.getItem('token');
-                        if (!token) {
-                            throw new Error('Not authenticated');
-                        }
-                        
-                        // Make sure avatar field is included explicitly
-                        const profileDataForDb = {
-                            ...formData,
-                            avatar: formData.avatar || '', // Ensure avatar is included even if empty
-                        };
-                        
-                        console.log('Sending to database:', profileDataForDb);
-                        
-                        const response = await fetch(`${window.APP_CONFIG.API_URL}/users/profile`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`,
-                            },
-                            body: JSON.stringify(profileDataForDb),
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (!response.ok) {
-                            console.error('Server returned error:', data);
-                            throw new Error(data.message || 'Failed to update profile in database');
-                        }
-                        
-                        console.log('Database updated successfully:', data);
-                        updatedProfile = data;
-                        
-                        // Also try to update via the Profile API as a backup
-                        if (typeof window.Profile !== 'undefined' && typeof window.Profile.createOrUpdateProfile === 'function') {
-                            try {
-                                await window.Profile.createOrUpdateProfile(profileDataForDb);
-                                console.log('Also updated via Profile API');
-                            } catch (apiError) {
-                                console.warn('Profile API update failed, but direct database update succeeded:', apiError);
-                            }
-                        }
-                    } catch (dbError) {
-                        console.error('Direct database update failed:', dbError);
-                        
-                        // Fall back to Profile API if direct update failed
-                        if (typeof window.Profile !== 'undefined' && typeof window.Profile.createOrUpdateProfile === 'function') {
-                            try {
-                                updatedProfile = await window.Profile.createOrUpdateProfile(formData);
-                                console.log('Profile updated via API fallback:', updatedProfile);
-                            } catch (apiError) {
-                                console.error('API fallback also failed:', apiError);
-                                throw new Error('Failed to update profile: ' + dbError.message);
-                            }
-                        } else {
-                            throw dbError; // Re-throw if no fallback available
-                        }
-                    }
-                    
-                    // Merge the updated profile with form data to ensure we have complete data
-                    // This handles cases where the API might not return all fields we sent
-                    const mergedProfile = {
-                        ...formData,
-                        ...updatedProfile,
-                        // Ensure preferences are preserved if not returned by API
-                        preferences: {
-                            ...formData.preferences,
-                            ...(updatedProfile.preferences || {})
-                        }
-                    };
-                    
-                    // Update current profile
-                    currentProfile = mergedProfile;
-                    
-                    // Update localStorage with new profile data
-                    try {
-                        const userInfoStr = localStorage.getItem('userInfo');
-                        if (userInfoStr) {
-                            const userInfo = JSON.parse(userInfoStr);
-                            userInfo.profile = mergedProfile;
-                            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                        }
-                    } catch (storageError) {
-                        console.warn('Could not update localStorage:', storageError);
-                    }
-                    
-                    // Force a complete page reload to ensure data is refreshed from server
-                    showNotification('Profile updated successfully! Reloading page...', 'success');
-                    
-                    // Update UI immediately before reload
-                    updateProfileUI(mergedProfile);
-                    
-                    // Close modal
-                    modal.style.display = 'none';
-                    document.body.classList.remove('modal-open');
-                    
-                    // Reload the page after a short delay to allow notification to be seen
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                    
-                } catch (error) {
-                    console.error('Error updating profile:', error);
-                    showNotification('Failed to update profile: ' + error.message, 'error');
-                } finally {
-                    // Restore button state - now originalButtonText is always defined
-                    submitButton.textContent = originalButtonText;
-                    submitButton.disabled = false;
-                }
-            });
-            
-            // Function to populate the edit form with current profile data
-            function populateEditForm(profile) {
-                if (!profile) return;
-                
-                console.log('Populating form with profile data:', profile);
-                
-                // Basic info
-                document.getElementById('edit-display-name').value = profile.displayName || '';
-                document.getElementById('edit-bio').value = profile.bio || '';
-                
-                // Handle avatar - check if it's stored directly or in nested objects
-                let avatarUrl = '';
-                if (profile.avatar) {
-                    avatarUrl = profile.avatar;
-                } else if (profile.profile && profile.profile.avatar) {
-                    avatarUrl = profile.profile.avatar;
-                }
-                document.getElementById('edit-avatar').value = avatarUrl;
-                
-                // Handle preferences from different possible locations
-                const preferences = profile.preferences || 
-                                   (profile.profile ? profile.profile.preferences : {}) || 
-                                   {};
-                                   
-                // Set preference values with fallbacks
-                document.getElementById('edit-play-style').value = 
-                    preferences.playStyle || 'Casual';
-                    
-                document.getElementById('edit-communication').value = 
-                    preferences.communication || 'Both';
-                    
-                document.getElementById('edit-play-time').value = 
-                    preferences.playTime || 'Evening';
-                    
-                document.getElementById('edit-region').value = 
-                    preferences.region || 'North America';
-                
-                // Find languages in profile or profile.profile
-                const languages = profile.languages || 
-                                 (profile.profile ? profile.profile.languages : []) || 
-                                 [];
-                                 
-                if (Array.isArray(languages) && languages.length > 0) {
-                    document.getElementById('edit-languages').value = languages.join(', ');
-                }
-                
-                // Find interests in profile or profile.profile
-                const interests = profile.interests || 
-                                 (profile.profile ? profile.profile.interests : []) || 
-                                 [];
-                                 
-                if (Array.isArray(interests) && interests.length > 0) {
-                    document.getElementById('edit-interests').value = interests.join(', ');
-                }
-                
-                // Populate game ranks
-                const gameRanksEditor = document.getElementById('game-ranks-editor');
-                gameRanksEditor.innerHTML = ''; // Clear existing content
-                
-                // Find game ranks in profile or profile.profile
-                const gameRanks = profile.gameRanks || 
-                                 (profile.profile ? profile.profile.gameRanks : []) || 
-                                 [];
-                                 
-                if (Array.isArray(gameRanks) && gameRanks.length > 0) {
-                    gameRanks.forEach((gameRank, index) => {
-                        const gameRankHtml = `
-                            <div class="game-rank-item" data-index="${index}">
-                                <div class="form-row">
-                                    <div class="form-group half">
-                                        <input type="text" class="game-name" value="${gameRank.game}" placeholder="Game name">
-                                    </div>
-                                    <div class="form-group half">
-                                        <input type="text" class="game-rank" value="${gameRank.rank}" placeholder="Your rank">
-                                    </div>
-                                    <button type="button" class="btn-danger remove-game-rank">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                        gameRanksEditor.insertAdjacentHTML('beforeend', gameRankHtml);
-                    });
-                    
-                    // Add event listeners to remove buttons
-                    document.querySelectorAll('.remove-game-rank').forEach(button => {
-                        button.addEventListener('click', function() {
-                            this.closest('.game-rank-item').remove();
-                        });
-                    });
-                }
-            }
-
-            // Add Game Rank button functionality
-            const addGameRankButton = document.getElementById('add-game-rank');
-            addGameRankButton.addEventListener('click', function() {
-                const gameName = document.getElementById('new-game-name').value.trim();
-                const gameRank = document.getElementById('new-game-rank').value.trim();
-                
-                if (!gameName || !gameRank) {
-                    showNotification('Please enter both game name and rank', 'error');
-                    return;
-                }
-                
-                const gameRanksEditor = document.getElementById('game-ranks-editor');
-                const index = document.querySelectorAll('.game-rank-item').length;
-                
-                const gameRankHtml = `
-                    <div class="game-rank-item" data-index="${index}">
-                        <div class="form-row">
-                            <div class="form-group half">
-                                <input type="text" class="game-name" value="${gameName}" placeholder="Game name">
-                            </div>
-                            <div class="form-group half">
-                                <input type="text" class="game-rank" value="${gameRank}" placeholder="Your rank">
-                            </div>
-                            <button type="button" class="btn-danger remove-game-rank">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                gameRanksEditor.insertAdjacentHTML('beforeend', gameRankHtml);
-                
-                // Add event listener to the new remove button
-                const removeButton = gameRanksEditor.querySelector(`.game-rank-item[data-index="${index}"] .remove-game-rank`);
-                removeButton.addEventListener('click', function() {
-                    this.closest('.game-rank-item').remove();
-                });
-                
-                // Clear input fields
-                document.getElementById('new-game-name').value = '';
-                document.getElementById('new-game-rank').value = '';
-            });
-        });
     </script>
-
-    <style>
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            overflow-y: auto;
-        }
-        
-        .modal-content {
-            background-color: var(--surface);
-            margin: 50px auto;
-            max-width: 700px;
-            width: 90%;
-            border-radius: 8px;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
-            animation: modal-appear 0.3s ease;
-        }
-        
-        @keyframes modal-appear {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .modal-header {
-            padding: 15px 20px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .modal-header h2 {
-            margin: 0;
-            color: var(--text-primary);
-            font-size: 1.5rem;
-        }
-        
-        .close-modal {
-            font-size: 28px;
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: color 0.3s;
-        }
-        
-        .close-modal:hover {
-            color: var(--accent);
-        }
-        
-        .modal-body {
-            padding: 20px;
-        }
-        
-        /* Form Styles */
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-row {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
-            align-items: center;
-        }
-        
-        .form-group.half {
-            flex: 1;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: var(--text-primary);
-            font-weight: 500;
-        }
-        
-        input, select, textarea {
-            width: 100%;
-            padding: 10px 12px;
-            font-size: 16px;
-            background-color: var(--surface-variant);
-            color: var(--text-primary);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            transition: border-color 0.3s, box-shadow 0.3s;
-        }
-        
-        input:focus, select:focus, textarea:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
-            outline: none;
-        }
-        
-        textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-        
-        /* Button styles - enhanced for profile page */
-        .btn-primary, .btn-secondary, .btn-danger {
-            padding: 10px 20px;
-            color: var(--text-on-accent);
-            border: none;
-            border-radius: 4px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.1s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
-        .btn-primary {
-            background-color: var(--accent);
-        }
-        
-        .btn-secondary {
-            background-color: #5c6bc0;
-        }
-        
-        .btn-danger {
-            background-color: #e53935;
-            padding: 5px 10px;
-            font-size: 14px;
-        }
-        
-        .btn-primary:hover, .btn-secondary:hover {
-            transform: translateY(-2px);
-        }
-        
-        .btn-primary:hover {
-            background-color: var(--accent-hover);
-        }
-        
-        .btn-secondary:hover {
-            background-color: #3949ab;
-        }
-        
-        .btn-danger:hover {
-            background-color: #c62828;
-        }
-        
-        .btn-primary:active, .btn-secondary:active, .btn-danger:active {
-            transform: translateY(0);
-        }
-        
-        /* Profile edit button */
-        #edit-profile-btn {
-            margin-top: 15px;
-        }
-        
-        /* Glow effect for button */
-        .glow-on-hover {
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .glow-on-hover:after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(0,255,255,0.2) 0%, rgba(0,0,0,0) 70%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-        
-        .glow-on-hover:hover:after {
-            opacity: 1;
-        }
-        
-        /* Game Ranks Editor Styles */
-        .game-rank-item {
-            background-color: rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid var(--border);
-        }
-        
-        .game-rank-item .form-row {
-            margin-bottom: 0;
-        }
-        
-        .game-rank-add {
-            margin-top: 15px;
-        }
-        
-        body.modal-open {
-            overflow: hidden;
-        }
-    </style>
 </body>
 </html> 

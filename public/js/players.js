@@ -792,44 +792,6 @@ function handleAddFriendClick(event) {
     });
 }
 
-// Generate mock player data for testing purposes
-function generateMockPlayers() {
-    console.log('Generating mock player data');
-    
-    const games = ['Valorant', 'CS:GO', 'League of Legends', 'Apex Legends', 'Fortnite'];
-    const regions = ['EU', 'NA', 'Asia', 'Oceania'];
-    const ranks = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
-    
-    const mockPlayers = [];
-    
-    // Generate 8 mock players
-    for (let i = 1; i <= 8; i++) {
-        const username = `player${i}`;
-        const randomGame = games[Math.floor(Math.random() * games.length)];
-        const randomRegion = regions[Math.floor(Math.random() * regions.length)];
-        const randomRank = ranks[Math.floor(Math.random() * ranks.length)];
-        const level = Math.floor(Math.random() * 100) + 1;
-        const gamesPlayed = Math.floor(Math.random() * 500) + 10;
-        
-        mockPlayers.push({
-            _id: `mock_${i}`,
-            username: username,
-            profile: {
-                displayName: `${randomGame} Player ${i}`,
-                level: level,
-                gamesPlayed: gamesPlayed,
-                bio: `I'm a ${randomRank} ${randomGame} player from ${randomRegion}. Looking for teammates!`,
-                favoriteGame: randomGame,
-                region: randomRegion,
-                rank: randomRank
-            },
-            createdAt: new Date(Date.now() - Math.floor(Math.random() * 10000000000)).toISOString()
-        });
-    }
-    
-    return mockPlayers;
-}
-
 /**
  * Shows a loading indicator while players are being loaded
  */
@@ -952,8 +914,8 @@ async function loadPlayers() {
                     console.error('Invalid players data received:', players);
                     showErrorMessage('Failed to load players: Invalid data format');
                     
-                    // Fall back to mock data
-                    displayPlayers(generateMockPlayers());
+                    // Show empty state instead of mock data
+                    displayPlayers([]);
                     return;
                 }
                 
@@ -965,8 +927,8 @@ async function loadPlayers() {
                         noPlayersMessage.classList.remove('d-none');
                     }
                     
-                    // Fall back to mock data
-                    displayPlayers(generateMockPlayers());
+                    // Show empty state
+                    displayPlayers([]);
                     return;
                 }
                 
@@ -980,30 +942,26 @@ async function loadPlayers() {
                 
                 console.log('Filtered players (excluding current user):', filteredPlayers);
                 
-                if (filteredPlayers.length === 0) {
-                    // If no players after filtering, use mock data
-                    displayPlayers(generateMockPlayers());
-                } else {
+                // Display actual players
                 displayPlayers(filteredPlayers);
-                }
                 
                 hideLoadingIndicator();
             })
             .catch(error => {
                 console.error('Error loading players:', error);
-                showErrorMessage('Failed to load players. Using demo data instead.');
+                showErrorMessage('Failed to load players. Please try again later.');
                 hideLoadingIndicator();
                 
-                // Use mock data for demo purposes
-                displayPlayers(generateMockPlayers());
+                // Show empty state
+                displayPlayers([]);
             });
     } catch (error) {
         console.error('Error in loadPlayers function:', error);
-        showErrorMessage('An error occurred while loading players. Using demo data instead.');
+        showErrorMessage('An error occurred while loading players. Please try again later.');
         hideLoadingIndicator();
         
-        // Use mock data for demo purposes
-        displayPlayers(generateMockPlayers());
+        // Show empty state
+        displayPlayers([]);
     }
 }
 

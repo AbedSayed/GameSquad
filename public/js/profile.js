@@ -441,7 +441,8 @@ async function getFriends() {
     const token = localStorage.getItem('token');
 
     if (!token) {
-      throw new Error('Not authenticated');
+      console.warn('Not authenticated, returning empty friends list');
+      return [];
     }
 
     const response = await fetch(`${window.APP_CONFIG.API_URL}/friends`, {
@@ -455,13 +456,20 @@ async function getFriends() {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to get friends list');
+      console.warn('Server returned error when fetching friends:', data.message);
+      return [];
+    }
+
+    // Ensure the returned data is an array
+    if (!Array.isArray(data)) {
+      console.warn('Server returned non-array friends data:', data);
+      return [];
     }
 
     return data;
   } catch (error) {
     console.error('Get friends error:', error);
-    throw error;
+    return []; // Return empty array instead of throwing
   }
 }
 
@@ -670,8 +678,8 @@ async function inviteFriendToLobby(friendId, lobbyId) {
 }
 
 /**
- * Update the UI with friends data
- * @param {Array} friends - Array of friend objects
+ * Update friends UI
+ * @param {Array} friends - Array of friends
  */
 function updateFriendsUI(friends) {
   const friendsContainer = document.getElementById('friends-list');
@@ -684,7 +692,8 @@ function updateFriendsUI(friends) {
   // Clear loading state
   friendsContainer.innerHTML = '';
   
-  if (!friends || friends.length === 0) {
+  // Check if friends exists, is an array, and has elements
+  if (!friends || !Array.isArray(friends) || friends.length === 0) {
     friendsContainer.innerHTML = '<p class="no-friends">You have not added any friends yet.</p>';
     return;
   }
@@ -905,23 +914,36 @@ function showNotification(message, type = 'info') {
 
 // Initialize the profile page when DOM content is loaded
 document.addEventListener('DOMContentLoaded', async () => {
+  let profile = null;
+  
   try {
     // Load profile data
-    const profile = await getMyProfile();
+    profile = await getMyProfile();
     
     // Update UI with profile data
     updateProfileUI(profile);
-    
-    // Load friends list
+  } catch (error) {
+    console.error('Error loading profile data:', error);
+    showNotification(`Failed to load profile data: ${error.message}`, 'error');
+  }
+  
+  try {
+    // Load friends list - this is handled separately so issues with friends
+    // don't prevent the rest of the profile from loading
     const friends = await getFriends();
     updateFriendsUI(friends);
-    
+  } catch (error) {
+    console.error('Error loading friends list:', error);
+    showNotification('Failed to load friends list', 'error');
+    // Update with empty friends list if there's an error
+    updateFriendsUI([]);
+  }
+  
+  try {
     // Set up tab switching
     setupTabs();
-    
   } catch (error) {
-    console.error('Error loading profile:', error);
-    showNotification(`Failed to load profile: ${error.message}`, 'error');
+    console.error('Error setting up tabs:', error);
   }
 });
 
@@ -930,34 +952,41 @@ document.addEventListener('DOMContentLoaded', async () => {
  * @param {Object} profile - Profile data
  */
 function updateProfileUI(profile) {
-  // This function will be implemented based on the actual UI elements
-  // For now, it's a placeholder
+  if (!profile) {
+    console.error('No profile data provided to updateProfileUI');
+    return;
+  }
+  
   console.log('Profile data loaded:', profile);
   
-  // Example of updating UI elements
+  // Make sure user data exists
+  const user = profile.user || {};
+  
+  // Update display name
   const displayNameElement = document.getElementById('display-name');
   if (displayNameElement) {
-    displayNameElement.textContent = profile.user.displayName || profile.user.username;
+    displayNameElement.textContent = user.displayName || user.username || 'Unknown User';
   }
   
+  // Update username
   const usernameElement = document.getElementById('username');
   if (usernameElement) {
-    usernameElement.textContent = '@' + profile.user.username;
+    usernameElement.textContent = user.username ? '@' + user.username : '';
   }
   
-  // Update game ranks
+  // Update game ranks - safely handle if it's undefined
   updateGameRanksUI(profile.gameRanks);
   
-  // Update languages
+  // Update languages - safely handle if it's undefined
   updateLanguagesUI(profile.languages);
   
-  // Update interests
+  // Update interests - safely handle if it's undefined
   updateInterestsUI(profile.interests);
   
-  // Update preferences
+  // Update preferences - safely handle if it's undefined
   updatePreferencesUI(profile.preferences);
   
-  // Update recent activity
+  // Update recent activity - safely handle if it's undefined
   updateActivityUI(profile.recentActivity);
 }
 
@@ -966,7 +995,10 @@ function updateProfileUI(profile) {
  * @param {Array} gameRanks - Array of game ranks
  */
 function updateGameRanksUI(gameRanks) {
-  // Placeholder function
+  if (!gameRanks || !Array.isArray(gameRanks)) {
+    console.log('No valid game ranks to display');
+    return;
+  }
   console.log('Updating game ranks UI:', gameRanks);
 }
 
@@ -975,7 +1007,10 @@ function updateGameRanksUI(gameRanks) {
  * @param {Array} languages - Array of languages
  */
 function updateLanguagesUI(languages) {
-  // Placeholder function
+  if (!languages || !Array.isArray(languages)) {
+    console.log('No valid languages to display');
+    return;
+  }
   console.log('Updating languages UI:', languages);
 }
 
@@ -984,7 +1019,10 @@ function updateLanguagesUI(languages) {
  * @param {Array} interests - Array of interests
  */
 function updateInterestsUI(interests) {
-  // Placeholder function
+  if (!interests || !Array.isArray(interests)) {
+    console.log('No valid interests to display');
+    return;
+  }
   console.log('Updating interests UI:', interests);
 }
 
@@ -993,7 +1031,10 @@ function updateInterestsUI(interests) {
  * @param {Object} preferences - Preferences object
  */
 function updatePreferencesUI(preferences) {
-  // Placeholder function
+  if (!preferences || typeof preferences !== 'object') {
+    console.log('No valid preferences to display');
+    return;
+  }
   console.log('Updating preferences UI:', preferences);
 }
 
@@ -1002,7 +1043,10 @@ function updatePreferencesUI(preferences) {
  * @param {Array} activities - Array of activities
  */
 function updateActivityUI(activities) {
-  // Placeholder function
+  if (!activities || !Array.isArray(activities)) {
+    console.log('No valid activities to display');
+    return;
+  }
   console.log('Updating activity UI:', activities);
 }
 
