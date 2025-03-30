@@ -44,6 +44,52 @@ const profileSchema = new mongoose.Schema({
     enum: ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'],
     default: 'Bronze'
   },
+  // Game-specific ranks
+  gameRanks: [{
+    game: String,
+    rank: String
+  }],
+  // Languages the user speaks
+  languages: [String],
+  // Gaming interests
+  interests: [String],
+  // User preferences
+  preferences: {
+    playStyle: {
+      type: String,
+      enum: ['Casual', 'Competitive', 'Semi-Competitive'],
+      default: 'Casual'
+    },
+    communication: {
+      type: String,
+      enum: ['Text Chat', 'Voice Chat', 'Both', 'None'],
+      default: 'Both'
+    },
+    playTime: {
+      type: String,
+      enum: ['Morning', 'Afternoon', 'Evening', 'Night', 'Weekends', 'Flexible'],
+      default: 'Evening'
+    },
+    region: {
+      type: String,
+      enum: ['North America', 'Europe', 'Asia', 'South America', 'Oceania', 'Africa', 'Middle East'],
+      default: 'North America'
+    },
+    notifications: {
+      type: Boolean,
+      default: true
+    },
+    privacyLevel: {
+      type: String,
+      enum: ['public', 'friends', 'private'],
+      default: 'public'
+    },
+    theme: {
+      type: String,
+      enum: ['light', 'dark', 'system'],
+      default: 'dark'
+    }
+  },
   achievements: [{
     name: String,
     description: String,

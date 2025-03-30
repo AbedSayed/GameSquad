@@ -29,7 +29,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation();
+            console.log('Logout button clicked from main.js');
             logout();
+            return false;
         });
     }
     
@@ -178,19 +181,23 @@ async function validateTokenWithServer() {
  * Logout user
  */
 function logout() {
-    // Clear user data from localStorage
+    console.log('Global logout function called');
+    
+    // Clear user data from localStorage immediately
     localStorage.removeItem('userInfo');
     localStorage.removeItem('token');
+    localStorage.removeItem('authToken');
     
-    // Update UI
-    checkAuthState();
-    
-    // Get the correct path to index.html based on current location
+    // Force redirect to home page with the correct path
+    console.log('Redirecting to index page from main.js');
     const path = window.location.pathname.includes('/pages/') ? '../index.html' : 'index.html';
     
-    // Redirect to home page
-    window.location.href = path;
+    // Use replace instead of href for cleaner redirect without history
+    window.location.replace(path);
 }
+
+// Expose logout function globally
+window.logout = logout;
 
 /**
  * Update username display in the header

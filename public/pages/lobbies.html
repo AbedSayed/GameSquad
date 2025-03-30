@@ -36,7 +36,7 @@
                 <div class="profile-dropdown">
                     <a href="profile.html"><i class="fas fa-user"></i> My Profile</a>
                     <a href="messages.html"><i class="fas fa-envelope"></i> Messages</a>
-                    <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="#" class="logout-btn" id="logout-btn" onclick="localStorage.removeItem('userInfo'); localStorage.removeItem('token'); localStorage.removeItem('authToken'); window.location.replace('../index.html'); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
             <div class="hamburger">
@@ -319,5 +319,40 @@
     </script>
     <!-- Make sure lobbies.js is loaded after all other scripts -->
     <script src="../js/lobbies.js"></script>
+    
+    <!-- Add logout functionality -->
+    <script>
+        // Ensure this runs after the DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up the logout button with a more direct approach
+            const logoutBtn = document.querySelector('.logout-btn');
+            if (logoutBtn) {
+                console.log('Logout button found in lobbies page');
+                
+                // Replace any existing click listeners with a new one
+                logoutBtn.onclick = function(event) {
+                    // Prevent the default link behavior first
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    console.log('Logout button clicked');
+                    
+                    // Clear all auth data immediately
+                    localStorage.removeItem('userInfo');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('authToken');
+                    
+                    // Explicitly redirect to the correct location
+                    console.log('Redirecting to index page');
+                    window.location.href = '../index.html';
+                    
+                    // Return false to prevent default behavior as a fallback
+                    return false;
+                };
+            } else {
+                console.warn('Logout button not found in lobbies page');
+            }
+        });
+    </script>
 </body>
 </html>

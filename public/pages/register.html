@@ -82,6 +82,145 @@
             animation: fadeOut 0.3s ease-out forwards;
         }
         
+        /* Gaming Profile Section Styles */
+        .form-section {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+        
+        .form-section h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 1.2rem;
+            color: var(--accent-color, #7289da);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            resize: vertical;
+            min-height: 80px;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            border-color: var(--accent-color, #7289da);
+            outline: none;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 16px;
+        }
+        
+        select:focus {
+            border-color: var(--accent-color, #7289da);
+            outline: none;
+        }
+        
+        select[multiple] {
+            height: auto;
+            min-height: 120px;
+            background-image: none;
+            padding: 8px;
+        }
+        
+        select[multiple] option {
+            padding: 8px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+        
+        select[multiple] option:checked {
+            background-color: var(--accent-color, #7289da);
+            color: white;
+        }
+        
+        small {
+            display: block;
+            margin-top: 5px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        /* Game Ranks Dynamic Section Styles */
+        .game-rank-entry {
+            position: relative;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            background-color: rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .game-rank-entry:hover {
+            background-color: rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .remove-game-btn {
+            background-color: rgba(255, 59, 48, 0.7);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .remove-game-btn:hover {
+            background-color: rgba(255, 59, 48, 0.9);
+            transform: scale(1.05);
+        }
+        
+        #addGameBtn {
+            background-color: rgba(114, 137, 218, 0.7);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+        
+        #addGameBtn:hover {
+            background-color: rgba(114, 137, 218, 0.9);
+            transform: scale(1.05);
+        }
+        
+        .btn-small {
+            font-size: 0.85rem;
+            padding: 5px 10px;
+        }
+        
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
@@ -161,6 +300,7 @@
                             </button>
                         </div>
                     </div>
+                    
                     <div class="form-check">
                         <input type="checkbox" id="termsAgree" name="termsAgree" required>
                         <label for="termsAgree">I agree to the <a href="terms.html" target="_blank">Terms of Service</a> and <a href="privacy.html" target="_blank">Privacy Policy</a></label>
@@ -170,7 +310,7 @@
                         <label for="newsletter">Send me gaming news and updates (optional)</label>
                     </div>
                     <button type="submit" class="btn btn-primary btn-hover-fx">
-                        <i class="fas fa-user-plus"></i> <span>Create Account</span>
+                        <i class="fas fa-arrow-right"></i> <span>Next</span>
                     </button>
                     <div id="registerError" class="form-error"></div>
                 </form>
@@ -319,50 +459,72 @@
                         return;
                     }
                     
+                    // Email validation
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(email)) {
+                        if (registerError) {
+                            registerError.textContent = 'Please enter a valid email address';
+                            registerError.style.display = 'block';
+                        }
+                        showNotification('Please enter a valid email address', 'error');
+                        return;
+                    }
+                    
+                    // Password strength validation
+                    if (password.length < 6) {
+                        if (registerError) {
+                            registerError.textContent = 'Password must be at least 6 characters long';
+                            registerError.style.display = 'block';
+                        }
+                        showNotification('Password must be at least 6 characters long', 'error');
+                        return;
+                    }
+                    
                     // Show loading state
                     const registerBtn = document.querySelector('button[type="submit"]');
                     if (registerBtn) {
                         registerBtn.disabled = true;
-                        registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating account...';
+                        registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
                     }
                     
                     try {
                         // Show loading notification
-                        showNotification('Creating your account...', 'info');
+                        showNotification('Verifying information...', 'info');
                         
-                        // Use Auth.registerUser method for registration
-                        const userData = {
+                        // Store basic user data in localStorage for the next step
+                        const basicUserData = {
                             username,
                             email,
                             password,
                             newsletter
                         };
                         
-                        const user = await window.Auth.registerUser(userData);
+                        // Store data in localStorage for the next step
+                        localStorage.setItem('registration_data', JSON.stringify(basicUserData));
                         
                         // Show success notification
-                        showNotification('Account created successfully! Redirecting...', 'success');
+                        showNotification('Basic information verified! Proceeding to profile setup...', 'success');
                         
-                        // Redirect to home page
+                        // Redirect to register-profile.html
                         setTimeout(() => {
-                            window.location.href = '../home.html';
-                        }, 1500);
+                            window.location.href = 'register-profile.html';
+                        }, 1000);
                     } catch (error) {
                         console.error('Registration error:', error);
                         
                         // Show error message
                         if (registerError) {
-                            registerError.textContent = error.message || 'Failed to create account. Please try again.';
+                            registerError.textContent = error.message || 'An error occurred. Please try again.';
                             registerError.style.display = 'block';
                         }
                         
                         // Show error notification
-                        showNotification(error.message || 'Registration failed. Please try again.', 'error');
+                        showNotification(error.message || 'An error occurred. Please try again.', 'error');
                         
                         // Reset button state
                         if (registerBtn) {
                             registerBtn.disabled = false;
-                            registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> <span>Create Account</span>';
+                            registerBtn.innerHTML = '<i class="fas fa-arrow-right"></i> <span>Next</span>';
                         }
                     }
                 });

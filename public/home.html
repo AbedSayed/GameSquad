@@ -35,7 +35,7 @@
                 <div class="profile-dropdown">
                     <a href="pages/profile.html"><i class="fas fa-user"></i> My Profile</a>
                     <a href="pages/messages.html"><i class="fas fa-envelope"></i> Messages</a>
-                    <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a href="#" class="logout-btn" id="logout-btn" onclick="event.preventDefault(); localStorage.removeItem('userInfo'); localStorage.removeItem('token'); localStorage.removeItem('authToken'); window.location.replace('index.html'); return false;"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
             <div class="hamburger">
@@ -228,29 +228,6 @@
             
             // Update auth UI (this will show/hide elements based on auth state)
             updateAuthUI();
-            
-            // Set up logout handler
-            const logoutBtn = document.getElementById('logout-btn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // Clear auth data
-                    localStorage.removeItem('userInfo');
-                    localStorage.removeItem('token');
-                    
-                    // Update UI
-                    updateAuthUI();
-                    
-                    // Show notification
-                    showNotification('You have been logged out successfully', 'success');
-                    
-                    // Redirect to landing page
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 1000);
-                });
-            }
         });
     </script>
 </body>

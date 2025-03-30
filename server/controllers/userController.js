@@ -16,7 +16,7 @@ const generateToken = (id) => {
 // @route   POST /api/users/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, profile: profileData } = req.body;
 
   if (!username || !email || !password) {
     res.status(400);
@@ -49,27 +49,33 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 
   if (user) {
-    // Create an empty profile for the user
-    const profile = await Profile.create({
+    // Create profile for the user with data from request if available
+    const profileDefaults = {
       user: user._id,
       displayName: username,
-      bio: '',
+      bio: profileData?.bio || '',
       avatar: '',
       level: 1,
       reputation: 0,
-      gameRanks: [],
-      languages: [],
-      interests: [],
+      gameRanks: profileData?.gameRanks || [],
+      languages: profileData?.languages || [],
+      interests: profileData?.interests || [],
       preferences: {
         notifications: true,
         privacyLevel: 'public',
         theme: 'dark',
+        playStyle: profileData?.preferences?.playStyle || 'Casual',
+        communication: profileData?.preferences?.communication || 'Both',
+        playTime: profileData?.preferences?.playTime || 'Evenings',
+        region: profileData?.preferences?.region || 'North America'
       },
       socialLinks: {},
       isOnline: false,
       lastOnline: new Date(),
       recentActivity: [],
-    });
+    };
+
+    const profile = await Profile.create(profileDefaults);
 
     // Update the user with the profile reference
     user.profile = profile._id;
@@ -83,6 +89,7 @@ const registerUser = asyncHandler(async (req, res) => {
       friendRequests: user.friendRequests,
       token: generateToken(user._id),
       isAdmin: user.isAdmin,
+      profile: profile, // Include profile data in the response
     });
   } else {
     res.status(400);
@@ -126,6 +133,10 @@ const loginUser = asyncHandler(async (req, res) => {
 
   console.log('Login successful for user:', user.username);
   console.log('User friends:', user.friends);
+  
+  // Get user profile
+  const profile = await Profile.findOne({ user: user._id });
+  console.log('User profile found:', profile ? 'Yes' : 'No');
 
   // Authentication successful
   res.json({
@@ -136,6 +147,7 @@ const loginUser = asyncHandler(async (req, res) => {
     friendRequests: user.friendRequests || { sent: [], received: [] },
     token: generateToken(user._id),
     isAdmin: user.isAdmin,
+    profile: profile || {} // Include profile data in the response
   });
 });
 
