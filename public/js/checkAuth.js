@@ -31,7 +31,12 @@
         // If no token or user info, redirect to login
         if (!token || !userInfo._id) {
             console.log('User not authenticated, redirecting to login');
-            window.location.href = 'pages/login.html';
+            // Check if we're already in the pages directory
+            if (window.location.pathname.includes('/pages/')) {
+                window.location.href = 'login.html';
+            } else {
+                window.location.href = 'pages/login.html';
+            }
             return false;
         }
 
