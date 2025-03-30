@@ -1176,7 +1176,7 @@ function displayFriendRequestsInSidebar(requests) {
                     const token = localStorage.getItem('token');
                     if (token) {
                         const apiUrl = window.APP_CONFIG?.API_URL || '/api';
-                        const response = await fetch(`${apiUrl}/users/friends/reject/${requestId}`, {
+                        const response = await fetch(`${apiUrl}/friends/reject/${requestId}`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',

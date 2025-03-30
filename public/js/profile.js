@@ -384,7 +384,7 @@ async function getFriends() {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${window.APP_CONFIG.API_URL}/users/friends`, {
+    const response = await fetch(`${window.APP_CONFIG.API_URL}/friends`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -417,7 +417,7 @@ async function getFriendRequests() {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${window.APP_CONFIG.API_URL}/users/friends/requests`, {
+    const response = await fetch(`${window.APP_CONFIG.API_URL}/friends/requests`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -451,7 +451,7 @@ async function acceptFriendRequest(requestId) {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${window.APP_CONFIG.API_URL}/users/friends/accept/${requestId}`, {
+    const response = await fetch(`${window.APP_CONFIG.API_URL}/friends/accept/${requestId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -485,7 +485,7 @@ async function rejectFriendRequest(requestId) {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${window.APP_CONFIG.API_URL}/users/friends/reject/${requestId}`, {
+    const response = await fetch(`${window.APP_CONFIG.API_URL}/friends/reject/${requestId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -519,7 +519,7 @@ async function cancelFriendRequest(requestId) {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${window.APP_CONFIG.API_URL}/users/friends/cancel/${requestId}`, {
+    const response = await fetch(`${window.APP_CONFIG.API_URL}/friends/cancel/${requestId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -553,8 +553,8 @@ async function removeFriend(friendId) {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${window.APP_CONFIG.API_URL}/users/friends/remove/${friendId}`, {
-      method: 'POST',
+    const response = await fetch(`${window.APP_CONFIG.API_URL}/friends/${friendId}`, {
+      method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,

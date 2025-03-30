@@ -29,6 +29,44 @@ const userSchema = new mongoose.Schema({
   profile: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Profile'
+  },
+  friends: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  friendRequests: {
+    sent: [{
+      _id: mongoose.Schema.Types.ObjectId,
+      recipient: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      status: {
+        type: String,
+        enum: ['pending', 'accepted', 'rejected'],
+        default: 'pending',
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
+    received: [{
+      _id: mongoose.Schema.Types.ObjectId,
+      sender: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      status: {
+        type: String,
+        enum: ['pending', 'accepted', 'rejected'],
+        default: 'pending',
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
   }
 }, {
   timestamps: true

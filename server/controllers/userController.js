@@ -3,6 +3,7 @@ const Lobby = require('../models/Lobby');
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('../middleware/asyncHandler');
 const bcrypt = require('bcrypt');
+const mongoose = require('mongoose');
 
 // Generate JWT
 const generateToken = (id) => {
@@ -109,7 +110,7 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 
   // Check for user email
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).populate('friends', 'username email');
 
   if (!user) {
     res.status(401);
@@ -122,6 +123,9 @@ const loginUser = asyncHandler(async (req, res) => {
     res.status(401);
     throw new Error('Invalid email or password');
   }
+
+  console.log('Login successful for user:', user.username);
+  console.log('User friends:', user.friends);
 
   // Authentication successful
   res.json({
@@ -139,20 +143,49 @@ const loginUser = asyncHandler(async (req, res) => {
 // @route   GET /api/users/me
 // @access  Private
 const getMe = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id);
+  try {
+    console.log('Getting user data for ID:', req.user.id);
+    
+    // Get user without population to avoid schema errors
+    const user = await User.findById(req.user.id);
 
-  if (user) {
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // If user has friends, get basic info for them
+    let friendsData = [];
+    if (user.friends && user.friends.length > 0) {
+      console.log(`User has ${user.friends.length} friends, fetching basic info`);
+      const friendIds = user.friends.map(id => id.toString());
+      
+      // Fetch basic info for each friend
+      friendsData = await User.find({ 
+        _id: { $in: friendIds } 
+      }).select('username email');
+    }
+    
+    console.log('User found with friends:', friendsData.length);
+    
     res.json({
       _id: user._id,
       username: user.username,
       email: user.email,
-      friends: user.friends || [],
+      friends: user.friends || [], // Keep the original IDs for reference
+      friendsData: friendsData, // Add the fetched friend data
       friendRequests: user.friendRequests || { sent: [], received: [] },
       isAdmin: user.isAdmin,
     });
-  } else {
-    res.status(404);
-    throw new Error('User not found');
+  } catch (error) {
+    console.error('Error in getMe:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
   }
 });
 
@@ -451,153 +484,6 @@ const createTestUser = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Add friend
-// @route   POST /api/users/friends/add/:id
-// @access  Private
-const addFriend = asyncHandler(async (req, res) => {
-  try {
-    // Check if the user exists
-    const friendId = req.params.id;
-    const friend = await User.findById(friendId);
-    
-    if (!friend) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    // Check if trying to add self
-    if (req.user._id.toString() === friendId) {
-      return res.status(400).json({
-        success: false,
-        message: 'You cannot add yourself as a friend'
-      });
-    }
-    
-    // Get profiles
-    const userProfile = await Profile.findOne({ user: req.user._id });
-    const friendProfile = await Profile.findOne({ user: friendId });
-    
-    if (!userProfile || !friendProfile) {
-      return res.status(404).json({
-        success: false,
-        message: 'Profile not found'
-      });
-    }
-    
-    // Check if already friends
-    if (userProfile.friends.includes(friendId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'This user is already in your friend list'
-      });
-    }
-    
-    // Add friend to both profiles
-    userProfile.friends.push(friendId);
-    await userProfile.save();
-    
-    friendProfile.friends.push(req.user._id);
-    await friendProfile.save();
-    
-    res.status(200).json({
-      success: true,
-      message: 'Friend added successfully'
-    });
-  } catch (error) {
-    console.error('Error adding friend:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-});
-
-// @desc    Get friend list
-// @route   GET /api/users/friends
-// @access  Private
-const getFriends = asyncHandler(async (req, res) => {
-  try {
-    // Get user profile with populated friends
-    const userProfile = await Profile.findOne({ user: req.user._id })
-      .populate({
-        path: 'friends',
-        select: 'username email',
-        populate: {
-          path: 'profile',
-          select: 'displayName avatar bio isOnline level'
-        }
-      });
-    
-    if (!userProfile) {
-      return res.status(404).json({
-        success: false,
-        message: 'Profile not found'
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      data: userProfile.friends
-    });
-  } catch (error) {
-    console.error('Error getting friends:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-});
-
-// @desc    Remove friend
-// @route   DELETE /api/users/friends/:id
-// @access  Private
-const removeFriend = asyncHandler(async (req, res) => {
-  try {
-    const friendId = req.params.id;
-    
-    // Get profiles
-    const userProfile = await Profile.findOne({ user: req.user._id });
-    const friendProfile = await Profile.findOne({ user: friendId });
-    
-    if (!userProfile) {
-      return res.status(404).json({
-        success: false,
-        message: 'Your profile not found'
-      });
-    }
-    
-    // Remove from user's friends list
-    userProfile.friends = userProfile.friends.filter(
-      id => id.toString() !== friendId
-    );
-    await userProfile.save();
-    
-    // Remove from friend's friends list if the friend profile exists
-    if (friendProfile) {
-      friendProfile.friends = friendProfile.friends.filter(
-        id => id.toString() !== req.user._id.toString()
-      );
-      await friendProfile.save();
-    }
-    
-    res.status(200).json({
-      success: true,
-      message: 'Friend removed successfully'
-    });
-  } catch (error) {
-    console.error('Error removing friend:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-});
-
 // @desc    Send lobby invitation
 // @route   POST /api/users/invite/:userId/lobby/:lobbyId
 // @access  Private
@@ -707,9 +593,6 @@ module.exports = {
   getMe,
   getAllUsers,
   createTestUser,
-  addFriend,
-  getFriends,
-  removeFriend,
   inviteToLobby,
   getUserLobbies
 };

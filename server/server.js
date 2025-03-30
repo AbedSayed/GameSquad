@@ -40,12 +40,14 @@ const userRoutes = require('./routes/userRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const lobbyRoutes = require('./routes/lobbyRoutes');
 const inviteRoutes = require('./routes/inviteRoutes');
+const friendRoutes = require('./routes/friendRoutes');
 
 // API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/lobbies', lobbyRoutes);
 app.use('/api/invites', inviteRoutes);
+app.use('/api/friends', friendRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
@@ -83,7 +85,8 @@ io.on('connection', (socket) => {
         console.log(`Socket ${socket.id}: User ${currentUserId} sent friend request to ${data.recipientId}`);
         
         // Important: Broadcast the event to ALL sockets, as the recipient may have multiple tabs/windows open
-        io.emit('new-friend-request', {
+        // Use socket.broadcast.emit to send to all clients EXCEPT the sender
+        socket.broadcast.emit('new-friend-request', {
             senderId: currentUserId,
             senderName: data.senderName || 'A user',
             message: data.message || 'would like to be your friend!',

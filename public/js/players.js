@@ -453,7 +453,7 @@ async function addFriend(playerId, playerName) {
         
         // Construct API URL for friend requests (not direct add)
         const apiUrl = window.APP_CONFIG?.API_URL || '/api';
-        const requestUrl = `${apiUrl}/users/friends/request/${playerId}`;
+        const requestUrl = `${apiUrl}/friends/request/${playerId}`;
         
         console.log('Debug - Sending friend request:');
         console.log('- URL:', requestUrl);
@@ -509,16 +509,35 @@ async function addFriend(playerId, playerName) {
                 if (window.SocketHandler && window.SocketHandler.socket) {
                     console.log('Sending via SocketHandler');
                     window.SocketHandler.socket.emit('friend-request-sent', socketData);
+                    
+                    // Add event listener for confirmation if not already listening
+                    if (!window.SocketHandler.socket._callbacks['friend-request-sent-confirmation']) {
+                        window.SocketHandler.socket.on('friend-request-sent-confirmation', (confirmData) => {
+                            console.log('Received friend request confirmation:', confirmData);
+                        });
+                    }
                 } 
                 // Directly use io if available as fallback
                 else if (typeof io !== 'undefined') {
                     console.log('Creating new socket connection using global io');
-                    const socketUrl = window.APP_CONFIG?.API_URL || '/api';
-                    const socket = io(socketUrl);
+                    // Get the correct server URL from config
+                    const serverURL = window.APP_CONFIG?.SERVER_URL || window.location.origin;
+                    const socket = io(serverURL);
                     
+                    // Authenticate the socket before sending the friend request
                     socket.on('connect', () => {
-                        console.log('Socket connected, sending friend request');
-                        socket.emit('friend-request-sent', socketData);
+                        console.log('Socket connected, authenticating...');
+                        // First authenticate
+                        socket.emit('authenticate', { 
+                            userId: currentUser._id,
+                            token: token
+                        });
+                        
+                        // When authenticated, send the friend request
+                        socket.on('authenticated', () => {
+                            console.log('Socket authenticated, sending friend request');
+                            socket.emit('friend-request-sent', socketData);
+                        });
                         
                         // Listen for confirmation
                         socket.on('friend-request-sent-confirmation', (confirmData) => {
@@ -1645,27 +1664,42 @@ function checkForFriendRequests() {
 
 // Function to show the friend request frame
 function showFriendRequestFrame(data) {
+    console.log('Showing friend request frame with data:', data);
+    
     const friendRequestsFrame = document.getElementById('friendRequestsFrame');
-    if (friendRequestsFrame) {
-        friendRequestsFrame.style.display = 'block';
+    if (!friendRequestsFrame) {
+        console.error('Friend requests frame not found');
+        return;
+    }
+    
+    // Show the frame
+    friendRequestsFrame.style.display = 'block';
+    
+    // Add the request to the frame
+    addFriendRequestToFrame(data);
+    
+    // Add close button functionality if not already added
+    const closeBtn = document.getElementById('closeFriendRequests');
+    if (closeBtn) {
+        // Remove any existing event listeners
+        const newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
         
-        // Add the request to the frame
-        addFriendRequestToFrame(data);
-        
-        // Add close button functionality if not already added
-        const closeBtn = document.getElementById('closeFriendRequests');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                friendRequestsFrame.style.display = 'none';
-            });
-        }
+        newCloseBtn.addEventListener('click', () => {
+            friendRequestsFrame.style.display = 'none';
+        });
     }
 }
 
 // Function to add a friend request to the frame
 function addFriendRequestToFrame(data) {
+    console.log('Adding friend request to frame:', data);
+    
     const friendRequestsList = document.getElementById('friendRequestsList');
-    if (!friendRequestsList) return;
+    if (!friendRequestsList) {
+        console.error('Friend requests list not found');
+        return;
+    }
     
     // If there's an empty state message, remove it
     const emptyState = friendRequestsList.querySelector('.empty-state');
@@ -1673,22 +1707,30 @@ function addFriendRequestToFrame(data) {
         emptyState.remove();
     }
     
-    // Create request item
+    // Check if this request already exists in the list
+    const existingRequest = friendRequestsList.querySelector(`[data-sender-id="${data.senderId}"]`);
+    if (existingRequest) {
+        console.log('Request already in list, not adding again');
+        return;
+    }
+    
+    // Format the request item HTML
     const requestItem = document.createElement('div');
     requestItem.className = 'friend-request-item';
     requestItem.dataset.id = data.requestId;
     requestItem.dataset.senderId = data.senderId;
+    requestItem.dataset.senderName = data.senderName;
     
     requestItem.innerHTML = `
         <div class="request-info">
             <strong>${data.senderName}</strong>
-            <p>${data.message}</p>
+            <p>${data.message || `${data.senderName} would like to be your friend!`}</p>
         </div>
         <div class="request-actions">
-            <button class="btn btn-primary accept-request">
+            <button class="btn btn-primary accept-request" data-id="${data.requestId}" data-sender-id="${data.senderId}" data-sender-name="${data.senderName}">
                 <i class="fas fa-check"></i> Accept
             </button>
-            <button class="btn btn-danger reject-request">
+            <button class="btn btn-danger reject-request" data-id="${data.requestId}" data-sender-id="${data.senderId}" data-sender-name="${data.senderName}">
                 <i class="fas fa-times"></i> Decline
             </button>
         </div>
@@ -1702,7 +1744,20 @@ function addFriendRequestToFrame(data) {
     const rejectBtn = requestItem.querySelector('.reject-request');
     
     acceptBtn.addEventListener('click', () => {
-        acceptFriendRequest(data.requestId, data.senderId, data.senderName);
+        const requestId = acceptBtn.dataset.id;
+        const senderId = acceptBtn.dataset.senderId;
+        const senderName = acceptBtn.dataset.senderName;
+        
+        console.log(`Accepting friend request: ID=${requestId}, sender=${senderId}, name=${senderName}`);
+        
+        if (window.SocketHandler && typeof window.SocketHandler.acceptFriendRequest === 'function') {
+            // Use SocketHandler if available
+            window.SocketHandler.acceptFriendRequest(requestId, senderId, senderName);
+        } else {
+            // Fallback to direct accept function
+            acceptFriendRequest(requestId, senderId, senderName);
+        }
+        
         requestItem.remove();
         
         // Check if there are no more requests
@@ -1725,7 +1780,17 @@ function addFriendRequestToFrame(data) {
     });
     
     rejectBtn.addEventListener('click', () => {
-        rejectFriendRequest(data.requestId, data.senderId);
+        const requestId = rejectBtn.dataset.id;
+        const senderId = rejectBtn.dataset.senderId;
+        
+        if (window.SocketHandler && typeof window.SocketHandler.rejectFriendRequest === 'function') {
+            // Use SocketHandler if available
+            window.SocketHandler.rejectFriendRequest(requestId, senderId);
+        } else {
+            // Fallback to direct reject function
+            rejectFriendRequest(requestId, senderId);
+        }
+        
         requestItem.remove();
         
         // Check if there are no more requests
@@ -1748,99 +1813,160 @@ function addFriendRequestToFrame(data) {
     });
 }
 
-// Function to accept a friend request
-async function acceptFriendRequest(requestId, senderId, senderName) {
-    try {
-        // Get token for authorization
-        const token = localStorage.getItem('token');
-        if (!token) {
-            showNotification('You must be logged in to accept friend requests', 'error');
-            return;
+/**
+ * Accept friend request fallback function if SocketHandler is not available
+ */
+function acceptFriendRequest(requestId, senderId, senderName) {
+    if (!requestId || !senderId) {
+        console.error('Missing required parameters for accepting friend request');
+        showNotification('Error', 'Could not process friend request', 'error');
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showNotification('Error', 'You must be logged in to accept friend requests', 'error');
+        return;
+    }
+    
+    // Show loading overlay
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.className = 'loading-overlay';
+    loadingOverlay.innerHTML = '<div class="spinner"><i class="fas fa-spinner fa-spin"></i></div>';
+    document.body.appendChild(loadingOverlay);
+    
+    // Get the API URL from config
+    const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+    
+    // Make API call to accept the request
+    fetch(`${apiUrl}/friends/accept/${requestId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            senderId: senderId,
+            senderName: senderName
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}`);
         }
+        return response.json();
+    })
+    .then(data => {
+        // Remove loading overlay
+        loadingOverlay.remove();
         
-        // Get the API URL from config
-        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
-        
-        // Make the API call to accept the request
-        const response = await fetch(`${apiUrl}/users/friends/accept/${requestId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            // Update localStorage with new user info if provided
+        if (data.success) {
+            // Update localStorage
             if (data.userInfo) {
                 localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
             }
             
-            // Show notification
-            showNotification(`Friend request from ${senderName} accepted!`, 'success');
-            
-            // Emit socket event if available
-            if (window.SocketHandler && window.SocketHandler.socket) {
-                window.SocketHandler.socket.emit('friend-request-accepted', {
-                    senderId: senderId,
-                    acceptorName: getCurrentUser()?.username || 'User'
-                });
-            }
+            // Show success notification
+            showNotification('Success', `Friend request from ${senderName} accepted!`, 'success');
         } else {
-            showNotification(data.message || 'Error accepting friend request', 'error');
+            showNotification('Error', data.message || 'Failed to accept friend request', 'error');
         }
-    } catch (error) {
+    })
+    .catch(error => {
+        // Remove loading overlay
+        loadingOverlay.remove();
+        
         console.error('Error accepting friend request:', error);
-        showNotification('Error accepting friend request', 'error');
-    }
+        showNotification('Error', 'Could not accept friend request. Please try again later.', 'error');
+        
+        // Retry on 404 with sync
+        if (error.message && error.message.includes('404')) {
+            // Try to sync friend request
+            fetch(`${apiUrl}/friends/sync-request`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    requestId: requestId,
+                    senderId: senderId,
+                    message: `${senderName} would like to be your friend!`
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Info', 'Please try accepting the friend request again', 'info');
+                }
+            });
+        }
+    });
 }
 
-// Function to reject a friend request
-async function rejectFriendRequest(requestId, senderId) {
-    try {
-        // Get token for authorization
-        const token = localStorage.getItem('token');
-        if (!token) {
-            showNotification('You must be logged in to reject friend requests', 'error');
-            return;
+/**
+ * Reject friend request fallback function if SocketHandler is not available
+ */
+function rejectFriendRequest(requestId, senderId) {
+    if (!requestId || !senderId) {
+        console.error('Missing required parameters for rejecting friend request');
+        showNotification('Error', 'Could not process friend request', 'error');
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showNotification('Error', 'You must be logged in to reject friend requests', 'error');
+        return;
+    }
+    
+    // Show loading overlay
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.className = 'loading-overlay';
+    loadingOverlay.innerHTML = '<div class="spinner"><i class="fas fa-spinner fa-spin"></i></div>';
+    document.body.appendChild(loadingOverlay);
+    
+    // Get the API URL from config
+    const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+    
+    // Make API call to reject the request
+    fetch(`${apiUrl}/friends/reject/${requestId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            senderId: senderId
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}`);
         }
+        return response.json();
+    })
+    .then(data => {
+        // Remove loading overlay
+        loadingOverlay.remove();
         
-        // Get the API URL from config
-        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
-        
-        // Make the API call to reject the request
-        const response = await fetch(`${apiUrl}/users/friends/reject/${requestId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            // Update localStorage with new user info if provided
+        if (data.success) {
+            // Update localStorage
             if (data.userInfo) {
                 localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
             }
             
-            // Show notification
-            showNotification('Friend request declined', 'info');
-            
-            // Emit socket event if available
-            if (window.SocketHandler && window.SocketHandler.socket) {
-                window.SocketHandler.socket.emit('friend-request-rejected', {
-                    senderId: senderId
-                });
-            }
+            // Show success notification
+            showNotification('Friend request rejected', 'info');
         } else {
-            showNotification(data.message || 'Error declining friend request', 'error');
+            showNotification('Error', data.message || 'Failed to reject friend request', 'error');
         }
-    } catch (error) {
+    })
+    .catch(error => {
+        // Remove loading overlay
+        loadingOverlay.remove();
+        
         console.error('Error rejecting friend request:', error);
-        showNotification('Error declining friend request', 'error');
-    }
+        showNotification('Error', 'Could not reject friend request. Please try again later.', 'error');
+    });
 }
