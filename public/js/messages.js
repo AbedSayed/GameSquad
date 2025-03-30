@@ -1389,7 +1389,7 @@ function addFriendActionListeners() {
     });
     
     // Message friend buttons
-    document.querySelectorAll('.message-friend').forEach(btn => {
+    document.querySelectorAll('.message-friend, .message-friend-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             const friendId = btn.dataset.id;
@@ -1415,8 +1415,8 @@ function addFriendActionListeners() {
         });
     });
     
-    // Remove friend buttons
-    document.querySelectorAll('.remove-friend').forEach(btn => {
+    // Remove friend buttons - fixed to target both classes
+    document.querySelectorAll('.remove-friend, .remove-friend-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.preventDefault();
             const friendId = btn.dataset.id;
