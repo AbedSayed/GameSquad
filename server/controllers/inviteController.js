@@ -210,6 +210,52 @@ const acceptInvite = async (req, res) => {
             });
         }
         
+        // Find the lobby
+        const lobby = await Lobby.findById(invite.lobbyId);
+        if (!lobby) {
+            return res.status(404).json({
+                success: false,
+                message: 'Lobby not found'
+            });
+        }
+        
+        // Check if the lobby is full
+        if (lobby.currentPlayers >= lobby.maxPlayers) {
+            // Update the invite status to reflect the issue
+            invite.status = 'failed';
+            invite.message = 'Lobby is full';
+            await invite.save();
+            
+            return res.status(400).json({
+                success: false,
+                message: 'Lobby is full, cannot join'
+            });
+        }
+        
+        // Check if user is already in the lobby
+        const isAlreadyInLobby = lobby.players.some(player => 
+            player.user && player.user.toString() === userId.toString()
+        );
+        
+        if (!isAlreadyInLobby) {
+            // Add the user to the lobby's players array
+            lobby.players.push({
+                user: userId,
+                ready: false,
+                joined: new Date()
+            });
+            
+            // Update the current player count
+            lobby.currentPlayers = lobby.players.length;
+            
+            // Save the updated lobby
+            await lobby.save();
+            
+            console.log(`User ${userId} added to lobby ${lobby._id} successfully`);
+        } else {
+            console.log(`User ${userId} is already in lobby ${lobby._id}`);
+        }
+        
         // Update the invite status
         invite.status = 'accepted';
         await invite.save();
@@ -217,16 +263,24 @@ const acceptInvite = async (req, res) => {
         // Emit socket event if available
         const io = req.app.get('io');
         if (io) {
+            // Notify the sender that the invite was accepted
             io.to(`user:${invite.sender}`).emit('invite-accepted', {
                 inviteId: invite._id,
                 acceptedBy: userId,
                 lobbyId: invite.lobbyId
             });
+            
+            // Notify all users in the lobby that a new player has joined
+            io.to(`lobby:${lobby._id}`).emit('player-joined', {
+                userId: userId,
+                username: req.user.username,
+                lobbyId: lobby._id
+            });
         }
         
         res.status(200).json({
             success: true,
-            message: 'Invite accepted successfully',
+            message: 'Invite accepted successfully, you have joined the lobby',
             lobbyId: invite.lobbyId
         });
     } catch (error) {

@@ -1389,6 +1389,21 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchLobbyDetails(); // Refresh lobby data
         });
         
+        // Listen for player-joined event (from invite accept)
+        socket.on('player-joined', function(data) {
+            console.log('Player joined lobby via invite:', data);
+            
+            // Show notification about the new player
+            if (data.username) {
+                addSystemMessage(`${data.username} joined the lobby via invitation`);
+            } else {
+                addSystemMessage(`A new player joined the lobby via invitation`);
+            }
+            
+            // Refresh the lobby details to show the new player
+            fetchLobbyDetails();
+        });
+        
         // Set up chat functions
         function sendMessage() {
             const chatInput = document.getElementById('chatInput');
