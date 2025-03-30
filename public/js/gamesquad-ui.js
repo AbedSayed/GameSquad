@@ -470,7 +470,7 @@ function initGlobalFriendsSidebar() {
                 position: fixed;
                 bottom: 0;
                 right: 20px;
-                width: 280px;
+                width: 350px;
                 background-color: rgba(13, 13, 25, 0.95);
                 border-radius: 8px 8px 0 0;
                 box-shadow: 0 0 15px rgba(126, 34, 206, 0.5);
@@ -563,7 +563,7 @@ function initGlobalFriendsSidebar() {
             }
             
             .friends-list-container {
-                max-height: 350px;
+                max-height: 450px;
                 overflow: hidden;
             }
             
@@ -592,7 +592,7 @@ function initGlobalFriendsSidebar() {
             
             .friends-list-wrapper {
                 overflow-y: auto;
-                max-height: 300px;
+                max-height: 400px;
                 padding: 10px;
             }
             
@@ -625,9 +625,9 @@ function initGlobalFriendsSidebar() {
             .friend-item {
                 display: flex;
                 align-items: center;
-                padding: 10px;
+                padding: 12px;
                 border-radius: 4px;
-                margin-bottom: 5px;
+                margin-bottom: 8px;
                 background-color: rgba(15, 15, 25, 0.7);
                 transition: background-color 0.2s, transform 0.2s;
                 cursor: pointer;
@@ -641,15 +641,15 @@ function initGlobalFriendsSidebar() {
             }
             
             .friend-avatar {
-                width: 32px;
-                height: 32px;
+                width: 40px;
+                height: 40px;
                 border-radius: 50%;
                 background-color: rgba(126, 34, 206, 0.3);
-                margin-right: 10px;
+                margin-right: 12px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 0.7rem;
+                font-size: 0.8rem;
                 font-weight: bold;
                 color: white;
                 overflow: hidden;
@@ -667,12 +667,13 @@ function initGlobalFriendsSidebar() {
             
             .friend-name {
                 color: #fff;
-                font-size: 0.9rem;
-                margin-bottom: 3px;
+                font-size: 1rem;
+                margin-bottom: 4px;
+                font-weight: 500;
             }
             
             .friend-status {
-                font-size: 0.7rem;
+                font-size: 0.8rem;
                 color: #718093;
             }
             
