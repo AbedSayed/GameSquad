@@ -17,6 +17,7 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 const mongoose = require('mongoose');
 const { User } = require('../models');
+const { Profile } = require('../models');
 
 // Public routes
 router.get('/all', getAllUsers);
@@ -30,7 +31,79 @@ router.post('/create-test', createTestUser);
 // Protected routes
 router.get('/me', protect, getMe);
 router.get('/profile', protect, getUserProfile);
-router.put('/profile', protect, updateUserProfile);
+router.put('/profile', protect, async (req, res) => {
+  try {
+    console.log('Received profile update request:', req.body);
+    
+    // Get user ID from auth middleware
+    const userId = req.user._id;
+    
+    // First, update user fields if needed
+    const userFields = {};
+    if (req.body.email) userFields.email = req.body.email;
+    if (req.body.displayName) userFields.displayName = req.body.displayName;
+    
+    // Update user if we have fields to update
+    if (Object.keys(userFields).length > 0) {
+      await User.findByIdAndUpdate(userId, userFields);
+    }
+    
+    // Now, look for profile and update or create it
+    let profile = await Profile.findOne({ user: userId });
+    
+    // Prepare profile update fields
+    const profileFields = {};
+    
+    // Basic fields
+    if (req.body.displayName) profileFields.displayName = req.body.displayName;
+    if (req.body.avatar !== undefined) profileFields.avatar = req.body.avatar;
+    if (req.body.bio !== undefined) profileFields.bio = req.body.bio;
+    
+    // Array fields
+    if (req.body.languages) profileFields.languages = req.body.languages;
+    if (req.body.interests) profileFields.interests = req.body.interests;
+    if (req.body.gameRanks) profileFields.gameRanks = req.body.gameRanks;
+    
+    // Object fields
+    if (req.body.preferences) {
+      profileFields.preferences = req.body.preferences;
+    }
+    
+    // Update or create profile
+    if (profile) {
+      // Update existing profile
+      profile = await Profile.findOneAndUpdate(
+        { user: userId },
+        { $set: profileFields },
+        { new: true }
+      );
+    } else {
+      // Create new profile
+      profileFields.user = userId;
+      profileFields.displayName = req.body.displayName || req.user.username;
+      profile = await Profile.create(profileFields);
+      
+      // Update user with profile reference
+      await User.findByIdAndUpdate(userId, { profile: profile._id });
+    }
+    
+    // Get updated user info
+    const updatedUser = await User.findById(userId).select('-password');
+    
+    // Return combined data
+    res.json({
+      ...updatedUser.toJSON(),
+      profile
+    });
+    
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ 
+      message: 'Failed to update profile',
+      error: error.message
+    });
+  }
+});
 router.put('/status', protect, updateUserStatus);
 
 // Friends routes

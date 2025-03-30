@@ -40,17 +40,27 @@ window.Auth.registerUser = async function(userData) {
       throw new Error('Username must be at least 3 characters');
     }
     
+    // Prepare the request payload including profile data if available
+    const requestData = {
+      username: userData.username,
+      email: userData.email,
+      password: userData.password
+    };
+    
+    // Add profile data if provided
+    if (userData.profile) {
+      requestData.profile = userData.profile;
+    }
+    
+    console.log('Sending registration data to server with profile:', requestData);
+    
     // Register with the API
     const response = await fetch(`${window.APP_CONFIG.API_URL}/users/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        username: userData.username,
-        email: userData.email,
-        password: userData.password
-      }),
+      body: JSON.stringify(requestData),
     });
     
     const data = await response.json();

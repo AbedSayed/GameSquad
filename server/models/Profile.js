@@ -12,37 +12,30 @@ const profileSchema = new mongoose.Schema({
     trim: true
   },
   avatar: {
-    type: String,
-    default: 'default-avatar.png'
+    type: String
   },
   bio: {
     type: String,
     maxlength: [500, 'Bio cannot be more than 500 characters']
   },
   level: {
-    type: Number,
-    default: 1
+    type: Number
   },
   experience: {
-    type: Number,
-    default: 0
+    type: Number
   },
   gamesPlayed: {
-    type: Number,
-    default: 0
+    type: Number
   },
   wins: {
-    type: Number,
-    default: 0
+    type: Number
   },
   losses: {
-    type: Number,
-    default: 0
+    type: Number
   },
   rank: {
     type: String,
-    enum: ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'],
-    default: 'Bronze'
+    enum: ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond']
   },
   // Game-specific ranks
   gameRanks: [{
@@ -53,63 +46,50 @@ const profileSchema = new mongoose.Schema({
   languages: [String],
   // Gaming interests
   interests: [String],
-  // User preferences
-  preferences: {
-    playStyle: {
-      type: String,
-      enum: ['Casual', 'Competitive', 'Semi-Competitive'],
-      default: 'Casual'
-    },
-    communication: {
-      type: String,
-      enum: ['Text Chat', 'Voice Chat', 'Both', 'None'],
-      default: 'Both'
-    },
-    playTime: {
-      type: String,
-      enum: ['Morning', 'Afternoon', 'Evening', 'Night', 'Weekends', 'Flexible'],
-      default: 'Evening'
-    },
-    region: {
-      type: String,
-      enum: ['North America', 'Europe', 'Asia', 'South America', 'Oceania', 'Africa', 'Middle East'],
-      default: 'North America'
-    },
-    notifications: {
-      type: Boolean,
-      default: true
-    },
-    privacyLevel: {
-      type: String,
-      enum: ['public', 'friends', 'private'],
-      default: 'public'
-    },
-    theme: {
-      type: String,
-      enum: ['light', 'dark', 'system'],
-      default: 'dark'
-    }
-  },
-  achievements: [{
-    name: String,
-    description: String,
-    dateUnlocked: Date
-  }],
+  // Friends list - references to User model
   friends: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  // User preferences - only include if explicitly set
+  preferences: {
+    playStyle: {
+      type: String,
+      enum: ['Casual', 'Competitive', 'Semi-Competitive']
+    },
+    communication: {
+      type: String,
+      enum: ['Text Chat', 'Voice Chat', 'Both', 'None']
+    },
+    playTime: {
+      type: String,
+      enum: ['Morning', 'Afternoon', 'Evening', 'Night', 'Weekends', 'Flexible']
+    },
+    region: {
+      type: String,
+      enum: ['North America', 'Europe', 'Asia', 'South America', 'Oceania', 'Africa', 'Middle East']
+    }
+  },
   isOnline: {
-    type: Boolean,
-    default: false
-  }
+    type: Boolean
+  },
+  // Achievements
+  achievements: [{
+    name: String,
+    description: String,
+    date: Date
+  }]
 }, {
-  timestamps: true
+  timestamps: true,
+  // Only include fields that have been set
+  minimize: true,
+  // Skip validation for undefined fields
+  validateBeforeSave: false
 });
 
 // Virtual for win rate
 profileSchema.virtual('winRate').get(function() {
-  if (this.gamesPlayed === 0) return 0;
+  if (!this.gamesPlayed || this.gamesPlayed === 0) return 0;
   return (this.wins / this.gamesPlayed * 100).toFixed(2);
 });
 

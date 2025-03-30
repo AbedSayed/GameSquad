@@ -19,7 +19,7 @@ async function getMyProfile() {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${window.APP_CONFIG.API_URL}/profiles/me`, {
+    const response = await fetch(`${window.APP_CONFIG.API_URL}/users/profile`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -47,25 +47,85 @@ async function getMyProfile() {
  */
 async function createOrUpdateProfile(profileData) {
   try {
+    console.log('Updating profile with data:', profileData);
     const token = localStorage.getItem('token');
 
     if (!token) {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${window.APP_CONFIG.API_URL}/profiles`, {
-      method: 'POST',
+    // Make sure we're sending valid non-empty data
+    const cleanedData = {};
+    
+    // Only include fields with actual content
+    Object.keys(profileData).forEach(key => {
+      const value = profileData[key];
+      if (value !== undefined && value !== null) {
+        // For strings, ensure they're not empty
+        if (typeof value === 'string') {
+          if (value.trim() !== '') {
+            cleanedData[key] = value.trim();
+          }
+        } 
+        // For objects like preferences, include them if they have properties
+        else if (typeof value === 'object' && !Array.isArray(value)) {
+          if (Object.keys(value).length > 0) {
+            cleanedData[key] = value;
+          }
+        }
+        // For arrays or other values, include them
+        else {
+          cleanedData[key] = value;
+        }
+      }
+    });
+
+    if (Object.keys(cleanedData).length === 0) {
+      throw new Error('No valid data to update');
+    }
+
+    console.log('Sending cleaned profile data to server:', cleanedData);
+
+    const response = await fetch(`${window.APP_CONFIG.API_URL}/users/profile`, {
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify(profileData),
+      body: JSON.stringify(cleanedData),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
+      console.error('Server error response:', data);
       throw new Error(data.message || 'Failed to update profile');
+    }
+
+    console.log('Profile updated successfully on server:', data);
+
+    // Update local storage with new profile data
+    try {
+      const userInfoStr = localStorage.getItem('userInfo');
+      if (userInfoStr) {
+        const userInfo = JSON.parse(userInfoStr);
+        
+        // If userInfo already has a profile, update it, otherwise create it
+        if (!userInfo.profile) userInfo.profile = {};
+        
+        // Update profile with the data we received from the server, or fall back to what we sent
+        userInfo.profile = { 
+          ...userInfo.profile, 
+          ...cleanedData,
+          // Add any fields returned from the server response if available
+          ...(data.profile || data)
+        };
+        
+        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+        console.log('Updated profile in localStorage');
+      }
+    } catch (storageError) {
+      console.warn('Could not update localStorage after profile update', storageError);
     }
 
     return data;
@@ -984,6 +1044,39 @@ function setupProfileEventListeners() {
   }
 }
 
+/**
+ * Set up tab switching functionality
+ */
+function setupTabs() {
+  const tabButtons = document.querySelectorAll('.tab-button');
+  const tabContents = document.querySelectorAll('.tab-content');
+  
+  if (tabButtons.length === 0 || tabContents.length === 0) {
+    console.log('No tabs found to set up');
+    return;
+  }
+  
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const tabId = button.getAttribute('data-tab');
+      
+      // Remove active class from all buttons and contents
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabContents.forEach(content => content.classList.remove('active'));
+      
+      // Add active class to current button and content
+      button.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    });
+  });
+  
+  // Set first tab as active by default
+  if (tabButtons[0] && tabContents[0]) {
+    tabButtons[0].classList.add('active');
+    tabContents[0].classList.add('active');
+  }
+}
+
 // Export functions
 window.Profile = {
   getMyProfile,
@@ -996,5 +1089,6 @@ window.Profile = {
   updateSocialLinks,
   addActivity,
   getProfileByUserId,
-  getAllProfiles
+  getAllProfiles,
+  setupTabs
 };

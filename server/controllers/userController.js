@@ -49,33 +49,49 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 
   if (user) {
-    // Create profile for the user with data from request if available
-    const profileDefaults = {
-      user: user._id,
-      displayName: username,
-      bio: profileData?.bio || '',
-      avatar: '',
-      level: 1,
-      reputation: 0,
-      gameRanks: profileData?.gameRanks || [],
-      languages: profileData?.languages || [],
-      interests: profileData?.interests || [],
-      preferences: {
-        notifications: true,
-        privacyLevel: 'public',
-        theme: 'dark',
-        playStyle: profileData?.preferences?.playStyle || 'Casual',
-        communication: profileData?.preferences?.communication || 'Both',
-        playTime: profileData?.preferences?.playTime || 'Evenings',
-        region: profileData?.preferences?.region || 'North America'
-      },
-      socialLinks: {},
-      isOnline: false,
-      lastOnline: new Date(),
-      recentActivity: [],
+    // Create a minimal profile with only the required fields and user provided data
+    // Only include fields that are explicitly provided in the registration form
+    const profileFields = {
+      user: user._id, // This is required for the relationship
     };
 
-    const profile = await Profile.create(profileDefaults);
+    // Only add fields that were explicitly provided by the user
+    if (profileData) {
+      // Only add displayName if provided, otherwise don't include it at all
+      // (MongoDB will use the schema default if needed)
+      if (profileData.displayName) {
+        profileFields.displayName = profileData.displayName;
+      } else {
+        // displayName is required by the schema, so we must provide it
+        profileFields.displayName = username;
+      }
+
+      // Only add fields that were explicitly provided
+      if (profileData.bio) profileFields.bio = profileData.bio;
+      if (profileData.avatar) profileFields.avatar = profileData.avatar;
+      if (profileData.gameRanks && profileData.gameRanks.length > 0) profileFields.gameRanks = profileData.gameRanks;
+      if (profileData.languages && profileData.languages.length > 0) profileFields.languages = profileData.languages;
+      if (profileData.interests && profileData.interests.length > 0) profileFields.interests = profileData.interests;
+
+      // Only add preferences if any were provided
+      const preferences = {};
+      if (profileData.preferences) {
+        if (profileData.preferences.playStyle) preferences.playStyle = profileData.preferences.playStyle;
+        if (profileData.preferences.communication) preferences.communication = profileData.preferences.communication;
+        if (profileData.preferences.playTime) preferences.playTime = profileData.preferences.playTime;
+        if (profileData.preferences.region) preferences.region = profileData.preferences.region;
+        
+        // Only add preferences if any were actually provided
+        if (Object.keys(preferences).length > 0) {
+          profileFields.preferences = preferences;
+        }
+      }
+    } else {
+      // If no profile data was provided, only include the minimum required fields
+      profileFields.displayName = username; // Required by the schema
+    }
+
+    const profile = await Profile.create(profileFields);
 
     // Update the user with the profile reference
     user.profile = profile._id;
@@ -89,7 +105,6 @@ const registerUser = asyncHandler(async (req, res) => {
       friendRequests: user.friendRequests,
       token: generateToken(user._id),
       isAdmin: user.isAdmin,
-      profile: profile, // Include profile data in the response
     });
   } else {
     res.status(400);

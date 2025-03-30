@@ -43,18 +43,79 @@ const getMyProfile = asyncHandler(async (req, res) => {
 // @route   POST /api/profiles
 // @access  Private
 const createOrUpdateProfile = asyncHandler(async (req, res) => {
-  const { displayName, avatar } = req.body;
-
-  const profile = await Profile.findOneAndUpdate(
-    { user: req.user._id },
-    {
-      displayName: displayName || req.user.username,
-      avatar: avatar || 'default-avatar.png'
-    },
-    { new: true, upsert: true }
-  );
-
-  res.json(profile);
+  try {
+    console.log('Updating profile with data:', req.body);
+    
+    // Get all fields from request body
+    const { 
+      displayName, 
+      avatar, 
+      bio, 
+      languages, 
+      interests, 
+      gameRanks,
+      preferences
+    } = req.body;
+    
+    // Find existing profile
+    let profile = await Profile.findOne({ user: req.user._id });
+    
+    // Create update object with only defined fields
+    const updateFields = {};
+    
+    // Add basic fields
+    if (displayName) updateFields.displayName = displayName;
+    if (avatar !== undefined) updateFields.avatar = avatar;
+    if (bio !== undefined) updateFields.bio = bio;
+    
+    // Add array fields
+    if (languages) updateFields.languages = languages;
+    if (interests) updateFields.interests = interests;
+    if (gameRanks) updateFields.gameRanks = gameRanks;
+    
+    // Add preferences if provided
+    if (preferences) {
+      updateFields.preferences = {};
+      if (preferences.playStyle) updateFields.preferences.playStyle = preferences.playStyle;
+      if (preferences.communication) updateFields.preferences.communication = preferences.communication;
+      if (preferences.playTime) updateFields.preferences.playTime = preferences.playTime;
+      if (preferences.region) updateFields.preferences.region = preferences.region;
+    }
+    
+    console.log('Update fields:', updateFields);
+    
+    if (profile) {
+      // Update existing profile
+      profile = await Profile.findOneAndUpdate(
+        { user: req.user._id },
+        { $set: updateFields },
+        { new: true }
+      );
+      console.log('Updated existing profile:', profile);
+    } else {
+      // Create new profile if doesn't exist
+      updateFields.user = req.user._id;
+      updateFields.displayName = displayName || req.user.username;
+      
+      profile = await Profile.create(updateFields);
+      console.log('Created new profile:', profile);
+      
+      // Update user with profile reference
+      await User.findByIdAndUpdate(
+        req.user._id, 
+        { profile: profile._id }
+      );
+    }
+    
+    res.json(profile);
+  } catch (error) {
+    console.error('Error in createOrUpdateProfile:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error updating profile', 
+      error: error.message 
+    });
+  }
 });
 
 // @desc    Add game rank
