@@ -1652,7 +1652,9 @@ function openFriendChat(friendId, friendName) {
             <div class="system-message">
                 ${isSocketConnected ? 'Chat connection established' : 'Connecting to chat server...'}
             </div>
-            <div class="no-messages">No previous messages. Say hello!</div>
+            <div class="system-message loading-messages">
+                <i class="fas fa-spinner fa-spin"></i> Loading previous messages...
+            </div>
         </div>
         <div class="chat-input-area">
             <input type="text" class="chat-input" placeholder="Type a message..." aria-label="Type a message">
@@ -1903,6 +1905,95 @@ function openFriendChat(friendId, friendName) {
         window.SocketHandler.socket.emit('subscribeToUser', {
             userId: friendId
         });
+        
+        // Function to load messages with retry capability
+        function loadMessagesWithRetry(retriesLeft = 3) {
+            if (!window.SocketHandler.loadPrivateMessages) {
+                console.error('loadPrivateMessages function not available');
+                const loadingEl = chatContainer.querySelector('.loading-messages');
+                if (loadingEl) {
+                    loadingEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> Could not load previous messages: Function not available`;
+                    loadingEl.style.color = '#e74c3c';
+                }
+                return;
+            }
+            
+            // Make sure we're authenticated before loading messages
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            if (userInfo && userInfo._id && window.SocketHandler.socket && !window.SocketHandler.socket.connected) {
+                window.SocketHandler.authenticate(userInfo._id);
+                if (retriesLeft > 0) {
+                    addSystemMessage('Authenticating before loading messages...');
+                    setTimeout(() => loadMessagesWithRetry(retriesLeft - 1), 1000);
+                    return;
+                }
+            }
+            
+            addSystemMessage('Loading previous messages...');
+            
+            window.SocketHandler.loadPrivateMessages(friendId)
+                .then(messages => {
+                    console.log('Loaded previous messages:', messages);
+                    
+                    // Remove loading indicator
+                    const loadingEl = chatContainer.querySelector('.loading-messages');
+                    if (loadingEl) loadingEl.remove();
+                    
+                    // Display messages
+                    if (messages && messages.length > 0) {
+                        // Sort messages by timestamp (oldest first)
+                        messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                        
+                        // Remove "no messages" notice if present
+                        const noMessages = chatContainer.querySelector('.no-messages');
+                        if (noMessages) noMessages.remove();
+                        
+                        // Add each message to the chat
+                        messages.forEach(msg => {
+                            try {
+                                addMessageToChat(
+                                    msg.text, 
+                                    msg.type, // 'incoming' or 'outgoing'
+                                    msg.timestamp,
+                                    msg.messageId,
+                                    msg.status || 'delivered'
+                                );
+                            } catch (err) {
+                                console.error('Error adding message to chat:', err, msg);
+                            }
+                        });
+                        
+                        // Add a system message to indicate loaded messages
+                        addSystemMessage(`Loaded ${messages.length} previous messages`);
+                    } else {
+                        // If no messages, show empty state
+                        const chatMessages = chatContainer.querySelector('.chat-messages');
+                        const emptyEl = document.createElement('div');
+                        emptyEl.className = 'no-messages';
+                        emptyEl.textContent = 'No previous messages. Say hello!';
+                        chatMessages.appendChild(emptyEl);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error loading previous messages:', err);
+                    
+                    // Try again if we have retries left and the error might be temporary
+                    if (retriesLeft > 0 && (!window.SocketHandler.socket || !window.SocketHandler.socket.connected)) {
+                        addSystemMessage(`Retrying to load messages... (${retriesLeft} attempts left)`);
+                        setTimeout(() => loadMessagesWithRetry(retriesLeft - 1), 2000);
+                    } else {
+                        // Remove loading indicator and show error
+                        const loadingEl = chatContainer.querySelector('.loading-messages');
+                        if (loadingEl) {
+                            loadingEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> Could not load previous messages: ${err.message || 'Connection issue'}`;
+                            loadingEl.style.color = '#e74c3c';
+                        }
+                    }
+                });
+        }
+        
+        // Start loading messages
+        setTimeout(() => loadMessagesWithRetry(3), 500);
     } else {
         addSystemMessage('Chat functionality is limited: Socket service not available');
         
@@ -1924,6 +2015,56 @@ function openFriendChat(friendId, friendName) {
                     window.SocketHandler.socket.emit('subscribeToUser', {
                         userId: friendId
                     });
+                    
+                    // Load messages after connection is established
+                    setTimeout(() => {
+                        if (window.SocketHandler.loadPrivateMessages) {
+                            addSystemMessage('Loading previous messages after reconnection...');
+                            window.SocketHandler.loadPrivateMessages(friendId)
+                                .then(messages => {
+                                    console.log('Loaded previous messages after reconnect:', messages.length);
+                                    
+                                    // Remove loading indicator
+                                    const loadingEl = chatContainer.querySelector('.loading-messages');
+                                    if (loadingEl) loadingEl.remove();
+                                    
+                                    // Remove "no messages" notice if present
+                                    const noMessages = chatContainer.querySelector('.no-messages');
+                                    if (noMessages) noMessages.remove();
+                                    
+                                    // Display messages
+                                    if (messages && messages.length > 0) {
+                                        // Sort messages by timestamp (oldest first)
+                                        messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                                        
+                                        // Add each message to the chat
+                                        messages.forEach(msg => {
+                                            addMessageToChat(
+                                                msg.text, 
+                                                msg.type, // 'incoming' or 'outgoing'
+                                                msg.timestamp,
+                                                msg.messageId,
+                                                msg.status || 'delivered'
+                                            );
+                                        });
+                                        
+                                        // Add a system message to indicate loaded messages
+                                        addSystemMessage(`Loaded ${messages.length} previous messages`);
+                                    } else {
+                                        // If no messages, show empty state
+                                        const chatMessages = chatContainer.querySelector('.chat-messages');
+                                        const emptyEl = document.createElement('div');
+                                        emptyEl.className = 'no-messages';
+                                        emptyEl.textContent = 'No previous messages. Say hello!';
+                                        chatMessages.appendChild(emptyEl);
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error('Error loading previous messages after reconnect:', err);
+                                    addSystemMessage('Could not load previous messages: Connection issue');
+                                });
+                        }
+                    }, 1000);
                 }
             }, 2000);
         }

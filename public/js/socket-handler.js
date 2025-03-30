@@ -17,14 +17,96 @@ const SocketHandler = {
     
     // Initialize socket connection
     init: function() {
+        console.log('[socket-handler.js] Initializing socket handler...');
+        
+        // If already initialized, just ensure authentication
         if (this.isInitialized) {
-            console.log('[socket-handler.js] Socket already initialized');
-            return;
+            console.log('[socket-handler.js] Socket already initialized, checking authentication status');
+            
+            // If socket exists and is connected, check auth status
+            if (this.socket && this.socket.connected) {
+                const userInfo = this.getUserInfo();
+                if (userInfo && userInfo._id) {
+                    this.isAuthenticated()
+                        .then(authenticated => {
+                            if (!authenticated) {
+                                console.log('[socket-handler.js] Re-authenticating existing socket connection');
+                                this.authenticate(userInfo._id);
+                            } else {
+                                console.log('[socket-handler.js] Socket already authenticated');
+                            }
+                        });
+                }
+            }
+            return this;
         }
         
-        console.log('[socket-handler.js] Initializing socket connection...');
+        // Create/ensure global deduplication tracking
+        this.initDeduplication();
+        
         this.setupSocket();
         this.isInitialized = true;
+        
+        // Attempt to authenticate if we have user info
+        const userInfo = this.getUserInfo();
+        if (userInfo && userInfo._id) {
+            // Authenticate after a brief delay to ensure socket connection is established
+            setTimeout(() => {
+                if (this.socket && this.socket.connected) {
+                    console.log('[socket-handler.js] Socket connected, authenticating during initialization');
+                    this.authenticate(userInfo._id)
+                        .then(() => {
+                            console.log('[socket-handler.js] Socket authenticated during initialization');
+                            
+                            // Dispatch event for successful authentication
+                            if (typeof window !== 'undefined' && window.dispatchEvent) {
+                                window.dispatchEvent(new CustomEvent('socket:authenticated'));
+                            }
+                        })
+                        .catch(err => {
+                            console.error('[socket-handler.js] Authentication failed during initialization:', err);
+                            
+                            // Set up a retry for later
+                            setTimeout(() => {
+                                console.log('[socket-handler.js] Retrying authentication after failure');
+                                if (this.socket && this.socket.connected) {
+                                    this.authenticate(userInfo._id);
+                                }
+                            }, 3000);
+                        });
+                } else {
+                    console.warn('[socket-handler.js] Socket not connected during initialization authentication attempt');
+                    
+                    // Set up a retry for authentication when socket connects
+                    const retryAuth = () => {
+                        if (this.socket && this.socket.connected) {
+                            this.authenticate(userInfo._id)
+                                .then(() => {
+                                    console.log('[socket-handler.js] Socket authenticated after retry');
+                                    
+                                    // Dispatch event for successful authentication
+                                    if (typeof window !== 'undefined' && window.dispatchEvent) {
+                                        window.dispatchEvent(new CustomEvent('socket:authenticated'));
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error('[socket-handler.js] Authentication failed after retry:', err);
+                                });
+                        } else {
+                            console.warn('[socket-handler.js] Socket still not connected after retry, trying again in 2s');
+                            setTimeout(retryAuth, 2000);
+                        }
+                    };
+                    
+                    // Retry authentication in 2 seconds
+                    setTimeout(retryAuth, 2000);
+                }
+            }, 500);
+        } else {
+            console.warn('[socket-handler.js] No user info available, skipping authentication');
+        }
+        
+        return this;
     },
     
     // Set up socket connection
@@ -116,19 +198,91 @@ const SocketHandler = {
     
     // Authenticate socket with user ID
     authenticate: function(userId) {
-        if (!this.socket || !this.isConnected) {
-            console.warn('Cannot authenticate socket - not connected');
-            return;
+        if (!this.socket) {
+            console.warn('[socket-handler.js] Cannot authenticate socket - not initialized');
+            return Promise.reject(new Error('Socket not initialized'));
         }
         
         const token = localStorage.getItem('token');
         if (!token) {
-            console.warn('Cannot authenticate socket - no token found');
-            return;
+            console.warn('[socket-handler.js] Cannot authenticate socket - no token found');
+            return Promise.reject(new Error('No authentication token available'));
         }
         
-        console.log('Authenticating socket for user:', userId);
-        this.socket.emit('authenticate', { userId, token });
+        console.log('[socket-handler.js] Authenticating socket for user:', userId);
+        
+        return new Promise((resolve, reject) => {
+            // Set up one-time handlers for authentication response
+            const onAuthenticated = (data) => {
+                console.log('[socket-handler.js] Socket authenticated successfully:', data);
+                // Remove the listeners after we get a response
+                this.socket.off('authenticated', onAuthenticated);
+                this.socket.off('auth_error', onAuthError);
+                resolve(data);
+            };
+            
+            const onAuthError = (error) => {
+                console.error('[socket-handler.js] Socket authentication error:', error);
+                // Remove the listeners after we get a response
+                this.socket.off('authenticated', onAuthenticated);
+                this.socket.off('auth_error', onAuthError);
+                reject(error);
+            };
+            
+            // Set up listeners for the response
+            this.socket.once('authenticated', onAuthenticated);
+            this.socket.once('auth_error', onAuthError);
+            
+            // Add a timeout for the authentication response
+            const authTimeout = setTimeout(() => {
+                // Remove the listeners if we time out
+                this.socket.off('authenticated', onAuthenticated);
+                this.socket.off('auth_error', onAuthError);
+                console.warn('[socket-handler.js] Socket authentication timed out');
+                reject(new Error('Authentication timed out'));
+            }, 5000);
+            
+            // Send the authentication request
+            this.socket.emit('authenticate', { userId, token });
+        });
+    },
+    
+    // Check if socket is authenticated
+    isAuthenticated: function() {
+        return new Promise((resolve) => {
+            if (!this.socket) {
+                resolve(false);
+                return;
+            }
+            
+            // First check if we have a user ID in the socket handler
+            const userInfo = this.getUserInfo();
+            if (!userInfo || !userInfo._id) {
+                resolve(false);
+                return;
+            }
+            
+            // If socket is not connected, we're not authenticated
+            if (!this.socket.connected) {
+                resolve(false);
+                return;
+            }
+            
+            // Send a ping to verify the connection
+            this.socket.emit('ping', {}, (response) => {
+                if (response && response.authenticated) {
+                    resolve(true);
+                } else {
+                    // If we get a response but not authenticated, try to authenticate
+                    this.authenticate(userInfo._id)
+                        .then(() => resolve(true))
+                        .catch(() => resolve(false));
+                }
+            });
+            
+            // Timeout after 2 seconds
+            setTimeout(() => resolve(false), 2000);
+        });
     },
     
     // Set up all socket event listeners
@@ -1686,6 +1840,80 @@ const SocketHandler = {
                 }
             });
         });
+    },
+    
+    // Load previous messages between current user and a friend
+    loadPrivateMessages: function(friendId, limit = 50) {
+        console.log('[socket-handler.js] loadPrivateMessages called for friend:', friendId);
+        
+        // Check if socket is initialized
+        if (!this.socket) {
+            console.error('[socket-handler.js] Cannot load messages - socket not initialized');
+            return Promise.reject(new Error('Socket not initialized'));
+        }
+        
+        // Check if socket is connected
+        if (!this.socket.connected) {
+            console.warn('[socket-handler.js] Socket not connected, attempting to connect');
+            this.socket.connect();
+            
+            // Return a promise that will retry after connection
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    if (this.socket.connected) {
+                        console.log('[socket-handler.js] Socket connected after retry, continuing to load messages');
+                        // Now try to load messages again
+                        this.loadPrivateMessages(friendId, limit)
+                            .then(resolve)
+                            .catch(reject);
+                    } else {
+                        console.error('[socket-handler.js] Socket still not connected after retry');
+                        reject(new Error('Socket connection failed'));
+                    }
+                }, 1000); // Wait 1 second for connection
+            });
+        }
+        
+        // Get user info for authentication
+        const userInfo = this.getUserInfo();
+        if (!userInfo || !userInfo._id) {
+            console.error('[socket-handler.js] No user info available for loading messages');
+            return Promise.reject(new Error('No user authentication data available'));
+        }
+        
+        console.log('[socket-handler.js] User info found, checking authentication status');
+        
+        // Force re-authentication before loading messages to ensure we're properly authenticated
+        return this.authenticate(userInfo._id)
+            .then(() => {
+                console.log('[socket-handler.js] Authentication successful, loading messages');
+                
+                return new Promise((resolve, reject) => {
+                    // Increased timeout to 15 seconds to give server more time to respond
+                    const timeout = setTimeout(() => {
+                        console.error('[socket-handler.js] Request to load messages timed out');
+                        reject(new Error('Request to load messages timed out'));
+                    }, 15000);
+                    
+                    console.log('[socket-handler.js] Emitting loadPrivateMessages event to server');
+                    this.socket.emit('loadPrivateMessages', { friendId, limit }, (response) => {
+                        clearTimeout(timeout);
+                        
+                        if (response && response.success) {
+                            console.log('[socket-handler.js] Messages loaded successfully:', response.messages.length);
+                            resolve(response.messages);
+                        } else {
+                            const errorMsg = response && response.error ? response.error : 'Failed to load messages';
+                            console.error('[socket-handler.js] Failed to load messages:', errorMsg);
+                            reject(new Error(errorMsg));
+                        }
+                    });
+                });
+            })
+            .catch(err => {
+                console.error('[socket-handler.js] Authentication failed before loading messages:', err);
+                return Promise.reject(new Error('Authentication failed: ' + err.message));
+            });
     },
     
     // Subscribe to messages from a specific user

@@ -4,6 +4,7 @@ const Lobby = require('./Lobby');
 const Message = require('./Message');
 const Invite = require('./Invite');
 const FriendRequest = require('./FriendRequest');
+const PrivateMessage = require('./PrivateMessage');
 
 module.exports = {
   User,
@@ -11,5 +12,6 @@ module.exports = {
   Lobby,
   Message,
   Invite,
-  FriendRequest
+  FriendRequest,
+  PrivateMessage
 }; 

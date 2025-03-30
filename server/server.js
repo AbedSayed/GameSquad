@@ -8,6 +8,7 @@ const { connectDB } = require('./config/db');
 const { errorHandler, notFound } = require('./middleware/errorMiddleware');
 const Message = require('./models/Message');
 const Lobby = require('./models/Lobby');
+const PrivateMessage = require('./models/PrivateMessage');
 
 // Create Express app
 const app = express();
@@ -79,6 +80,19 @@ io.on('connection', (socket) => {
             
             // Let the user know they're authenticated
             socket.emit('authenticated', { success: true });
+        } else {
+            socket.emit('auth_error', { success: false, error: 'Invalid authentication data' });
+        }
+    });
+    
+    // Handle ping event for checking authentication status
+    socket.on('ping', (data, callback) => {
+        // Respond with authentication status
+        if (callback) {
+            callback({
+                authenticated: !!currentUserId,
+                userId: currentUserId
+            });
         }
     });
     
@@ -356,6 +370,21 @@ io.on('connection', (socket) => {
                 messageId: data.messageId
             };
             
+            // Save private message to database
+            try {
+                await PrivateMessage.create({
+                    sender: currentUserId,
+                    recipient: data.recipientId,
+                    text: data.message,
+                    messageId: data.messageId,
+                    timestamp: data.timestamp ? new Date(data.timestamp) : new Date()
+                });
+                console.log('Private message saved to database');
+            } catch (dbError) {
+                console.error('Error saving private message to database:', dbError);
+                // Continue even if save fails - messages will still be sent in real-time
+            }
+            
             // Emit to recipient if they're online
             if (recipientSocketId) {
                 io.to(recipientSocketId).emit('newPrivateMessage', messageObj);
@@ -377,12 +406,65 @@ io.on('connection', (socket) => {
                     delivered: !!recipientSocketId 
                 });
             }
-            
-            // TODO: Save private messages to database if needed
         } catch (error) {
             console.error('Error handling private message:', error);
             if (callback) {
                 callback({ success: false, error: 'Server error processing message' });
+            }
+        }
+    });
+
+    // Load previous private messages between users
+    socket.on('loadPrivateMessages', async (data, callback) => {
+        console.log('Loading private messages:', data);
+        
+        // Validate data
+        if (!data || !data.friendId) {
+            console.error('Invalid load messages request:', data);
+            if (callback) callback({ success: false, error: 'Invalid request data' });
+            return;
+        }
+        
+        try {
+            // Ensure we have a user ID for this socket
+            if (!currentUserId) {
+                console.error('Cannot load messages: Socket not authenticated');
+                if (callback) callback({ success: false, error: 'Not authenticated' });
+                return;
+            }
+            
+            // Get messages where current user is sender OR recipient and friend is recipient OR sender
+            const messages = await PrivateMessage.find({
+                $or: [
+                    { sender: currentUserId, recipient: data.friendId },
+                    { sender: data.friendId, recipient: currentUserId }
+                ]
+            }).sort({ timestamp: 1 }).limit(data.limit || 50);
+            
+            // Format messages for client
+            const formattedMessages = messages.map(msg => ({
+                messageId: msg.messageId,
+                text: msg.text,
+                timestamp: msg.timestamp,
+                senderId: msg.sender.toString(),
+                recipientId: msg.recipient.toString(),
+                type: msg.sender.toString() === currentUserId ? 'outgoing' : 'incoming',
+                status: 'delivered' // Default status for loaded messages
+            }));
+            
+            console.log(`Found ${formattedMessages.length} messages between users ${currentUserId} and ${data.friendId}`);
+            
+            // Send messages to requestor
+            if (callback) {
+                callback({
+                    success: true,
+                    messages: formattedMessages
+                });
+            }
+        } catch (error) {
+            console.error('Error loading private messages:', error);
+            if (callback) {
+                callback({ success: false, error: 'Server error loading messages' });
             }
         }
     });
