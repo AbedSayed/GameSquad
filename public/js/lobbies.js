@@ -14,6 +14,7 @@ class LobbiesModule {
         this.filterLobbies = this.filterLobbies.bind(this);
         this.loadLocalLobbies = this.loadLocalLobbies.bind(this);
         this.normalizeGameName = this.normalizeGameName.bind(this);
+        this.calculatePlayerCount = this.calculatePlayerCount.bind(this);
     }
     
     // Normalize game names for consistency
@@ -303,13 +304,27 @@ class LobbiesModule {
         const otherLobbies = [];
         
         lobbies.forEach(lobby => {
-            // Check if this lobby belongs to the current user
-            const isOwned = lobby.host === userId || 
+            // Check if this lobby belongs to the current user (as host)
+            const isHost = lobby.host === userId || 
                            (typeof lobby.host === 'object' && lobby.host?._id === userId) ||
                            lobby.host === 'current_user' ||
                            (lobby.hostInfo && (lobby.hostInfo._id === userId || lobby.hostInfo._id === 'current_user'));
             
-            console.log(`Lobby ${lobby.name} - host: ${JSON.stringify(lobby.host)}, isOwned: ${isOwned}`);
+            // Check if current user is a player in this lobby
+            const isPlayer = Array.isArray(lobby.players) && lobby.players.some(player => {
+                if (typeof player === 'string') {
+                    return player === userId;
+                } else if (player.user) {
+                    return (typeof player.user === 'string' && player.user === userId) ||
+                           (typeof player.user === 'object' && player.user._id === userId);
+                }
+                return false;
+            });
+            
+            // Consider the lobby as "owned" if the user is either the host or a player
+            const isOwned = isHost || isPlayer;
+            
+            console.log(`Lobby ${lobby.name} - host: ${JSON.stringify(lobby.host)}, isHost: ${isHost}, isPlayer: ${isPlayer}, isOwned: ${isOwned}`);
             
             if (isOwned) {
                 myLobbies.push(lobby);
@@ -332,7 +347,7 @@ class LobbiesModule {
                 myLobbiesContainer.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-gamepad"></i>
-                        <p>You haven't created any lobbies yet</p>
+                        <p>You haven't created or joined any lobbies yet</p>
                         <a href="create-lobby.html" class="btn btn-primary btn-hover-fx">
                             <i class="fas fa-plus"></i> Create a Lobby
                         </a>
@@ -565,7 +580,7 @@ class LobbiesModule {
                 <div class="game-details">
                     <div class="detail">
                         <i class="fas fa-user-friends"></i>
-                        <span>${lobby.currentPlayers || 1}/${lobby.maxPlayers || 4}</span>
+                        <span>${this.calculatePlayerCount(lobby)}/${lobby.maxPlayers || 4}</span>
                     </div>
                     <div class="detail">
                         <i class="fas fa-calendar-alt"></i>
@@ -633,6 +648,27 @@ class LobbiesModule {
         }
         
         return card;
+    }
+    
+    // Helper function to calculate player count from different possible data structures
+    calculatePlayerCount(lobby) {
+        // First try the currentPlayers property which should be the source of truth
+        if (typeof lobby.currentPlayers === 'number') {
+            return lobby.currentPlayers;
+        }
+        
+        // Next try the players array length if it exists
+        if (Array.isArray(lobby.players)) {
+            return lobby.players.length;
+        }
+        
+        // If the lobby has a members array (alternative structure)
+        if (Array.isArray(lobby.members)) {
+            return lobby.members.length;
+        }
+        
+        // Fallback to 1 (assuming at least the host is in there)
+        return lobby.currentPlayers || 1;
     }
     
     // Clear localStorage lobbies and start fresh to fix filtering issues
@@ -1575,176 +1611,28 @@ window.Lobby = new LobbiesModule();
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM content loaded in lobbies.js');
     
-    // Force complete reset of lobby data to apply our new filtering logic
-    console.log('🔄 COMPLETELY RESETTING LOBBY DATA');
-    localStorage.removeItem('lobbies');
-    localStorage.setItem('reset_lobbies', 'true');
+    // Create lobbies module instance
+    window.Lobby = new LobbiesModule();
     
-    // Check if essential elements exist
-    const myLobbiesElement = document.getElementById('myLobbies');
-    const otherLobbiesElement = document.getElementById('otherLobbies');
-    
-    console.log('Essential elements check:', {
-        myLobbies: myLobbiesElement ? 'Found' : 'Missing',
-        otherLobbies: otherLobbiesElement ? 'Found' : 'Missing'
-    });
-    
-    if (!myLobbiesElement || !otherLobbiesElement) {
-        console.error('Essential lobby container elements missing!');
-        alert('Error loading lobby data. Please try refreshing the page.');
-    }
-    
-    // Check for URL parameters to apply filters
+    // Check if we need to force refresh
     const urlParams = new URLSearchParams(window.location.search);
-    const initialFilters = {};
+    let shouldRefresh = urlParams.get('refresh') === 'true';
     
-    // Get game parameter from URL, if present
-    const gameParam = urlParams.get('game');
-    if (gameParam) {
-        // Don't normalize yet, just store the raw value
-        initialFilters.game = gameParam.toLowerCase();
-        console.log('Found game parameter in URL:', gameParam);
-        
-        // Set the filter dropdown to match if it exists
-        const gameFilterElement = document.getElementById('gameFilter');
-        if (gameFilterElement) {
-            const options = Array.from(gameFilterElement.options);
-            const matchingOption = options.find(option => 
-                option.value.toLowerCase() === gameParam.toLowerCase());
-            
-            if (matchingOption) {
-                gameFilterElement.value = matchingOption.value;
-                console.log('Set game filter dropdown to:', matchingOption.value);
-            }
-        }
+    // Check if we just joined a lobby through an invitation
+    const justJoinedLobby = localStorage.getItem('just_joined_lobby') === 'true';
+    if (justJoinedLobby) {
+        // Clear the flag
+        localStorage.removeItem('just_joined_lobby');
+        console.log('Detected recent lobby join, forcing refresh of lobby data');
+        shouldRefresh = true;
     }
     
-    // Get additional filters from URL (region, status) if present
-    ['region', 'status'].forEach(param => {
-        const value = urlParams.get(param);
-        if (value) {
-            initialFilters[param] = value;
-        }
-    });
-    
-    // Log the initial filters 
-    console.log('Loading lobbies with initial filters:', initialFilters);
-    
-    // Update filter UI to match URL parameters
-    const updateFilterUI = (filters) => {
-        Object.entries(filters).forEach(([key, value]) => {
-            // Find corresponding filter element
-            let elementId;
-            if (key === 'game') elementId = 'gameFilter';
-            else if (key === 'region') elementId = 'regionFilter';
-            else if (key === 'status') elementId = 'statusFilter';
-            
-            if (elementId) {
-                const element = document.getElementById(elementId);
-                if (element) element.value = value;
-            }
-        });
-    };
-    
-    // Update filter UI before loading lobbies
-    updateFilterUI(initialFilters);
-    
-    // Load lobbies with URL parameters as filters
-    window.Lobby.loadLobbies(initialFilters);
-
-    // Add event listeners for filter buttons
-    const applyFiltersBtn = document.querySelector('.apply-filters');
-    const resetFiltersBtn = document.querySelector('.reset-filters');
-    const filterInputs = document.querySelectorAll('.filter-input');
-
-    if (applyFiltersBtn) {
-        applyFiltersBtn.addEventListener('click', () => {
-            const filters = {};
-            
-            // Get values from filter inputs
-            const gameFilter = document.getElementById('gameFilter');
-            const regionFilter = document.getElementById('regionFilter');
-            const statusFilter = document.getElementById('statusFilter');
-            
-            if (gameFilter && gameFilter.value) filters.game = gameFilter.value;
-            if (regionFilter && regionFilter.value) filters.region = regionFilter.value;
-            if (statusFilter && statusFilter.value) filters.status = statusFilter.value;
-            
-            console.log('Applying filters:', filters);
-            window.Lobby.loadLobbies(filters);
-        });
-    }
-
-    if (resetFiltersBtn) {
-        resetFiltersBtn.addEventListener('click', () => {
-            // Reset all filter inputs
-            filterInputs.forEach(input => {
-                input.value = '';
-            });
-            
-            // Load all lobbies
-            console.log('Resetting filters');
-            window.Lobby.loadLobbies({});
-        });
-    }
-
-    // Add event listeners for tab buttons
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    if (tabButtons.length > 0) {
-        tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                console.log('Tab button clicked:', btn.dataset.tab);
-                
-                // Remove active class from all tabs
-                tabButtons.forEach(tb => tb.classList.remove('active'));
-                
-                // Add active class to clicked tab
-                btn.classList.add('active');
-                
-                // Get the tab value
-                const tabValue = btn.dataset.tab;
-                
-                // Apply filter based on tab
-                let filter = {};
-                
-                if (tabValue !== 'all') {
-                    // Use the simple gameType property for filtering
-                    if (tabValue === 'fps') {
-                        filter = { gameType: 'fps' };
-                        console.log('FPS filter applied');
-                    } else if (tabValue === 'moba') {
-                        filter = { gameType: 'moba' };
-                        console.log('MOBA filter applied');
-                    } else if (tabValue === 'battle-royale') {
-                        filter = { gameType: 'battle-royale' };
-                        console.log('Battle Royale filter applied');
-                    } else if (tabValue === 'rpg') {
-                        filter = { gameType: 'rpg' };
-                        console.log('RPG filter applied');
-                    } else {
-                        filter = { game: tabValue };
-                        console.log('Specific game filter applied:', tabValue);
-                    }
-                } else {
-                    console.log('All lobbies filter applied');
-                }
-                
-                console.log('Tab filter:', filter);
-                
-                // Update the filter UI to match
-                const gameFilter = document.getElementById('gameFilter');
-                if (gameFilter) {
-                    if (tabValue === 'all') {
-                        gameFilter.value = '';
-                    } else {
-                        gameFilter.value = tabValue;
-                    }
-                }
-                
-                // Force reload lobbies with the new filter
-                window.Lobby.clearAndReinitLobbies();
-                window.Lobby.loadLobbies(filter);
-            });
-        });
+    // Load lobbies, clear cache if coming back from accepting an invite
+    if (shouldRefresh) {
+        console.log('Forcing refresh of lobby data');
+        localStorage.removeItem('lobbies');
+        window.Lobby.loadLobbies();
+    } else {
+        window.Lobby.loadLobbies();
     }
 });

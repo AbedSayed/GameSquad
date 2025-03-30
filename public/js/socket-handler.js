@@ -84,11 +84,30 @@ const SocketHandler = {
                     console.warn('[socket-handler.js] Socket not connected during initialization authentication attempt');
                     
                     // Set up a retry for authentication when socket connects
+                    let authRetryCount = 0;
+                    const maxAuthRetries = 5;
+                    
                     const retryAuth = () => {
+                        if (authRetryCount >= maxAuthRetries) {
+                            console.error(`[socket-handler.js] Authentication retry limit (${maxAuthRetries}) reached. Giving up.`);
+                            
+                            // Force a reconnection of the socket as a last resort
+                            if (this.socket) {
+                                console.log('[socket-handler.js] Forcing socket reconnection as last resort');
+                                this.socket.disconnect();
+                                setTimeout(() => this.socket.connect(), 1000);
+                            }
+                            return;
+                        }
+                        
+                        authRetryCount++;
+                        
                         if (this.socket && this.socket.connected) {
+                            console.log(`[socket-handler.js] Retrying authentication (attempt ${authRetryCount}/${maxAuthRetries})`);
                             this.authenticate(userInfo._id)
                                 .then(() => {
                                     console.log('[socket-handler.js] Socket authenticated after retry');
+                                    authRetryCount = 0; // Reset the counter on success
                                     
                                     // Dispatch event for successful authentication
                                     if (typeof window !== 'undefined' && window.dispatchEvent) {
@@ -97,9 +116,10 @@ const SocketHandler = {
                                 })
                                 .catch(err => {
                                     console.error('[socket-handler.js] Authentication failed after retry:', err);
+                                    setTimeout(retryAuth, 2000); // Try again after 2 seconds
                                 });
                         } else {
-                            console.warn('[socket-handler.js] Socket still not connected after retry, trying again in 2s');
+                            console.warn(`[socket-handler.js] Socket still not connected (retry ${authRetryCount}/${maxAuthRetries}), trying again in 2s`);
                             setTimeout(retryAuth, 2000);
                         }
                     };
@@ -126,14 +146,32 @@ const SocketHandler = {
                 return;
             }
             
-            // Connect to socket server
+            // Connect to socket server - use a more resilient approach
+            try {
             this.socket = io(window.location.origin, {
                 reconnection: true,
-                reconnectionAttempts: 10,
+                    reconnectionAttempts: 15,    // Increased from 10
                 reconnectionDelay: 1000,
-                timeout: 10000,
-                forceNew: false
-            });
+                    timeout: 15000,              // Increased from 10000
+                    forceNew: false,
+                    autoConnect: true,
+                    transports: ['websocket', 'polling'] // Allow fallback to polling
+                });
+                console.log('[socket-handler.js] Socket.io connection initiated');
+            } catch (err) {
+                console.error('[socket-handler.js] Error creating socket connection:', err);
+                
+                // Try an alternative approach as fallback
+                setTimeout(() => {
+                    try {
+                        console.log('[socket-handler.js] Trying alternative socket connection approach');
+                        this.socket = io();
+                    } catch (fallbackErr) {
+                        console.error('[socket-handler.js] Fallback socket creation also failed:', fallbackErr);
+                    }
+                }, 1000);
+                return;
+            }
             
             // Set up connection events
             this.socket.on('connect', () => {
@@ -236,21 +274,102 @@ const SocketHandler = {
         const socketScripts = document.querySelectorAll('script[src*="socket.io"]');
         if (socketScripts.length > 0) {
             console.log('[socket-handler.js] Socket.IO script already exists in page');
+            
+            // Wait a moment and check if io is defined
+            setTimeout(() => {
+                if (typeof io !== 'undefined') {
+                    console.log('[socket-handler.js] io is now defined, setting up socket connection');
+                    this.setupSocket();
+                } else {
+                    console.log('[socket-handler.js] Socket.IO script exists but io is not defined, trying again');
+                    this.attemptScriptLoad();
+                }
+            }, 500);
             return;
         }
         
+        this.attemptScriptLoad();
+    },
+    
+    // Helper method to attempt script loading
+    attemptScriptLoad: function() {
         console.log('[socket-handler.js] Attempting to load Socket.IO library dynamically');
         const script = document.createElement('script');
         script.src = "https://cdn.socket.io/4.8.1/socket.io.min.js";
-        script.integrity = "sha384-+NYyNeU5B8x8awkk+SkbvwapFmeUngUKyPZNBv6kW1Xy47/3fUE36yTVCQDH9DSB";
+        script.integrity = "sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+";
         script.crossOrigin = "anonymous";
-        script.onload = () => {
+        
+        // Track load attempts
+        let loadAttempts = 0;
+        const maxLoadAttempts = 3;
+        
+        const onScriptLoad = () => {
             console.log('[socket-handler.js] Socket.IO library loaded successfully, initializing socket');
+            
+            // Remove event listeners
+            script.removeEventListener('load', onScriptLoad);
+            script.removeEventListener('error', onScriptError);
+            
+            // Wait a brief moment to ensure io is defined
+            setTimeout(() => {
+                if (typeof io !== 'undefined') {
             this.setupSocket();
+                } else {
+                    console.warn('[socket-handler.js] io still not defined after script load');
+                    this.tryAlternativeLoading();
+                }
+            }, 200);
         };
-        script.onerror = (error) => {
+        
+        const onScriptError = (error) => {
             console.error('[socket-handler.js] Failed to load Socket.IO library:', error);
+            
+            // Remove event listeners
+            script.removeEventListener('load', onScriptLoad);
+            script.removeEventListener('error', onScriptError);
+            
+            loadAttempts++;
+            if (loadAttempts < maxLoadAttempts) {
+                console.log(`[socket-handler.js] Retrying script load (attempt ${loadAttempts+1}/${maxLoadAttempts})`);
+                setTimeout(() => this.attemptScriptLoad(), 1000);
+            } else {
+                this.tryAlternativeLoading();
+            }
         };
+        
+        // Add event listeners
+        script.addEventListener('load', onScriptLoad);
+        script.addEventListener('error', onScriptError);
+        
+        // Append script to head
+        document.head.appendChild(script);
+    },
+    
+    // Try alternative loading methods
+    tryAlternativeLoading: function() {
+        console.log('[socket-handler.js] Trying alternative Socket.IO loading method');
+        
+        // Try without integrity check as a fallback
+        const script = document.createElement('script');
+        script.src = "https://cdn.socket.io/4.8.1/socket.io.min.js";
+        // No integrity check in fallback
+        script.crossOrigin = "anonymous";
+        
+        script.onload = () => {
+            console.log('[socket-handler.js] Alternative Socket.IO loading successful');
+            setTimeout(() => {
+                if (typeof io !== 'undefined') {
+                    this.setupSocket();
+                } else {
+                    console.error('[socket-handler.js] io is still not defined after alternative loading');
+                }
+            }, 200);
+        };
+        
+        script.onerror = (error) => {
+            console.error('[socket-handler.js] Alternative Socket.IO loading also failed:', error);
+        };
+        
         document.head.appendChild(script);
     },
     
@@ -268,16 +387,27 @@ const SocketHandler = {
     },
     
     // Authenticate socket with user ID
-    authenticate: function(userId) {
-        if (!this.socket) {
-            console.warn('[socket-handler.js] Cannot authenticate socket - not initialized');
-            return Promise.reject(new Error('Socket not initialized'));
+    authenticate: function(userId, providedToken) {
+        // Validate input
+        if (!userId) {
+            console.error('[socket-handler.js] Cannot authenticate without a userId');
+            return Promise.reject(new Error('No userId provided for authentication'));
         }
         
-        const token = localStorage.getItem('token');
+        // Check if socket exists and is connected
+        if (!this.socket || !this.socket.connected) {
+            console.warn('[socket-handler.js] Cannot authenticate - socket is not connected');
+            return Promise.reject(new Error('Socket not connected'));
+        }
+        
+        // Get token from provided parameter or localStorage
+        let token = providedToken;
         if (!token) {
-            console.warn('[socket-handler.js] Cannot authenticate socket - no token found');
+            token = localStorage.getItem('token') || localStorage.getItem('authToken');
+            if (!token) {
+                console.error('[socket-handler.js] No authentication token available');
             return Promise.reject(new Error('No authentication token available'));
+            }
         }
         
         console.log('[socket-handler.js] Authenticating socket for user:', userId);
@@ -286,9 +416,11 @@ const SocketHandler = {
             // Set up one-time handlers for authentication response
             const onAuthenticated = (data) => {
                 console.log('[socket-handler.js] Socket authenticated successfully:', data);
+                this.isConnected = true; // Ensure connected flag is set
                 // Remove the listeners after we get a response
                 this.socket.off('authenticated', onAuthenticated);
                 this.socket.off('auth_error', onAuthError);
+                clearTimeout(authTimeout); // Clear the timeout
                 resolve(data);
             };
             
@@ -297,6 +429,7 @@ const SocketHandler = {
                 // Remove the listeners after we get a response
                 this.socket.off('authenticated', onAuthenticated);
                 this.socket.off('auth_error', onAuthError);
+                clearTimeout(authTimeout); // Clear the timeout
                 reject(error);
             };
             
@@ -942,6 +1075,10 @@ const SocketHandler = {
                     // Remove invite from storage
                     this.removeInvite(inviteId);
                     
+                    // Set a flag that we've joined a lobby via invitation 
+                    // This will trigger a refresh when returning to the lobbies page
+                    localStorage.setItem('just_joined_lobby', 'true');
+                    
                     // Notify server that invite was accepted
                     if (this.socket && this.isConnected) {
                         console.log('Emitting accept-invite to server');
@@ -961,15 +1098,15 @@ const SocketHandler = {
                             
                             // For paths including /pages/, use a relative path
                             if (currentPath.includes('/pages/')) {
-                                window.location.href = `lobby.html?id=${lobbyId}&join=true&fromInvite=true`;
+                                window.location.href = `lobby.html?id=${lobbyId}&join=true&fromInvite=true&refresh=true`;
                             } else {
                                 // For other paths, use absolute path
-                                window.location.href = `/pages/lobby.html?id=${lobbyId}&join=true&fromInvite=true`;  
+                                window.location.href = `/pages/lobby.html?id=${lobbyId}&join=true&fromInvite=true&refresh=true`;  
                             }
                         } catch (err) {
                             console.error('Error during redirect:', err);
                             // Last resort absolute path
-                            window.location.href = '/pages/lobby.html?id=' + lobbyId + '&join=true&fromInvite=true';
+                            window.location.href = '/pages/lobby.html?id=' + lobbyId + '&join=true&fromInvite=true&refresh=true';
                         }
                     }, 500);
                 } else {
@@ -2137,35 +2274,29 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing SocketHandler...');
     
     // Check if SocketHandler is already initialized
-    if (window.SocketHandler && window.SocketHandler.socket) {
-        console.log('SocketHandler already initialized, skipping initialization');
+    if (window.SocketHandler && window.SocketHandler.socket && window.SocketHandler.socket.connected) {
+        console.log('SocketHandler already initialized and connected, skipping initialization');
         return;
     }
     
-    if (!window.io) {
-        console.warn('Socket.io is not loaded yet. Will attempt to initialize when available.');
+    // First check if Socket.IO is available
+    let socketCheckCount = 0;
+    const maxSocketChecks = 10; // Maximum number of retries
         
-        // Check for io in a few seconds - socket.io might be loaded asynchronously
-        setTimeout(function checkAndInitSocket() {
+    function checkAndInitSocketWithRetry() {
             if (window.io) {
-                console.log('Socket.io now available. Initializing SocketHandler.');
-                SocketHandler.init();
-                
-                // If on messages page, update invites UI
-                if (window.location.href.includes('messages.html')) {
-                    console.log('On messages page, updating UI...');
-                    setTimeout(() => {
-                        SocketHandler.updateInvitesUI();
-                        SocketHandler.updateNotificationBadge();
-                    }, 500);
+            console.log('Socket.io available. Initializing SocketHandler.');
+            
+            // Reset SocketHandler to avoid stale state
+            if (window.SocketHandler && window.SocketHandler.socket) {
+                try {
+                    // Try to clean up existing connection
+                    window.SocketHandler.socket.disconnect();
+                } catch (e) {
+                    console.warn('Error disconnecting existing socket:', e);
                 }
-            } else {
-                console.warn('Socket.io still not available. Will try again in 2 seconds.');
-                setTimeout(checkAndInitSocket, 2000);
             }
-        }, 2000);
-    } else {
-        // Socket.io is available, initialize immediately
+            
         SocketHandler.init();
         
         // If on messages page, update invites UI
@@ -2175,8 +2306,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 SocketHandler.updateInvitesUI();
                 SocketHandler.updateNotificationBadge();
             }, 500);
+            }
+        } else {
+            socketCheckCount++;
+            if (socketCheckCount < maxSocketChecks) {
+                console.warn(`Socket.io not available (attempt ${socketCheckCount}/${maxSocketChecks}). Will try again in 2 seconds.`);
+                setTimeout(checkAndInitSocketWithRetry, 2000);
+            } else {
+                console.error(`Socket.io still not available after ${maxSocketChecks} attempts. Trying alternative approach.`);
+                // Try to load Socket.IO directly as a last resort
+                SocketHandler.loadSocketIOLibrary();
+            }
         }
     }
+    
+    // Start the check and retry process
+    checkAndInitSocketWithRetry();
     
     // Make SocketHandler globally available
     window.SocketHandler = SocketHandler;

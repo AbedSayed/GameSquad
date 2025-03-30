@@ -344,7 +344,7 @@
     <script src="../js/gamesquad-ui.js"></script>
     <script src="../js/config.js"></script>
     <!-- Socket.io client -->
-    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-+NYyNeU5B8x8awkk+SkbvwapFmeUngUKyPZNBv6kW1Xy47/3fUE36yTVCQDH9DSB" crossorigin="anonymous"></script>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossorigin="anonymous"></script>
     <!-- Load socket handler before other scripts -->
     <script src="../js/socket-handler.js"></script>
     <!-- Load utilities -->
@@ -374,9 +374,12 @@
                 setTimeout(() => {
                     if (SocketHandler.socket) {
                         const token = localStorage.getItem('token');
-                        if (token) {
-                            console.log('Re-authenticating socket connection');
-                            SocketHandler.authenticate(token);
+                        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                        if (token && userInfo && userInfo._id) {
+                            console.log('Re-authenticating socket connection with user ID:', userInfo._id);
+                            SocketHandler.authenticate(userInfo._id, token);
+                        } else {
+                            console.warn('Missing user info or token for socket authentication');
                         }
                     }
                 }, 1000);
