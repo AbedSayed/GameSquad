@@ -448,21 +448,31 @@ function initApp() {
             },
             
             register: async function(username, email, password) {
-                // This is a placeholder - will be replaced with actual API call
                 try {
-                    // Simulate API call
-                    const userData = {
-                        id: 'user123',
-                        username: username,
-                        email: email,
-                        profilePic: 'assets/default-avatar.png'
-                    };
-                    
-                    // Store user data
-                    localStorage.setItem('userInfo', JSON.stringify(userData));
-                    localStorage.setItem('token', 'fake-jwt-token');
-                    
-                    return userData;
+                    // Make a real API call to the server
+                    const response = await fetch(`${window.APP_CONFIG.API_URL}/users/register`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            username,
+                            email,
+                            password
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Registration failed');
+                    }
+
+                    // Store user data and token
+                    localStorage.setItem('userInfo', JSON.stringify(data));
+                    localStorage.setItem('token', data.token);
+
+                    return data;
                 } catch (error) {
                     console.error('Registration error:', error);
                     throw error;

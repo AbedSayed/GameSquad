@@ -282,13 +282,14 @@
         <div class="messages-container pulse-glow">
             <div class="page-header">
                 <i class="fas fa-envelope neon-text"></i>
-                <h1 class="page-title neon-text">MESSAGES</h1>
+                <h1 class="page-title neon-text">MESSAGES & NOTIFICATIONS</h1>
             </div>
             
             <div class="messages-body">
                 <div class="messages-sidebar">
                     <ul class="sidebar-nav">
                         <li><a href="#" class="nav-link active" data-tab="invites"><i class="fas fa-envelope-open-text"></i> Invites <span class="badge invite-badge"></span></a></li>
+                        <li><a href="#" class="nav-link" data-tab="notifications"><i class="fas fa-bell"></i> Notifications</a></li>
                         <li><a href="#" class="nav-link" data-tab="friends"><i class="fas fa-user-friends"></i> Friends</a></li>
                     </ul>
                 </div>
@@ -304,6 +305,20 @@
                             <div class="empty-state">
                                 <i class="fas fa-envelope-open"></i>
                                 <p>No invites</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notifications Tab -->
+                    <div class="tab-content" id="notifications-tab">
+                        <div class="content-header">
+                            <h2>NOTIFICATIONS</h2>
+                        </div>
+                        <div id="notifications-container" class="notifications-list">
+                            <!-- Notifications will be populated here -->
+                            <div class="empty-state">
+                                <i class="fas fa-bell-slash"></i>
+                                <p>No notifications</p>
                             </div>
                         </div>
                     </div>
@@ -336,6 +351,8 @@
             </div>
         </div>
     </main>
+
+    <div class="notifications-container"></div>
 
     <!-- Scripts -->
     <script src="../js/gamesquad-ui.js"></script>

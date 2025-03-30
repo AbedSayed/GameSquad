@@ -300,12 +300,13 @@ const FriendsService = {
         const friendId = userData.id || userData._id;
         
         try {
-            // Try to send via API
+            // Get authentication token
             const token = localStorage.getItem('token');
             if (!token) {
                 throw new Error('Not authenticated');
             }
             
+            // Send friend request via API
             const response = await fetch(`/api/friends/request/${friendId}`, {
                 method: 'POST',
                 headers: {
@@ -701,6 +702,58 @@ const FriendsService = {
         } catch (error) {
             console.error('Error cleaning up invalid friend requests:', error);
         }
+    },
+    
+    // Function to refresh friends list
+    refreshFriends: async function() {
+        try {
+            console.log('Refreshing friends list...');
+            
+            // Fetch fresh data from API
+            const friends = await this.fetchFriendsFromAPI();
+            
+            // Deduplicate friends array
+            const uniqueFriends = this.deduplicateFriends(friends);
+            
+            // Update local cache
+            this.friends = uniqueFriends;
+            
+            // Update localStorage
+            localStorage.setItem('friends', JSON.stringify(uniqueFriends));
+            
+            return uniqueFriends;
+        } catch (error) {
+            console.error('Error refreshing friends:', error);
+            return this.friends || [];
+        }
+    },
+    
+    // Helper function to deduplicate friends array
+    deduplicateFriends: function(friends) {
+        if (!Array.isArray(friends)) return [];
+        
+        const uniqueFriends = [];
+        const seenIds = new Set();
+        
+        for (const friend of friends) {
+            if (!friend) continue;
+            
+            const friendId = friend._id || friend.id;
+            if (!friendId) continue;
+            
+            // Convert to string for consistent comparison
+            const idStr = String(friendId);
+            
+            if (!seenIds.has(idStr)) {
+                seenIds.add(idStr);
+                uniqueFriends.push(friend);
+            } else {
+                console.log(`[FriendsService] Removed duplicate friend with ID: ${idStr}`);
+            }
+        }
+        
+        console.log(`[FriendsService] Deduplication: ${friends.length} friends reduced to ${uniqueFriends.length} unique friends`);
+        return uniqueFriends;
     }
 };
 

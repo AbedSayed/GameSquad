@@ -86,13 +86,6 @@ function initLayout() {
             document.getElementById(`${tab}-tab`).classList.add('active');
         });
     });
-    
-    // Set up notifications container if it doesn't exist
-    if (!document.querySelector('.notifications-container')) {
-        const notificationsContainer = document.createElement('div');
-        notificationsContainer.className = 'notifications-container';
-        document.body.appendChild(notificationsContainer);
-    }
 }
 
 // Function to initialize socket events for real-time messaging
@@ -113,9 +106,6 @@ function initSocketEvents() {
 function loadMessages() {
     // Display user's invites
     displayUserInvites();
-    
-    // Display notifications
-    displayNotifications();
     
     // Display friend requests
     displayFriendRequests();
@@ -235,19 +225,6 @@ function displayUserInvites() {
         console.error('Error displaying invites:', err);
         showNotification('Error', 'Could not load invites', 'error');
     }
-}
-
-// Function to display notifications
-function displayNotifications() {
-    const notificationsContainer = document.getElementById('notifications-container');
-    if (!notificationsContainer) return;
-    
-    // Placeholder for now - this would fetch notifications from API
-    notificationsContainer.innerHTML = `
-        <div class="empty-state">
-            <i class="fas fa-bell-slash"></i>
-            <p>No notifications</p>
-        </div>`;
 }
 
 // Function to display friend requests

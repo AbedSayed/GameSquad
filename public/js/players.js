@@ -241,10 +241,96 @@ function resetFilters() {
     filterPlayers();
 }
 
+// Function to fix duplicate friend entries in localStorage
+function fixDuplicateFriendEntries() {
+    console.log('Checking for duplicate friend entries in localStorage...');
+    
+    try {
+        // Get user info from localStorage
+        const userInfoStr = localStorage.getItem('userInfo');
+        if (!userInfoStr) {
+            console.log('No userInfo found in localStorage');
+            return;
+        }
+        
+        const userInfo = JSON.parse(userInfoStr);
+        let modified = false;
+        
+        // Fix friends array if it exists
+        if (userInfo.friends && Array.isArray(userInfo.friends)) {
+            const originalLength = userInfo.friends.length;
+            
+            // Deduplicate by converting to Set and back
+            const uniqueIds = new Set();
+            const uniqueFriends = [];
+            
+            for (const friendId of userInfo.friends) {
+                const idStr = String(friendId);
+                if (!uniqueIds.has(idStr)) {
+                    uniqueIds.add(idStr);
+                    uniqueFriends.push(friendId);
+                }
+            }
+            
+            userInfo.friends = uniqueFriends;
+            
+            if (originalLength !== uniqueFriends.length) {
+                console.log(`Removed ${originalLength - uniqueFriends.length} duplicate friend IDs`);
+                modified = true;
+            }
+        }
+        
+        // Fix friendsData array if it exists
+        if (userInfo.friendsData && Array.isArray(userInfo.friendsData)) {
+            const originalLength = userInfo.friendsData.length;
+            
+            // Use deduplicateFriends helper function
+            userInfo.friendsData = deduplicateFriends(userInfo.friendsData);
+            
+            if (originalLength !== userInfo.friendsData.length) {
+                console.log(`Removed ${originalLength - userInfo.friendsData.length} duplicate friend entries from friendsData`);
+                modified = true;
+            }
+        }
+        
+        // Save changes if any were made
+        if (modified) {
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            console.log('Updated localStorage with deduplicated friend entries');
+        } else {
+            console.log('No duplicate friend entries found in localStorage');
+        }
+        
+        // Also check separate friends storage
+        const friendsStr = localStorage.getItem('friends');
+        if (friendsStr) {
+            try {
+                const friends = JSON.parse(friendsStr);
+                if (Array.isArray(friends)) {
+                    const originalLength = friends.length;
+                    const uniqueFriends = deduplicateFriends(friends);
+                    
+                    if (originalLength !== uniqueFriends.length) {
+                        console.log(`Removed ${originalLength - uniqueFriends.length} duplicate entries from separate friends storage`);
+                        localStorage.setItem('friends', JSON.stringify(uniqueFriends));
+                    }
+                }
+            } catch (e) {
+                console.error('Error processing separate friends storage:', e);
+            }
+        }
+    } catch (error) {
+        console.error('Error fixing duplicate friend entries:', error);
+    }
+}
+
 // Call this function on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Clean up Unknown User friend requests before checking for them
     cleanupUnknownUserRequests();
+    
+    // Fix any duplicate friend entries
+    fixDuplicateFriendEntries();
     
     // Rest of your initialization code...
     console.log('Players page loaded - DOM is ready');
@@ -1458,6 +1544,8 @@ function loadFriendsList() {
                 
                 if (friends && Array.isArray(friends) && friends.length > 0) {
                     console.log('Found friends in FriendsService:', friends);
+                    // Deduplicate friends by ID before displaying
+                    friends = deduplicateFriends(friends);
                     displayFriendsList(friends);
                     return;
                 } else {
@@ -1469,6 +1557,8 @@ function loadFriendsList() {
                     .then(friends => {
                         console.log('Loaded friends from FriendsService API:', friends);
                         if (friends && friends.length > 0) {
+                            // Deduplicate friends by ID before displaying
+                            friends = deduplicateFriends(friends);
                             displayFriendsList(friends);
                         } else {
                             console.log('No friends returned from FriendsService API, trying localStorage');
@@ -1491,6 +1581,72 @@ function loadFriendsList() {
     
     // Start loading friends data
     loadFriendsData();
+    
+    // Helper function to load friends from localStorage
+    function loadFriendsFromLocalStorage() {
+        console.log('Loading friends from localStorage');
+        
+        try {
+            // Try to get from userInfo in localStorage
+            const userInfoStr = localStorage.getItem('userInfo');
+            if (!userInfoStr) {
+                console.log('No userInfo found in localStorage');
+                showEmptyFriendsList();
+                return;
+            }
+            
+            const userInfo = JSON.parse(userInfoStr);
+            let friendsArray = [];
+            
+            // First try to get from friendsData array
+            if (userInfo.friendsData && Array.isArray(userInfo.friendsData) && userInfo.friendsData.length > 0) {
+                console.log(`Found ${userInfo.friendsData.length} friends in userInfo.friendsData`);
+                friendsArray = userInfo.friendsData;
+            } 
+            // Then try to get from friends array with IDs and convert to objects
+            else if (userInfo.friends && Array.isArray(userInfo.friends) && userInfo.friends.length > 0) {
+                console.log(`Found ${userInfo.friends.length} friend IDs in userInfo.friends`);
+                
+                // Convert simple IDs to friend objects
+                friendsArray = userInfo.friends.map(id => {
+                    // Try to find user info for this ID
+                    return {
+                        _id: id,
+                        username: `User ${id.substring(0, 5)}...`, // Truncated ID as placeholder
+                        isOnline: false // Default to offline
+                    };
+                });
+            }
+            
+            // Also try separate friends storage
+            const separateFriendsStr = localStorage.getItem('friends');
+            if (separateFriendsStr) {
+                try {
+                    const separateFriends = JSON.parse(separateFriendsStr);
+                    if (Array.isArray(separateFriends) && separateFriends.length > 0) {
+                        console.log(`Found ${separateFriends.length} friends in separate 'friends' storage`);
+                        // Merge with existing array
+                        friendsArray = friendsArray.concat(separateFriends);
+                    }
+                } catch (e) {
+                    console.warn('Error parsing separate friends storage:', e);
+                }
+            }
+            
+            // Deduplicate before displaying
+            friendsArray = deduplicateFriends(friendsArray);
+            
+            // Display friends
+            if (friendsArray.length > 0) {
+                displayFriendsList(friendsArray);
+            } else {
+                showEmptyFriendsList();
+            }
+        } catch (error) {
+            console.error('Error loading friends from localStorage:', error);
+            showEmptyFriendsList();
+        }
+    }
     
     // Continue with the existing code for loadFriendsFromLocalStorage and displayFriendsList...
 }
@@ -1959,44 +2115,40 @@ function displayFriendRequestInBanner(data) {
 function acceptFriendRequest(requestId, senderId) {
     console.log(`[players.js] Accepting friend request ${requestId} from ${senderId}`);
     
-    // Show loading overlay
-    const overlayId = showLoadingOverlay('Accepting friend request...');
+    // Convert sender ID to string for consistent comparison
+    const senderIdStr = String(senderId);
     
-    // Get the API URL from config
-    const apiUrl = window.APP_CONFIG?.API_URL || '/api';
-    
-    // Get token from localStorage
-    const token = localStorage.getItem('token');
-    if (!token) {
-        hideLoadingOverlay(overlayId);
-        showToast('error', 'Authentication required', 'Please log in to accept friend requests');
+    // Get current user info from localStorage
+    const userInfoStr = localStorage.getItem('userInfo');
+    if (!userInfoStr) {
+        showNotification('Error: User information not found', 'error');
         return;
     }
     
-    // Get current user info for socket events
-    let currentUserId = null;
-    try {
-        const userInfoStr = localStorage.getItem('userInfo');
-        if (userInfoStr) {
-            const userInfo = JSON.parse(userInfoStr);
-            currentUserId = userInfo._id;
-        }
-    } catch (err) {
-        console.error('[players.js] Error getting current user ID:', err);
+    const userInfo = JSON.parse(userInfoStr);
+    
+    // Get auth token
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showNotification('Error: Authentication token not found', 'error');
+        return;
     }
     
-    // Call API to accept friend request
+    // Send accept request to server API
+    const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+    
     fetch(`${apiUrl}/friends/requests/${requestId}/accept`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         }
     })
     .then(response => {
-        console.log(`[players.js] Accept friend request response status: ${response.status}`);
         if (!response.ok) {
-            throw new Error(`Server responded with ${response.status}`);
+            return response.json().then(data => {
+                throw new Error(data.message || 'Error accepting friend request');
+            });
         }
         return response.json();
     })
@@ -2004,104 +2156,63 @@ function acceptFriendRequest(requestId, senderId) {
         console.log('[players.js] Accept friend request response:', data);
         
         if (data.success) {
-            // Update userInfo in localStorage to add the new friend
-            const userInfoStr = localStorage.getItem('userInfo');
-            if (userInfoStr) {
-                try {
-                    const userInfo = JSON.parse(userInfoStr);
-                    
-                    // Add to friends list if not already there
-                    if (!userInfo.friends.includes(senderId)) {
-                        userInfo.friends.push(senderId);
-                    }
-                    
-                    // Store sender details in friendsData if available
-                    if (data.data && data.data.senderDetails) {
-                        if (!userInfo.friendsData) {
-                            userInfo.friendsData = [];
-                        }
-                        
-                        // Check if we already have this friend in friendsData
-                        const existingIndex = userInfo.friendsData.findIndex(f => f._id === senderId);
-                        
-                        if (existingIndex >= 0) {
-                            // Update existing entry
-                            userInfo.friendsData[existingIndex] = data.data.senderDetails;
-                        } else {
-                            // Add new entry
-                            userInfo.friendsData.push(data.data.senderDetails);
-                        }
-                    }
-                    
-                    // Remove from received friend requests
-                    if (userInfo.friendRequests && userInfo.friendRequests.received) {
-                        userInfo.friendRequests.received = userInfo.friendRequests.received.filter(
-                            req => req._id !== requestId
-                        );
-                    }
-                    
-                    localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                    
-                    // Emit socket events to notify both sides of the acceptance
-                    if (window.socket) {
-                        console.log('[players.js] Emitting friend-request-accepted socket event');
-                        
-                        // Notify the sender that their request was accepted
-                        window.socket.emit('friend-request-accepted', {
-                            senderId: senderId,
-                            requestId: requestId
-                        });
-                        
-                        // Also notify ourselves for data syncing
-                        if (currentUserId) {
-                            window.socket.emit('friend-request-you-accepted', {
-                                recipientId: currentUserId,
-                                senderId: senderId
-                            });
-                        }
-                    }
-                    
-                    // Update UI
-                    hideLoadingOverlay(overlayId);
-                    showToast('success', 'Friend request accepted', 'You are now friends!');
-                    
-                    // Refresh friend status UI for all player cards
-                    refreshFriendStatus();
-                    
-                    // Update FriendsService if available
-                    if (window.FriendsService) {
-                        console.log('[players.js] Notifying FriendsService about accepted friend request');
-                        window.FriendsService.refreshFriends();
-                    }
-                    
-                    // Refresh the friend request frame
-                    checkForFriendRequests();
-                } catch (err) {
-                    console.error('[players.js] Error updating local storage after accepting friend request:', err);
-                    hideLoadingOverlay(overlayId);
-                    showToast('error', 'Error updating local data', 'Please refresh the page');
+            // Show success notification
+            showNotification('Friend request accepted!', 'success');
+            
+            // Add sender to friends list in localStorage if not already there
+            if (!userInfo.friends) {
+                userInfo.friends = [];
+            }
+            
+            if (!userInfo.friends.includes(senderIdStr) && !userInfo.friends.some(id => String(id) === senderIdStr)) {
+                userInfo.friends.push(senderIdStr);
+            }
+            
+            // Store sender details in friendsData if available
+            if (data.data && data.data.senderDetails) {
+                if (!userInfo.friendsData) {
+                    userInfo.friendsData = [];
                 }
+                
+                // Ensure we don't duplicate entries in friendsData
+                const existingIndex = userInfo.friendsData.findIndex(f => String(f._id) === senderIdStr);
+                
+                if (existingIndex >= 0) {
+                    // Update existing entry
+                    console.log(`[players.js] Updating existing friend data for ${senderId}`);
+                    userInfo.friendsData[existingIndex] = data.data.senderDetails;
+                } else {
+                    // Add new entry
+                    console.log(`[players.js] Adding new friend data for ${senderId}`);
+                    userInfo.friendsData.push(data.data.senderDetails);
+                }
+            }
+            
+            // Remove from received friend requests
+            if (userInfo.friendRequests && userInfo.friendRequests.received) {
+                userInfo.friendRequests.received = userInfo.friendRequests.received.filter(
+                    req => req._id !== requestId
+                );
+            }
+            
+            // Update localStorage with the new data from the server
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            
+            // Refresh the page or update the UI
+            if (refreshFriendsList && typeof refreshFriendsList === 'function') {
+                console.log('[players.js] Refreshing friends list after accepting request');
+                refreshFriendsList();
             } else {
-                hideLoadingOverlay(overlayId);
-                showToast('success', 'Friend request accepted', 'You are now friends!');
+                console.log('[players.js] No refresh function available, reloading page');
+                location.reload();
             }
         } else {
-            hideLoadingOverlay(overlayId);
-            showToast('error', 'Error accepting friend request', data.message || 'Unknown error');
+            showNotification(data.message || 'Error accepting friend request', 'error');
         }
     })
-    .catch(err => {
-        console.error('[players.js] Error accepting friend request:', err);
-        hideLoadingOverlay(overlayId);
-        showToast('error', 'Error accepting friend request', err.message);
-        
-        // Retry logic for network errors
-        if (err.message.includes('Failed to fetch') || err.message.includes('Network error')) {
-            setTimeout(() => {
-                showToast('info', 'Retrying', 'Attempting to accept friend request again...');
-                acceptFriendRequest(requestId, senderId);
-            }, 2000);
-        }
+    .catch(error => {
+        console.error('[players.js] Error accepting friend request:', error);
+        showNotification('Error accepting friend request: ' + error.message, 'error');
     });
 }
 
@@ -2323,4 +2434,29 @@ function addTabClickHandlers(frame) {
             }
         });
     });
+}
+
+// Helper function to deduplicate friends array by ID
+function deduplicateFriends(friends) {
+    if (!Array.isArray(friends)) return [];
+    
+    const uniqueFriends = [];
+    const seenIds = new Set();
+    
+    for (const friend of friends) {
+        if (!friend) continue;
+        
+        const friendId = friend._id || friend.id;
+        if (!friendId) continue;
+        
+        if (!seenIds.has(friendId)) {
+            seenIds.add(friendId);
+            uniqueFriends.push(friend);
+        } else {
+            console.log(`Removed duplicate friend with ID: ${friendId}`);
+        }
+    }
+    
+    console.log(`Deduplication: ${friends.length} friends reduced to ${uniqueFriends.length} unique friends`);
+    return uniqueFriends;
 }
