@@ -28,6 +28,42 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize global UI components on page load
   console.log('Initializing global UI components');
   initGlobalFriendsSidebar();
+  
+  // Add new enhancements for auth pages
+  if (document.querySelector('.auth-section')) {
+    addFloatingParticles();
+    enhanceFormFields();
+    enhanceButtons();
+    
+    // Add card tilt effect
+    const authContainer = document.querySelector('.auth-container');
+    if (authContainer) {
+      authContainer.addEventListener('mousemove', (e) => {
+        const rect = authContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        
+        const tiltX = (centerY - y) / 20;
+        const tiltY = (x - centerX) / 20;
+        
+        authContainer.style.transform = `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateY(-5px)`;
+      });
+      
+      authContainer.addEventListener('mouseleave', () => {
+        authContainer.style.transform = '';
+        setTimeout(() => {
+          authContainer.style.transition = 'transform 0.4s ease';
+        }, 100);
+      });
+      
+      authContainer.addEventListener('mouseenter', () => {
+        authContainer.style.transition = 'transform 0.1s ease';
+      });
+    }
+  }
 });
 
 /**
@@ -2113,4 +2149,104 @@ function openFriendChat(friendId, friendName) {
 }
 
 // Make key functions globally available
-window.openFriendChat = openFriendChat; 
+window.openFriendChat = openFriendChat;
+
+// Add floating particles to auth pages
+function addFloatingParticles() {
+    const authSection = document.querySelector('.auth-section');
+    if (!authSection) return;
+    
+    const numParticles = 15;
+    
+    for (let i = 0; i < numParticles; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'floating-particle';
+        
+        // Random position
+        const top = Math.random() * 100;
+        const left = Math.random() * 100;
+        
+        // Random size (2-8px)
+        const size = 2 + Math.random() * 6;
+        
+        // Random opacity
+        const opacity = 0.1 + Math.random() * 0.4;
+        
+        // Random animation duration and delay
+        const duration = 15 + Math.random() * 25;
+        const delay = Math.random() * 10;
+        
+        // Set styles
+        particle.style.top = `${top}%`;
+        particle.style.left = `${left}%`;
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        particle.style.opacity = opacity;
+        particle.style.animationDuration = `${duration}s`;
+        particle.style.animationDelay = `${delay}s`;
+        
+        authSection.appendChild(particle);
+    }
+}
+
+// Add form field animation effects
+function enhanceFormFields() {
+    const formGroups = document.querySelectorAll('.form-group');
+    
+    formGroups.forEach(group => {
+        const input = group.querySelector('input');
+        const label = group.querySelector('label');
+        
+        if (!input || !label) return;
+        
+        // Add ripple effect on focus
+        input.addEventListener('focus', () => {
+            const ripple = document.createElement('span');
+            ripple.className = 'input-ripple';
+            group.appendChild(ripple);
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 1000);
+        });
+        
+        // Add floating animation to icons in labels
+        const icon = label.querySelector('i');
+        if (icon) {
+            input.addEventListener('focus', () => {
+                icon.style.transform = 'scale(1.2)';
+                icon.style.color = 'var(--accent-color)';
+            });
+            
+            input.addEventListener('blur', () => {
+                icon.style.transform = 'scale(1)';
+                icon.style.color = '';
+            });
+        }
+    });
+}
+
+// Enhance the login/register buttons
+function enhanceButtons() {
+    const submitBtn = document.querySelector('.auth-form button[type="submit"]');
+    if (!submitBtn) return;
+    
+    submitBtn.addEventListener('mouseenter', () => {
+        // Add a pulse effect on hover
+        submitBtn.classList.add('pulse-on-hover');
+        
+        // Add an icon animation
+        const icon = submitBtn.querySelector('i');
+        if (icon) {
+            icon.classList.add('fa-beat');
+            
+            setTimeout(() => {
+                icon.classList.remove('fa-beat');
+            }, 1000);
+        }
+    });
+    
+    submitBtn.addEventListener('mouseleave', () => {
+        submitBtn.classList.remove('pulse-on-hover');
+    });
+} 
