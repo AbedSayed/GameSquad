@@ -1,7 +1,6 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 
-// Use the same MongoDB URI as the application
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://hamdiamish311:e1TRr1qZXtVn3dtg@cluster0.0me02pa.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
 console.log('Attempting to connect to MongoDB...');
@@ -13,7 +12,6 @@ mongoose.connect(MONGODB_URI, {
 .then(async () => {
   console.log('Connected to MongoDB successfully!');
   
-  // Define a simple schema for the User collection based on the actual schema
   const userSchema = new mongoose.Schema({
     username: String,
     email: String,
@@ -35,16 +33,14 @@ mongoose.connect(MONGODB_URI, {
         createdAt: Date
       }]
     }
-  }, { strict: false });  // Use strict:false to allow for fields not defined in the schema
+  }, { strict: false });
   
   const User = mongoose.model('User', userSchema);
   
   try {
-    // Query all users
     const users = await User.find({}).populate('friends', 'username email').lean();
     console.log(`Total users found: ${users.length}`);
     
-    // Check which users have friends
     let usersWithFriends = 0;
     let usersWithSentRequests = 0;
     let usersWithReceivedRequests = 0;
@@ -54,11 +50,9 @@ mongoose.connect(MONGODB_URI, {
     for(const user of users) {
       console.log(`\nUser ${user.username || user.email || user._id}:`);
       
-      // Check friends array
       if(user.friends && user.friends.length > 0) {
         console.log(`  Has ${user.friends.length} friends:`);
         for(const friend of user.friends) {
-          // If the friend was populated successfully
           if(friend.username) {
             console.log(`    - ${friend.username} (${friend._id})`);
           } else {
@@ -71,7 +65,6 @@ mongoose.connect(MONGODB_URI, {
         console.log('  No friends found');
       }
       
-      // Check sent friend requests
       if(user.friendRequests && user.friendRequests.sent && user.friendRequests.sent.length > 0) {
         console.log(`  Has ${user.friendRequests.sent.length} sent friend requests:`);
         for(const request of user.friendRequests.sent) {
@@ -85,7 +78,6 @@ mongoose.connect(MONGODB_URI, {
         console.log('  No sent friend requests');
       }
       
-      // Check received friend requests
       if(user.friendRequests && user.friendRequests.received && user.friendRequests.received.length > 0) {
         console.log(`  Has ${user.friendRequests.received.length} received friend requests:`);
         for(const request of user.friendRequests.received) {
@@ -102,7 +94,6 @@ mongoose.connect(MONGODB_URI, {
       console.log('-------------------');
     }
     
-    // Summary
     console.log(`\nSUMMARY:`);
     console.log(`- Total users: ${users.length}`);
     console.log(`- Users with friends: ${usersWithFriends} (${Math.round(usersWithFriends/users.length*100)}%)`);
@@ -114,11 +105,10 @@ mongoose.connect(MONGODB_URI, {
   } catch (error) {
     console.error('Error querying the database:', error);
   } finally {
-    // Close the connection
     await mongoose.connection.close();
     console.log('MongoDB connection closed');
   }
 })
 .catch(err => {
   console.error('MongoDB connection error:', err);
-}); 
+});

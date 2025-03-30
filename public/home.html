@@ -5,16 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GameSquad - Find Your Perfect Gaming Team</title>
     
-    <!-- Unified Theme System -->
     <link rel="stylesheet" href="css/gamesquad-theme.css">
     <link rel="stylesheet" href="css/animations.css">
     <link rel="stylesheet" href="css/gaming-styles.css">
     <link rel="stylesheet" href="css/style.css">
 
-    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     
-    <!-- Google fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="js/checkAuth.js"></script>
 </head>
@@ -199,25 +196,21 @@
 
     <div class="notifications-container"></div>
 
-    <!-- Scripts -->
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js" integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4" crossorigin="anonymous"></script>
     <script src="js/socket-handler.js"></script>
     <script src="js/friends-service.js"></script>
     <script src="js/gamesquad-ui.js"></script>
     <script>
-        // Global configuration
         window.APP_CONFIG = {
             API_URL: '/api'
         };
         
-        // Immediate check for auth state (runs before DOM is loaded)
         (function() {
             const userInfoStr = localStorage.getItem('userInfo');
             const token = localStorage.getItem('token');
             
             const isAuthenticated = userInfoStr && token;
             
-            // If authenticated, add class to html element
             if (isAuthenticated) {
                 document.documentElement.classList.add('user-authenticated');
             } else {
@@ -226,16 +219,12 @@
         })();
         
         document.addEventListener('DOMContentLoaded', function() {
-            // Apply particle effect to hero section
             applyParticleEffect('.hero');
             
-            // Update auth UI (this will show/hide elements based on auth state)
             updateAuthUI();
             
-            // Initialize the friends sidebar
             if (window.FriendsService) {
                 console.log('FriendsService is available, initializing friends sidebar');
-                // If FriendsService was not initialized, initialize it now
                 if (!window.FriendsService.initialized) {
                     window.FriendsService.init();
                 }

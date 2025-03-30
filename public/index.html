@@ -9,16 +9,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body class="landing-page">
-    <!-- Particle background -->
     <div id="particles-js"></div>
     
-    <!-- Animated background elements -->
     <div class="hexagon-grid">
-        <!-- Hexagons will be added by JS -->
     </div>
     
     <div class="floating-shapes">
-        <!-- Floating shapes will be added by JS -->
     </div>
     
     <div class="landing-container">
@@ -33,7 +29,6 @@
                 <p>Find Your Perfect Gaming Team</p>
             </div>
             
-            <!-- Game logos -->
             <div class="game-logos">
                 <div class="game-logo"><i class="fas fa-dragon" style="color: #ff6b6b;"></i></div>
                 <div class="game-logo"><i class="fas fa-ghost" style="color: #48dbfb;"></i></div>
@@ -71,7 +66,6 @@
         </div>
     </div>
     
-    <!-- Scroll indicator -->
     <div class="scroll-down">
         <span>Scroll Down</span>
         <i class="fas fa-chevron-down"></i>
@@ -83,7 +77,6 @@
 
     <script src="js/particles.min.js"></script>
     <script>
-        // Initialize particles.js
         particlesJS('particles-js', {
             "particles": {
                 "number": {
@@ -190,7 +183,6 @@
             "retina_detect": true
         });
         
-        // Create hexagon grid
         function createHexagons() {
             const hexGrid = document.querySelector('.hexagon-grid');
             const numHexagons = 15;
@@ -206,7 +198,6 @@
             }
         }
         
-        // Create floating shapes
         function createFloatingShapes() {
             const shapeContainer = document.querySelector('.floating-shapes');
             const numShapes = 8;
@@ -225,7 +216,6 @@
             }
         }
         
-        // Create scroll animation
         function initScroll() {
             const scrollBtn = document.querySelector('.scroll-down');
             if (scrollBtn) {
@@ -238,19 +228,15 @@
             }
         }
         
-        // Global configuration 
         window.APP_CONFIG = {
             API_URL: '/api'
         };
         
-        // Check if user is logged in
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize visual elements
             createHexagons();
             createFloatingShapes();
             initScroll();
             
-            // More comprehensive authentication check
             let hasValidUserInfo = false;
             let hasToken = false;
             
@@ -262,7 +248,6 @@
                 
                 if (userInfoStr) {
                     const userInfo = JSON.parse(userInfoStr);
-                    // Must have valid username
                     hasValidUserInfo = userInfo && 
                                       userInfo.username && 
                                       userInfo.username !== 'Username' &&
@@ -271,7 +256,6 @@
             } catch (error) {
                 console.error('Error checking auth state:', error);
                 hasValidUserInfo = false;
-                // Clear corrupted data
                 localStorage.removeItem('userInfo');
                 localStorage.removeItem('token');
             }
@@ -279,16 +263,13 @@
             const isAuthenticated = hasValidUserInfo && hasToken;
             console.log('Auth check on landing page:', { hasValidUserInfo, hasToken });
             
-            // If the auth state is inconsistent, clear it
             if (hasValidUserInfo !== hasToken) {
                 console.log('Inconsistent auth state detected, clearing auth data');
                 localStorage.removeItem('userInfo');
                 localStorage.removeItem('token');
             } else if (isAuthenticated) {
-                // If properly authenticated, redirect to main page
                 console.log('User is authenticated, redirecting to home page');
                 
-                // We'll first validate the token with the server
                 async function validateToken() {
                     try {
                         const token = localStorage.getItem('token');
@@ -300,17 +281,14 @@
                         });
                         
                         if (response.ok) {
-                            // Token is valid, redirect to main page
                             window.location.href = 'home.html';
                         } else {
                             console.log('Token validation failed, clearing auth data');
-                            // Token is invalid, clear auth data
                             localStorage.removeItem('userInfo');
                             localStorage.removeItem('token');
                         }
                     } catch (error) {
                         console.error('Error validating token:', error);
-                        // On error, clear auth data
                         localStorage.removeItem('userInfo');
                         localStorage.removeItem('token');
                     }
