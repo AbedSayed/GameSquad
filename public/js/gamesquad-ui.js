@@ -708,6 +708,79 @@ function initGlobalFriendsSidebar() {
             .friend-action-btn:hover {
                 color: rgba(255, 255, 255, 0.9);
             }
+            
+            /* Friend Request Styles */
+            .request-item {
+                display: flex;
+                flex-direction: column;
+                padding: 12px;
+                margin-bottom: 8px;
+                background-color: rgba(15, 15, 25, 0.7);
+                border-radius: 4px;
+                border: 1px solid rgba(126, 34, 206, 0.3);
+                transition: all 0.3s ease;
+            }
+            
+            .request-item:hover {
+                background-color: rgba(126, 34, 206, 0.1);
+                border-color: rgba(126, 34, 206, 0.5);
+                transform: translateY(-2px);
+            }
+            
+            .request-header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+            
+            .request-date {
+                font-size: 0.7rem;
+                color: rgba(255, 255, 255, 0.5);
+                margin-top: 2px;
+            }
+            
+            .request-message {
+                font-size: 0.85rem;
+                color: rgba(255, 255, 255, 0.8);
+                margin-bottom: 10px;
+                font-style: italic;
+            }
+            
+            .request-actions {
+                display: flex;
+                gap: 8px;
+            }
+            
+            .request-btn {
+                flex: 1;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 0.8rem;
+                font-weight: 600;
+                border: none;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            
+            .accept-btn {
+                background-color: rgba(16, 185, 129, 0.6);
+                color: white;
+            }
+            
+            .accept-btn:hover {
+                background-color: rgba(16, 185, 129, 0.9);
+                transform: translateY(-1px);
+            }
+            
+            .reject-btn {
+                background-color: rgba(239, 68, 68, 0.6);
+                color: white;
+            }
+            
+            .reject-btn:hover {
+                background-color: rgba(239, 68, 68, 0.9);
+                transform: translateY(-1px);
+            }
         `;
         document.head.appendChild(style);
     }
@@ -715,6 +788,27 @@ function initGlobalFriendsSidebar() {
     // Initialize sidebar functionality
     const friendsHeader = friendsSidebar.querySelector('.friends-header');
     const toggleButton = friendsSidebar.querySelector('.friends-toggle');
+    
+    // Add click handler for the friend request badge
+    const friendRequestBadge = friendsSidebar.querySelector('.friend-request-badge');
+    if (friendRequestBadge) {
+        friendRequestBadge.addEventListener('click', function(e) {
+            e.stopPropagation(); // Prevent header click handler from being triggered
+            
+            // First, ensure the sidebar is expanded
+            if (friendsSidebar.classList.contains('collapsed')) {
+                friendsSidebar.classList.remove('collapsed');
+                
+                // Update toggle icon
+                if (toggleButton) {
+                    toggleButton.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                }
+            }
+            
+            // Then select the requests tab
+            selectRequestsTab();
+        });
+    }
     
     if (friendsHeader) {
         friendsHeader.addEventListener('click', function() {
@@ -761,12 +855,43 @@ function initGlobalFriendsSidebar() {
                 
                 // If requests tab is selected, refresh the requests
                 if (targetTab === 'requests-list') {
+                    console.log('Requests tab selected, refreshing requests');
                     refreshFriendRequests();
+                    
+                    // Force the tab content to be visible
+                    const requestsList = document.getElementById('requests-list');
+                    if (requestsList) {
+                        requestsList.style.display = 'block';
+                        requestsList.classList.add('active');
+                    }
                 } else if (targetTab === 'friends-list') {
                     refreshFriendsList();
                 }
             });
         });
+        
+        // Add a special handler for the Requests tab
+        const requestsTab = [...tabButtons].find(tab => tab.dataset.tab === 'requests-list');
+        if (requestsTab) {
+            const requestCountSpan = requestsTab.querySelector('.request-count');
+            if (requestCountSpan) {
+                // Make sure count is visible when there are requests
+                if (requestCountSpan.textContent && requestCountSpan.textContent !== '') {
+                    requestCountSpan.style.display = 'inline-flex';
+                }
+                
+                // Add a more obvious hover effect
+                requestsTab.style.position = 'relative';
+                requestsTab.addEventListener('mouseenter', function() {
+                    if (requestCountSpan.textContent && requestCountSpan.textContent !== '') {
+                        requestsTab.style.backgroundColor = 'rgba(126, 34, 206, 0.2)';
+                    }
+                });
+                requestsTab.addEventListener('mouseleave', function() {
+                    requestsTab.style.backgroundColor = '';
+                });
+            }
+        }
     }
     
     // Initialize search functionality
@@ -1022,17 +1147,43 @@ async function refreshFriendRequests() {
     if (!window.FriendsService) return;
     
     try {
+        console.log('Refreshing friend requests');
+        
         // Get friend requests
         await window.FriendsService.fetchFriendRequestsFromAPI();
         const requests = window.FriendsService.getPendingRequests();
+        
+        console.log('Friend requests refreshed:', requests);
         
         // Display requests
         displayFriendRequestsInSidebar(requests);
         
         // Update request count badge
         updateFriendRequestBadge(requests);
+        
+        // If requests tab is selected, make sure it's displayed
+        const requestsTab = document.querySelector('.friends-tab[data-tab="requests-list"]');
+        if (requestsTab && requestsTab.classList.contains('active')) {
+            const requestsList = document.getElementById('requests-list');
+            if (requestsList) {
+                requestsList.style.display = 'block';
+                requestsList.classList.add('active');
+            }
+        }
+        
+        return requests;
     } catch (error) {
         console.error('Error refreshing friend requests:', error);
+        return { sent: [], received: [] };
+    }
+}
+
+// Function to programmatically select the Requests tab
+function selectRequestsTab() {
+    const requestsTab = document.querySelector('.friends-tab[data-tab="requests-list"]');
+    if (requestsTab) {
+        // Simulate a click on the tab
+        requestsTab.click();
     }
 }
 
@@ -1062,17 +1213,69 @@ function updateFriendRequestBadge(requests) {
     const receivedRequests = requests && requests.received ? requests.received.filter(req => req.status === 'pending') : [];
     const count = receivedRequests.length;
     
+    console.log(`Updating friend request badge with count: ${count}`);
+    
     // Update badge in header
     const badge = document.querySelector('.friend-request-badge');
     if (badge) {
         badge.textContent = count;
         badge.style.display = count > 0 ? 'flex' : 'none';
+        
+        // Make badge more visible with animation if count > 0
+        if (count > 0) {
+            badge.classList.add('pulse');
+            setTimeout(() => badge.classList.remove('pulse'), 1000);
+        }
     }
     
     // Update count in tab
     const requestCountSpan = document.querySelector('.request-count');
     if (requestCountSpan) {
         requestCountSpan.textContent = count > 0 ? count : '';
+        requestCountSpan.style.display = count > 0 ? 'inline-flex' : 'none';
+        
+        // Add highlight to the tab button if there are requests
+        const requestsTab = document.querySelector('.friends-tab[data-tab="requests-list"]');
+        if (requestsTab && count > 0) {
+            // Add subtle glow effect to the tab
+            requestsTab.style.textShadow = '0 0 8px rgba(239, 68, 68, 0.7)';
+            requestsTab.style.fontWeight = 'bold';
+        } else if (requestsTab) {
+            requestsTab.style.textShadow = '';
+            requestsTab.style.fontWeight = '';
+        }
+    }
+    
+    // If there are requests, add pulse animation style
+    if (count > 0 && !document.querySelector('#friend-request-badge-animation')) {
+        const style = document.createElement('style');
+        style.id = 'friend-request-badge-animation';
+        style.textContent = `
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.2); }
+                100% { transform: scale(1); }
+            }
+            
+            .pulse {
+                animation: pulse 0.5s ease-in-out 2;
+            }
+            
+            .request-count {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background-color: #ef4444;
+                color: white;
+                border-radius: 50%;
+                min-width: 18px;
+                height: 18px;
+                font-size: 0.7rem;
+                font-weight: bold;
+                margin-left: 5px;
+            }
+        `;
+        document.head.appendChild(style);
     }
 }
 
