@@ -303,15 +303,21 @@ function filterPlayers() {
 function resetFilters() {
     console.log('Resetting filters');
     
-    const searchInput = document.getElementById('player-search');
-    const gameFilter = document.getElementById('game-filter');
-    const rankFilter = document.getElementById('rank-filter');
-    
+    const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = '';
-    if (gameFilter) gameFilter.value = 'all';
-    if (rankFilter) rankFilter.value = 'all';
     
-    filterPlayers();
+    // Show all player cards
+    document.querySelectorAll('.player-card').forEach(card => {
+        card.style.display = 'flex';
+    });
+    
+    // Hide the "no players found" message
+    const noPlayersMessage = document.getElementById('noPlayersMessage');
+    if (noPlayersMessage) {
+        noPlayersMessage.classList.add('d-none');
+    }
+    
+    console.log('Filters reset - showing all players');
 }
 
 // Simple function to filter players by username
@@ -345,6 +351,68 @@ function filterPlayers() {
     console.log(`Found ${visibleCount} players matching "${searchTerm}"`);
 }
 
+// Updated function with visual feedback for search results
+function filterPlayers() {
+    console.log('Filtering players by username');
+    
+    const searchInput = document.getElementById('searchInput');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    
+    console.log(`Filtering with search term: "${searchTerm}"`);
+    
+    // Get all player cards
+    const playerCards = document.querySelectorAll('.player-card');
+    let visibleCount = 0;
+    
+    // Reset previous search results
+    playerCards.forEach(card => {
+        card.classList.remove('search-result');
+    });
+    
+    // If search term is empty, show all players without highlighting
+    if (searchTerm === '') {
+        playerCards.forEach(card => {
+            card.style.display = 'flex';
+            visibleCount++;
+        });
+    } else {
+        // Filter and highlight matching player cards
+        playerCards.forEach(card => {
+            const username = card.querySelector('.player-name').textContent.toLowerCase();
+            const shouldShow = username.includes(searchTerm);
+            
+            card.style.display = shouldShow ? 'flex' : 'none';
+            
+            if (shouldShow) {
+                visibleCount++;
+                card.classList.add('search-result');
+            }
+        });
+    }
+    
+    // Update the results counter
+    const resultCount = document.getElementById('resultCount');
+    const searchResultsCounter = document.getElementById('searchResultsCounter');
+    
+    if (resultCount && searchResultsCounter) {
+        resultCount.textContent = visibleCount;
+        
+        if (searchTerm === '') {
+            searchResultsCounter.style.display = 'none';
+        } else {
+            searchResultsCounter.style.display = 'inline-flex';
+        }
+    }
+    
+    // Show or hide the "no players found" message
+    const noPlayersMessage = document.getElementById('noPlayersMessage');
+    if (noPlayersMessage) {
+        noPlayersMessage.classList.toggle('d-none', visibleCount > 0);
+    }
+    
+    console.log(`Found ${visibleCount} players matching "${searchTerm}"`);
+}
+
 // Simple function to reset filters
 function resetFilters() {
     console.log('Resetting filters');
@@ -361,6 +429,34 @@ function resetFilters() {
     const noPlayersMessage = document.getElementById('noPlayersMessage');
     if (noPlayersMessage) {
         noPlayersMessage.classList.add('d-none');
+    }
+    
+    console.log('Filters reset - showing all players');
+}
+
+// Updated function to reset search highlighting
+function resetFilters() {
+    console.log('Resetting filters');
+    
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+    
+    // Show all player cards and remove search-result class
+    document.querySelectorAll('.player-card').forEach(card => {
+        card.style.display = 'flex';
+        card.classList.remove('search-result');
+    });
+    
+    // Hide the "no players found" message
+    const noPlayersMessage = document.getElementById('noPlayersMessage');
+    if (noPlayersMessage) {
+        noPlayersMessage.classList.add('d-none');
+    }
+    
+    // Hide the results counter
+    const searchResultsCounter = document.getElementById('searchResultsCounter');
+    if (searchResultsCounter) {
+        searchResultsCounter.style.display = 'none';
     }
     
     console.log('Filters reset - showing all players');
@@ -519,15 +615,26 @@ function setupEventListeners() {
     if (filterForm) {
         const searchBtn = filterForm.querySelector('#searchBtn');
     if (searchBtn) {
+            // Use the updated filter function
+            searchBtn.removeEventListener('click', filterPlayers);
         searchBtn.addEventListener('click', filterPlayers);
     }
         
         // Add event listener for Enter key on search input
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
+            searchInput.removeEventListener('keyup', null);
             searchInput.addEventListener('keyup', function(event) {
                 if (event.key === 'Enter') {
                     event.preventDefault();
+                    filterPlayers();
+                }
+            });
+            
+            // Add event listener for input changes to filter in real-time
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.trim();
+                if (searchTerm.length > 2 || searchTerm === '') { // Only filter if 3+ chars or empty
                     filterPlayers();
                 }
             });
@@ -536,6 +643,8 @@ function setupEventListeners() {
         // Reset filters
         const resetBtn = filterForm.querySelector('#resetFilters');
         if (resetBtn) {
+            // Use the updated reset function
+            resetBtn.removeEventListener('click', resetFilters);
             resetBtn.addEventListener('click', resetFilters);
         }
     }

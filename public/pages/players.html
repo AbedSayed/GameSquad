@@ -167,144 +167,84 @@
         }
         
         .filters-container {
-            background-color: rgba(26, 26, 36, 0.7);
-            padding: 20px;
-            border-radius: var(--border-radius);
+            background-color: rgba(26, 26, 36, 0.8);
+            padding: 25px;
+            border-radius: 12px;
             margin-bottom: 30px;
-            box-shadow: var(--box-shadow);
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(108, 92, 231, 0.1);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        /* Friend Requests Container Styles */
-        .friend-requests-container {
-            background-color: rgba(26, 26, 36, 0.95);
-            padding: 20px;
-            border-radius: var(--border-radius);
-            margin-bottom: 30px;
-            box-shadow: 0 0 20px rgba(126, 34, 206, 0.5);
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(108, 92, 231, 0.3);
-            position: relative;
-            overflow: hidden;
-            animation: fadeInDown 0.5s ease-out;
-        }
-        
-        .friend-requests-container .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            border-bottom: 1px solid rgba(108, 92, 231, 0.3);
-            padding-bottom: 10px;
-        }
-        
-        .friend-requests-container h3 {
-            color: var(--light-color);
-            font-size: 1.2rem;
-            margin: 0;
-        }
-        
-        .friend-requests-container h3 i {
-            color: var(--primary-color);
-            margin-right: 10px;
-        }
-        
-        .friend-requests-container .close-btn {
-            background: none;
-            border: none;
-            color: var(--light-color);
-            font-size: 1.5rem;
-            cursor: pointer;
-            opacity: 0.7;
-            transition: opacity 0.3s;
-        }
-        
-        .friend-requests-container .close-btn:hover {
-            opacity: 1;
-        }
-        
-        .friend-request-item {
-            background-color: rgba(15, 15, 25, 0.7);
-            border-radius: var(--border-radius);
-            padding: 15px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
             border: 1px solid rgba(108, 92, 231, 0.2);
+            position: relative;
+            overflow: hidden;
         }
         
-        .friend-request-item:hover {
-            background-color: rgba(20, 20, 30, 0.8);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(108, 92, 231, 0.2);
-        }
-        
-        .friend-request-item .request-info {
-            flex: 1;
-        }
-        
-        .friend-request-item .request-info strong {
-            color: var(--primary-color);
-            display: block;
-            margin-bottom: 5px;
-        }
-        
-        .friend-request-item .request-info p {
-            color: var(--light-color);
-            opacity: 0.8;
-            margin: 0;
-            font-size: 0.9rem;
-        }
-        
-        .friend-request-item .request-actions {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .friend-request-item .btn {
-            padding: 5px 10px;
-            font-size: 0.8rem;
-        }
-        
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .filters-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('../resources/grid-pattern.svg');
+            opacity: 0.05;
+            pointer-events: none;
         }
         
         .filters-title {
             color: var(--light-color);
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(108, 92, 231, 0.2);
+        }
+        
+        .filters-title h2 {
+            font-size: 1.5rem;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--light-color);
+        }
+        
+        .filters-title h2::before {
+            content: '\f002';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+        
+        .filters-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
         
         .toggle-filters-btn {
             padding: 8px 16px;
-            background-color: var(--primary-color);
+            background-color: rgba(108, 92, 231, 0.2);
             color: var(--light-color);
-            border: none;
-            border-radius: var(--border-radius);
+            border: 1px solid rgba(108, 92, 231, 0.3);
+            border-radius: 30px;
             cursor: pointer;
             transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .toggle-filters-btn i {
+            color: var(--primary-color);
         }
         
         .toggle-filters-btn:hover {
-            background-color: var(--primary-color-dark);
-            box-shadow: 0 0 15px rgba(108, 92, 231, 0.6);
+            background-color: rgba(108, 92, 231, 0.3);
+            box-shadow: 0 0 10px rgba(108, 92, 231, 0.3);
+            transform: translateY(-2px);
         }
         
         .filters-form {
@@ -325,31 +265,37 @@
         .search-input-container {
             display: flex;
             align-items: center;
-            gap: 10px;
             width: 100%;
+            background-color: rgba(15, 15, 25, 0.7);
+            border-radius: 8px;
+            padding: 6px;
+            border: 1px solid rgba(108, 92, 231, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .search-input-container:focus-within {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 15px rgba(108, 92, 231, 0.4);
         }
         
         .search-input-container input {
             flex: 1;
-            padding: 12px;
-            border: 1px solid rgba(108, 92, 231, 0.3);
-            border-radius: var(--border-radius);
-            background-color: rgba(15, 15, 25, 0.7);
+            padding: 12px 16px;
+            border: none;
+            background-color: transparent;
             color: var(--light-color);
-            transition: all 0.3s ease;
             font-size: 1rem;
-        }
-        
-        .search-input-container input:focus {
             outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 8px rgba(108, 92, 231, 0.4);
         }
         
         .search-input-container button {
+            margin: 2px;
+            padding: 10px 20px;
+            border-radius: 6px;
             white-space: nowrap;
-            padding: 12px 20px;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.25s ease;
         }
         
         .filter-group {
@@ -775,6 +721,49 @@
                 opacity: 0;
             }
         }
+        
+        /* Highlighted search result styles */
+        .player-card.search-result {
+            animation: highlight-pulse 2s infinite;
+            border-color: var(--primary-color);
+            transform: translateY(-5px);
+            position: relative;
+            z-index: 5;
+        }
+        
+        .player-card.search-result::before {
+            opacity: 1;
+        }
+        
+        @keyframes highlight-pulse {
+            0% {
+                box-shadow: 0 0 15px rgba(108, 92, 231, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 25px rgba(108, 92, 231, 0.7);
+            }
+            100% {
+                box-shadow: 0 0 15px rgba(108, 92, 231, 0.4);
+            }
+        }
+        
+        /* Search results counter */
+        .search-results-counter {
+            background-color: rgba(108, 92, 231, 0.2);
+            border-radius: 30px;
+            padding: 5px 15px;
+            font-size: 0.9rem;
+            color: var(--light-color);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 15px;
+            border: 1px solid rgba(108, 92, 231, 0.3);
+        }
+        
+        .search-results-counter i {
+            color: var(--primary-color);
+        }
     </style>
 </head>
 <body>
@@ -833,15 +822,22 @@
         <div class="filters-container glow-effect">
             <div class="filters-title">
                 <h2>Filters</h2>
-                <button type="button" id="hideFilters" class="toggle-filters-btn btn-hover-fx">
-                    <i class="fas fa-filter"></i> <span>Hide Filters</span>
-                </button>
+                <div class="filters-right">
+                    <span id="searchResultsCounter" class="search-results-counter" style="display: none;">
+                        <i class="fas fa-user-check"></i> <span id="resultCount">0</span> player(s) found
+                    </span>
+                    <button type="button" id="hideFilters" class="toggle-filters-btn btn-hover-fx">
+                        <i class="fas fa-filter"></i> <span>Hide Filters</span>
+                    </button>
+                </div>
             </div>
             <div class="filters-form">
                 <div class="filter-group search-only">
-                    <label for="searchInput">Search Players by Name</label>
+                    <label for="searchInput">
+                        <i class="fas fa-search"></i> Search Players by Name
+                    </label>
                     <div class="search-input-container">
-                        <input type="text" id="searchInput" placeholder="Enter username...">
+                        <input type="text" id="searchInput" placeholder="Type username to search...">
                         <button type="button" class="apply-filters btn-hover-fx" id="searchBtn">
                             <i class="fas fa-search"></i> Search
                         </button>
