@@ -166,10 +166,33 @@ const SocketHandler = {
             // Play a sound if available
             if (typeof Audio !== 'undefined') {
                 try {
-                    const notificationSound = new Audio('../resources/notification.mp3');
-                    notificationSound.play().catch(e => console.log('Could not play notification sound'));
+                    // Use Web Audio API to create a notification sound programmatically
+                    // This doesn't rely on external files that might be missing
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    // Create an oscillator for the notification sound
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    // Configure the sound
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    
+                    // Connect the nodes
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    // Play a short beep
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.2);
+                    
+                    // Fade out
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
+                    
+                    console.log('Notification sound played successfully');
                 } catch (e) {
-                    console.log('Audio not supported');
+                    console.log('Could not play notification sound', e);
                 }
             }
             

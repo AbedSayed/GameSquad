@@ -39,10 +39,16 @@ document.addEventListener('DOMContentLoaded', function() {
         window.SocketHandler.init();
         
         // Add listener for friend requests
-        if (window.SocketHandler.socket) {
+        if (window.SocketHandler && window.SocketHandler.socket) {
             window.SocketHandler.socket.on('new-friend-request', (data) => {
                 console.log('Friend request received in players page:', data);
+                
+                // Validate friend request before showing it
+                if (data && data.senderId && data.senderName && data.senderName !== 'Unknown User') {
                 showFriendRequestFrame(data);
+                } else {
+                    console.warn('Received invalid friend request data:', data);
+                }
             });
         }
     }
@@ -57,56 +63,104 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function setupEventListeners() {
-    console.log('Setting up event listeners...');
+    console.log('Setting up event listeners');
     
-    // Toggle filters button
-    const toggleFiltersBtn = document.getElementById('toggleFilters');
-    if (toggleFiltersBtn) {
-        console.log('Toggle filters button found');
-        toggleFiltersBtn.addEventListener('click', function() {
-            const filtersForm = document.querySelector('.filters-form');
-            if (filtersForm) {
-                const isVisible = filtersForm.style.display !== 'none';
-                filtersForm.style.display = isVisible ? 'none' : 'block';
-                const btnText = toggleFiltersBtn.querySelector('span');
-                if (btnText) {
-                    btnText.textContent = isVisible ? 'Show Filters' : 'Hide Filters';
-                } else {
-                    this.textContent = isVisible ? 'Show Filters' : 'Hide Filters';
-                }
-            }
-        });
-    } else {
-        console.error('Toggle filters button not found!');
+    // Game type selector
+    const gameTypeSelector = document.getElementById('game-filter');
+    if (gameTypeSelector) {
+        gameTypeSelector.addEventListener('change', filterPlayers);
+    }
+    
+    // Rank selector
+    const rankSelector = document.getElementById('rank-filter');
+    if (rankSelector) {
+        rankSelector.addEventListener('change', filterPlayers);
+    }
+    
+    // Search input
+    const searchInput = document.getElementById('player-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', filterPlayers);
     }
     
     // Search button
     const searchBtn = document.getElementById('searchBtn');
     if (searchBtn) {
-        console.log('Search button found');
         searchBtn.addEventListener('click', filterPlayers);
     }
     
     // Reset filters button
         const resetFiltersBtn = document.getElementById('resetFilters');
         if (resetFiltersBtn) {
-        console.log('Reset filters button found');
             resetFiltersBtn.addEventListener('click', resetFilters);
         }
     
-    // Search input (for typing)
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        console.log('Search input found');
-        searchInput.addEventListener('keyup', function(e) {
-            if (e.key === 'Enter') {
-                filterPlayers();
-            }
+    // Add a button to refresh player status
+    const controlsContainer = document.querySelector('.players-controls');
+    if (controlsContainer) {
+        const refreshBtn = document.createElement('button');
+        refreshBtn.className = 'btn btn-secondary refresh-players-btn';
+        refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Status';
+        refreshBtn.title = 'Refresh friend status for all players';
+        refreshBtn.addEventListener('click', () => {
+            // Show spinning animation on the icon
+            const icon = refreshBtn.querySelector('i');
+            icon.classList.add('fa-spin');
+            refreshBtn.disabled = true;
+            
+            // Reload friends data then update UI
+            Promise.all([
+                window.FriendsService?.loadFriends(),
+                window.FriendsService?.loadFriendRequests()
+            ])
+            .then(() => {
+                refreshFriendStatus();
+                // Stop spinning animation
+                setTimeout(() => {
+                    icon.classList.remove('fa-spin');
+                    refreshBtn.disabled = false;
+                }, 500);
+                showNotification('Friend status refreshed', 'success');
+            })
+            .catch(err => {
+                console.error('Error refreshing friend status:', err);
+                icon.classList.remove('fa-spin');
+                refreshBtn.disabled = false;
+                showNotification('Error refreshing status', 'error');
+            });
         });
+        
+        // Add the button to the controls
+        controlsContainer.appendChild(refreshBtn);
+        
+        // Add some CSS for the button
+        const style = document.createElement('style');
+        style.textContent = `
+            .refresh-players-btn {
+                margin-left: 10px;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            .fa-spin {
+                animation: spin 1s linear infinite;
+            }
+        `;
+        document.head.appendChild(style);
     }
     
     // Add friend buttons (for existing buttons when the function runs)
     setupAddFriendButtons();
+    
+    // Add friend event listeners
+    setupFriendEventListeners();
+    
+    // Check for friend requests
+    checkForFriendRequests();
+    
+    // Set up an interval to refresh friend status periodically
+    setInterval(refreshFriendStatus, 30000); // Refresh every 30 seconds
     
     console.log('Event listeners setup complete');
 }
@@ -262,30 +316,64 @@ async function loadPlayers() {
     }
 }
 
+// Display players in the UI
 function displayPlayers(players) {
-    const playersContainer = document.getElementById('playersContainer');
-    
-    if (!playersContainer) {
-        console.error('Players container not found! Element with ID "playersContainer" is missing.');
-        return;
-    }
-    
-    playersContainer.innerHTML = '';
-    
-    if (!players || players.length === 0) {
-        playersContainer.innerHTML = '<p class="no-players">No players found</p>';
-        return;
-    }
-    
     console.log(`Displaying ${players.length} players`);
     
+    // Get the container for the player cards
+    const playersContainer = document.getElementById('playersContainer');
+    if (!playersContainer) {
+        console.error('Players container not found');
+        return;
+    }
+    
+    // Clear existing player cards
+    playersContainer.innerHTML = '';
+    
+    // If no players, show message
+    if (!players || players.length === 0) {
+        if (noPlayersMessage) {
+            noPlayersMessage.classList.remove('d-none');
+        }
+        
+        // Add an empty state message to the container
+        playersContainer.innerHTML = `
+            <div class="empty-state" style="width: 100%; padding: 50px; text-align: center;">
+                <i class="fas fa-users-slash" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.6;"></i>
+                <h3>No players found</h3>
+                <p>Try adjusting your search filters</p>
+                <button id="resetFiltersEmpty" class="btn btn-primary mt-3">
+                    <i class="fas fa-sync"></i> Reset Filters
+                </button>
+            </div>
+        `;
+        
+        // Add event listener to the reset button
+        const resetBtn = document.getElementById('resetFiltersEmpty');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', resetFilters);
+        }
+        
+        return;
+    }
+    
+    // Hide the no players message if it exists
+    if (noPlayersMessage) {
+        noPlayersMessage.classList.add('d-none');
+    }
+    
+    // Create and append player cards
     players.forEach(player => {
-        const playerCard = createPlayerCard(player);
-        playersContainer.appendChild(playerCard);
+        const card = createPlayerCard(player);
+        playersContainer.appendChild(card);
     });
     
-    // Setup event listeners for the newly added friend buttons
-    setupAddFriendButtons();
+    // After displaying players, update friend status for each player card
+    setTimeout(() => {
+        refreshFriendStatus();
+    }, 100);
+    
+    console.log('Player cards displayed successfully');
 }
 
 function createPlayerCard(player) {
@@ -650,12 +738,17 @@ function checkIfFriend(playerId) {
     try {
         // First check if we have FriendsService available
         if (window.FriendsService) {
-            const friends = window.FriendsService.getAllFriends();
+            const friends = window.FriendsService.getAllFriends?.() || [];
             if (friends && Array.isArray(friends)) {
                 // Check if the player is in our friends list
-                const isFriend = friends.some(friend => 
-                    friend._id === playerId || friend.id === playerId
-                );
+                const isFriend = friends.some(friend => {
+                    if (typeof friend === 'string') {
+                        return friend === playerId;
+                    } else if (friend && friend._id) {
+                        return friend._id === playerId;
+                    }
+                    return false;
+                });
                 
                 if (isFriend) {
                     return 'friend';
@@ -663,11 +756,16 @@ function checkIfFriend(playerId) {
             }
             
             // Also check for pending requests
-            const requests = window.FriendsService.getPendingRequests();
-            if (requests && Array.isArray(requests)) {
-                const isPending = requests.some(request => 
-                    request.recipient._id === playerId || request.recipient === playerId
-                );
+            const requests = window.FriendsService.getPendingRequests?.() || { sent: [] };
+            if (requests && requests.sent) {
+                const isPending = requests.sent.some(request => {
+                    if (typeof request.recipient === 'string') {
+                        return request.recipient === playerId;
+                    } else if (request.recipient && request.recipient._id) {
+                        return request.recipient._id === playerId;
+                    }
+                    return false;
+                });
                 
                 if (isPending) {
                     return 'pending';
@@ -700,6 +798,7 @@ function checkIfFriend(playerId) {
         if (currentUser.friendRequests && currentUser.friendRequests.sent) {
             // Check if there's a pending friend request
             const pendingRequest = currentUser.friendRequests.sent.some(request => {
+                // Handle different data structures
                 if (typeof request.recipient === 'string') {
                     return request.recipient === playerId;
                 } else if (request.recipient && request.recipient._id) {
@@ -711,6 +810,18 @@ function checkIfFriend(playerId) {
             if (pendingRequest) {
                 return 'pending';
             }
+        }
+        
+        // Check if the request was confirmed and the user is now a friend
+        // This might be needed if the localStorage wasn't updated yet
+        const token = localStorage.getItem('token');
+        if (token) {
+            // Force refresh of friend status from API when rendering players next time
+            setTimeout(() => {
+                if (window.FriendsService && typeof window.FriendsService.loadFriends === 'function') {
+                    window.FriendsService.loadFriends();
+                }
+            }, 1000);
         }
         
         return false;
@@ -1628,9 +1739,21 @@ function checkForFriendRequests() {
         return;
     }
     
-    const received = userInfo.friendRequests.received;
+    // Filter out invalid friend requests (those with missing sender information)
+    const received = userInfo.friendRequests.received.filter(request => {
+        // Validate sender data exists and is not "Unknown User"
+        const hasSender = request.sender && 
+                        (typeof request.sender === 'object' ? 
+                            (request.sender._id && request.sender.username && request.sender.username !== 'Unknown User') : 
+                            request.sender);
+        
+        const hasSenderName = request.senderName && request.senderName !== 'Unknown User';
+        
+        return hasSender || hasSenderName;
+    });
+    
     if (received.length > 0) {
-        console.log(`Found ${received.length} existing friend requests`);
+        console.log(`Found ${received.length} valid friend requests`);
         
         // If there are requests, show the frame
         const friendRequestsFrame = document.getElementById('friendRequestsFrame');
@@ -1650,15 +1773,58 @@ function checkForFriendRequests() {
                     const message = request.message || `${senderName} would like to be your friend!`;
                     const requestId = request._id;
                     
-                    addFriendRequestToFrame({
-                        senderName: senderName,
-                        senderId: senderId,
-                        message: message,
-                        requestId: requestId
-                    });
+                    // Additional validation before adding to UI
+                    if (senderId && requestId && senderName !== 'Unknown User') {
+                        addFriendRequestToFrame({
+                            senderName: senderName,
+                            senderId: senderId,
+                            message: message,
+                            requestId: requestId
+                        });
+                    } else {
+                        console.warn('Skipping invalid friend request:', request);
+                    }
                 });
+                
+                // If all requests were filtered out as invalid
+                if (friendRequestsList.children.length === 0) {
+                    // Clean up invalid requests from local storage
+                    cleanupInvalidFriendRequests();
+                    friendRequestsFrame.style.display = 'none';
+                }
             }
         }
+    }
+}
+
+// New function to clean up invalid friend requests from local storage
+function cleanupInvalidFriendRequests() {
+    const userInfo = getCurrentUser();
+    if (!userInfo || !userInfo.friendRequests) {
+        return;
+    }
+    
+    // Get only valid friend requests
+    if (userInfo.friendRequests.received) {
+        userInfo.friendRequests.received = userInfo.friendRequests.received.filter(request => {
+            const hasSender = request.sender && 
+                            (typeof request.sender === 'object' ? 
+                                (request.sender._id && request.sender.username && request.sender.username !== 'Unknown User') : 
+                                request.sender);
+            
+            const hasSenderName = request.senderName && request.senderName !== 'Unknown User';
+            
+            return hasSender || hasSenderName;
+        });
+    }
+    
+    // Update localStorage
+    localStorage.setItem('userInfo', JSON.stringify(userInfo));
+    console.log('Cleaned up invalid friend requests from local storage');
+    
+    // If FriendsService is available, sync with its data
+    if (window.FriendsService && typeof window.FriendsService.loadFriendRequests === 'function') {
+        window.FriendsService.loadFriendRequests();
     }
 }
 
@@ -1969,4 +2135,48 @@ function rejectFriendRequest(requestId, senderId) {
         console.error('Error rejecting friend request:', error);
         showNotification('Error', 'Could not reject friend request. Please try again later.', 'error');
     });
+}
+
+// Function to refresh the friend status in the players tab
+function refreshFriendStatus() {
+    // Get all player cards
+    const playerCards = document.querySelectorAll('.player-card');
+    
+    playerCards.forEach(card => {
+        const playerId = card.dataset.id;
+        const playerName = card.querySelector('.player-name')?.textContent || 'Player';
+        
+        if (playerId) {
+            const friendStatus = checkIfFriend(playerId);
+            updateFriendButtonUI(playerId, playerName, friendStatus);
+        }
+    });
+}
+
+// Setup socket listeners for friend-related events
+function setupFriendEventListeners() {
+    // If SocketHandler is available, set up listeners
+    if (window.SocketHandler && window.SocketHandler.socket) {
+        // Listen for friend request accepted events
+        window.SocketHandler.socket.on('friend-request-accepted', (data) => {
+            console.log('Friend request accepted:', data);
+            
+            // Refresh local user data
+            const userInfoStr = localStorage.getItem('userInfo');
+            if (userInfoStr) {
+                try {
+                    const userInfo = JSON.parse(userInfoStr);
+                    const senderId = data.acceptedBy;
+                    
+                    // Update the UI to show friend status instead of pending
+                    refreshFriendStatus();
+                    
+                    // Show notification
+                    showNotification(`${data.acceptedByName || 'User'} accepted your friend request!`, 'success');
+                } catch (e) {
+                    console.error('Error updating friend status after acceptance:', e);
+                }
+            }
+        });
+    }
 }

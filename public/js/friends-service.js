@@ -5,6 +5,13 @@ const FriendsService = {
     // Initialize the service
     init: function() {
         console.log('Initializing FriendsService');
+        this.friends = [];
+        this.friendRequests = { sent: [], received: [] };
+        
+        // Clean up any invalid requests in localStorage right away
+        this.cleanupLocalStorage();
+        
+        // Load friends and requests data
         this.loadFriends();
         this.loadFriendRequests();
         this.setupSocketListeners();
@@ -22,6 +29,52 @@ const FriendsService = {
             console.error('Error parsing user info:', err);
         }
         return null;
+    },
+    
+    // Get all friends
+    getAllFriends: function() {
+        // First try to use the local property
+        if (this.friends && Array.isArray(this.friends)) {
+            return this.friends;
+        }
+        
+        // If not available, try to get from localStorage
+        try {
+            const friendsStr = localStorage.getItem('friends');
+            if (friendsStr) {
+                return JSON.parse(friendsStr);
+            }
+            
+            // If still not available, try to get from userInfo
+            const userInfo = this.getUserInfo();
+            if (userInfo && userInfo.friends) {
+                return userInfo.friends;
+            }
+        } catch (err) {
+            console.error('Error getting friends:', err);
+        }
+        
+        return [];
+    },
+    
+    // Get all pending friend requests
+    getPendingRequests: function() {
+        // First try to use the local property
+        if (this.friendRequests) {
+            return this.friendRequests;
+        }
+        
+        // If not available, try to get from userInfo
+        try {
+            const userInfo = this.getUserInfo();
+            if (userInfo && userInfo.friendRequests) {
+                return userInfo.friendRequests;
+            }
+        } catch (err) {
+            console.error('Error getting friend requests:', err);
+        }
+        
+        return { sent: [], received: [] };
     },
     
     // Load friends from local storage or API
@@ -59,12 +112,85 @@ const FriendsService = {
             // Always fetch from API to get the latest
             console.log('Fetching friend requests from API');
             const requests = await this.fetchFriendRequestsFromAPI();
-            this.friendRequests = requests;
-            return requests;
+            
+            // Filter out invalid requests before storing
+            const filteredRequests = this.filterInvalidRequests(requests);
+            this.friendRequests = filteredRequests;
+            
+            return filteredRequests;
         } catch (err) {
             console.error('Error loading friend requests:', err);
             this.friendRequests = { sent: [], received: [] };
             return this.friendRequests;
+        }
+    },
+    
+    // Filter out invalid friend requests
+    filterInvalidRequests: function(requests) {
+        const result = {
+            sent: [],
+            received: []
+        };
+        
+        // Filter received requests - remove any with missing/invalid sender info
+        if (requests.received && Array.isArray(requests.received)) {
+            result.received = requests.received.filter(request => {
+                // Check for valid sender data
+                const hasSender = request.sender && 
+                                (typeof request.sender === 'object' ? 
+                                    (request.sender._id && request.sender.username && request.sender.username !== 'Unknown User') : 
+                                    request.sender);
+                
+                const hasSenderName = request.senderName && request.senderName !== 'Unknown User';
+                
+                return hasSender || hasSenderName;
+            });
+        }
+        
+        // Keep sent requests as is
+        if (requests.sent && Array.isArray(requests.sent)) {
+            result.sent = requests.sent;
+        }
+        
+        console.log(`Filtered out ${(requests.received?.length || 0) - (result.received?.length || 0)} invalid friend requests`);
+        return result;
+    },
+    
+    // Clean up invalid requests from localStorage
+    cleanupLocalStorage: function() {
+        try {
+            const userInfo = this.getUserInfo();
+            if (!userInfo || !userInfo.friendRequests) {
+                return;
+            }
+            
+            // Store original counts for logging
+            const originalReceivedCount = userInfo.friendRequests.received?.length || 0;
+            
+            // Filter out invalid requests
+            if (userInfo.friendRequests.received) {
+                userInfo.friendRequests.received = userInfo.friendRequests.received.filter(request => {
+                    const hasSender = request.sender && 
+                                    (typeof request.sender === 'object' ? 
+                                        (request.sender._id && request.sender.username && request.sender.username !== 'Unknown User') : 
+                                        request.sender);
+                    
+                    const hasSenderName = request.senderName && request.senderName !== 'Unknown User';
+                    
+                    return hasSender || hasSenderName;
+                });
+            }
+            
+            // Log how many were removed
+            const newReceivedCount = userInfo.friendRequests.received?.length || 0;
+            if (originalReceivedCount !== newReceivedCount) {
+                console.log(`Cleaned up ${originalReceivedCount - newReceivedCount} invalid friend requests from localStorage`);
+                
+                // Update localStorage
+                localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            }
+        } catch (err) {
+            console.error('Error cleaning up localStorage:', err);
         }
     },
     
