@@ -1198,19 +1198,50 @@ function updateFriendButtonUI(playerId, playerName, status) {
         }
         
         // Clear previous buttons related to friend status
-        const oldFriendButtons = playerActions.querySelectorAll('.friend-button, .add-friend-btn, .add-friend, .friend-pending, .friend-status');
+        const oldFriendButtons = playerActions.querySelectorAll('.friend-button, .add-friend-btn, .add-friend, .friend-pending, .friend-status, .friend-action-dropdown');
         oldFriendButtons.forEach(btn => btn.remove());
         
         // Create new button based on status
         let button;
         
         if (status === 'friend') {
-            // Already friends - show friend status and remove option
-            button = document.createElement('button');
-            button.className = 'btn btn-success friend-button';
-            button.dataset.id = playerId;
-            button.dataset.name = playerName;
-            button.innerHTML = '<i class="fas fa-check"></i> FRIEND';
+            // Already friends - Create dropdown for friend options
+            const friendOptions = document.createElement('div');
+            friendOptions.className = 'friend-action-dropdown';
+            friendOptions.innerHTML = `
+                <button class="btn btn-success friend-button">
+                    <i class="fas fa-check"></i> FRIEND
+                </button>
+                <div class="dropdown-content">
+                    <a href="#" class="remove-friend-btn" data-id="${playerId}" data-name="${playerName}">
+                        <i class="fas fa-user-minus"></i> Remove Friend
+                    </a>
+                </div>
+            `;
+            
+            // Add to player actions
+            playerActions.appendChild(friendOptions);
+            
+            // Add hover effect for dropdown visibility
+            const dropdownBtn = friendOptions.querySelector('.friend-button');
+            dropdownBtn.addEventListener('mouseenter', () => {
+                const dropdown = friendOptions.querySelector('.dropdown-content');
+                if (dropdown) dropdown.style.display = 'block';
+            });
+            
+            friendOptions.addEventListener('mouseleave', () => {
+                const dropdown = friendOptions.querySelector('.dropdown-content');
+                if (dropdown) dropdown.style.display = 'none';
+            });
+            
+            // Add click event for remove friend option
+            const removeBtn = friendOptions.querySelector('.remove-friend-btn');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    removeFriend(playerId, playerName);
+                });
+            }
         } else if (status === 'pending-sent') {
             // We sent a request - show pending
             button = document.createElement('button');
@@ -1219,6 +1250,9 @@ function updateFriendButtonUI(playerId, playerName, status) {
             button.dataset.name = playerName;
             button.innerHTML = '<i class="fas fa-clock"></i> PENDING';
             button.disabled = true;
+            
+            // Add to player actions
+            playerActions.appendChild(button);
         } else if (status === 'pending-received') {
             // We received a request - show accept/decline options
             button = document.createElement('div');
@@ -1231,6 +1265,9 @@ function updateFriendButtonUI(playerId, playerName, status) {
                     <i class="fas fa-times"></i> DECLINE
                 </button>
             `;
+            
+            // Add to player actions
+            playerActions.appendChild(button);
         } else {
             // Not friends - show add friend option
             button = document.createElement('button');
@@ -1238,14 +1275,229 @@ function updateFriendButtonUI(playerId, playerName, status) {
             button.dataset.id = playerId;
             button.dataset.name = playerName;
             button.innerHTML = '<i class="fas fa-user-plus"></i> ADD';
-        }
         
         // Add to player actions
         playerActions.appendChild(button);
+        }
     });
     
     // Re-attach event listeners
     setupAddFriendButtons();
+    setupAcceptDeclineButtons();
+}
+
+// Function to remove a friend
+async function removeFriend(friendId, friendName) {
+    if (!friendId) {
+        console.error('[players.js] Cannot remove friend: No friend ID provided');
+        return;
+    }
+    
+    // Ask for confirmation
+    if (!confirm(`Are you sure you want to remove ${friendName || 'this friend'} from your friends list?`)) {
+        return;
+    }
+    
+    console.log(`[players.js] Removing friend: ${friendId} (${friendName || 'Unknown'})`);
+    
+    // Get token for authentication
+    const token = localStorage.getItem('token');
+    if (!token) {
+        console.warn('[players.js] Cannot remove friend - not authenticated');
+        
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('Error', 'You must be logged in to remove friends', 'error');
+        } else if (typeof showNotification === 'function') {
+            showNotification('Error', 'You must be logged in to remove friends', 'error');
+        }
+        
+        return;
+    }
+    
+    try {
+        // Show loading notification
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('Processing', 'Removing friend...', 'info');
+        } else if (typeof showNotification === 'function') {
+            showNotification('Processing', 'Removing friend...', 'info');
+        }
+        
+        // Get API URL from config
+        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+        
+        // Make API call to remove friend
+        const response = await fetch(`${apiUrl}/friends/${friendId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            console.log('[players.js] Friend removed successfully:', data);
+            
+            // Update localStorage data with new friend status
+            if (data.userInfo) {
+                localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
+            }
+            
+            // Refresh friend data from server
+            await fetchLatestFriendData();
+            
+            // Update all player cards with new friend status
+            updateAllPlayerCards();
+            
+            // Show success notification
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('Friend Removed', `${friendName || 'Friend'} has been removed from your friends list`, 'info');
+            } else if (typeof showNotification === 'function') {
+                showNotification('Friend Removed', `${friendName || 'Friend'} has been removed from your friends list`, 'info');
+            }
+            
+            // Emit socket event if available
+            if (window.SocketHandler && window.SocketHandler.socket) {
+                window.SocketHandler.socket.emit('friend-removed', {
+                    friendId: friendId,
+                    friendName: friendName,
+                    removedFriendId: friendId,
+                    timestamp: new Date().toISOString()
+                });
+                console.log(`[players.js] Emitted friend-removed event for ${friendId} (${friendName})`);
+            }
+        } else {
+            console.error('[players.js] Error removing friend:', data.message);
+            
+            // Show error notification
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('Error', data.message || 'Failed to remove friend', 'error');
+            } else if (typeof showNotification === 'function') {
+                showNotification('Error', data.message || 'Failed to remove friend', 'error');
+            }
+        }
+    } catch (error) {
+        console.error('[players.js] Error in removeFriend function:', error);
+        
+        // Show error notification
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('Error', 'Failed to remove friend. Please try again.', 'error');
+        } else if (typeof showNotification === 'function') {
+            showNotification('Error', 'Failed to remove friend. Please try again.', 'error');
+        }
+    }
+}
+
+// Function to setup event listeners for accept/decline buttons
+function setupAcceptDeclineButtons() {
+    // Setup accept buttons
+    document.querySelectorAll('.accept-request').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const playerId = btn.dataset.id;
+            const playerName = btn.dataset.name;
+            
+            if (!playerId) return;
+            
+            console.log(`[players.js] Accepting friend request from ${playerName} (${playerId})`);
+            
+            // Find friend request ID from localStorage
+            const userInfoStr = localStorage.getItem('userInfo');
+            if (!userInfoStr) {
+                console.error('[players.js] Cannot find user info in localStorage');
+                return;
+            }
+            
+            try {
+                const userInfo = JSON.parse(userInfoStr);
+                
+                if (!userInfo.friendRequests || !userInfo.friendRequests.received) {
+                    console.error('[players.js] No friend requests found in user info');
+                    return;
+                }
+                
+                // Find request from this sender
+                const request = userInfo.friendRequests.received.find(req => {
+                    const senderId = typeof req.sender === 'object' 
+                        ? req.sender.toString() 
+                        : String(req.sender);
+                    
+                    return senderId === String(playerId) && (!req.status || req.status === 'pending');
+                });
+                
+                if (!request) {
+                    console.error(`[players.js] No pending request found from ${playerId}`);
+                    return;
+                }
+                
+                // Accept the request
+                if (window.SocketHandler && typeof window.SocketHandler.acceptFriendRequest === 'function') {
+                    console.log(`[players.js] Using SocketHandler to accept request ${request._id}`);
+                    window.SocketHandler.acceptFriendRequest(request._id, playerId, playerName);
+                } else {
+                    console.log(`[players.js] Using local function to accept request ${request._id}`);
+                    acceptFriendRequest(request._id, playerId);
+                }
+            } catch (error) {
+                console.error('[players.js] Error in accept friend click handler:', error);
+            }
+        });
+    });
+    
+    // Setup decline buttons
+    document.querySelectorAll('.decline-request').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const playerId = btn.dataset.id;
+            const playerName = btn.dataset.name;
+            
+            if (!playerId) return;
+            
+            console.log(`[players.js] Declining friend request from ${playerName} (${playerId})`);
+            
+            // Find friend request ID from localStorage
+            const userInfoStr = localStorage.getItem('userInfo');
+            if (!userInfoStr) {
+                console.error('[players.js] Cannot find user info in localStorage');
+                return;
+            }
+            
+            try {
+                const userInfo = JSON.parse(userInfoStr);
+                
+                if (!userInfo.friendRequests || !userInfo.friendRequests.received) {
+                    console.error('[players.js] No friend requests found in user info');
+                    return;
+                }
+                
+                // Find request from this sender
+                const request = userInfo.friendRequests.received.find(req => {
+                    const senderId = typeof req.sender === 'object' 
+                        ? req.sender.toString() 
+                        : String(req.sender);
+                    
+                    return senderId === String(playerId) && (!req.status || req.status === 'pending');
+                });
+                
+                if (!request) {
+                    console.error(`[players.js] No pending request found from ${playerId}`);
+                    return;
+                }
+                
+                // Decline the request
+                if (window.SocketHandler && typeof window.SocketHandler.rejectFriendRequest === 'function') {
+                    console.log(`[players.js] Using SocketHandler to decline request ${request._id}`);
+                    window.SocketHandler.rejectFriendRequest(request._id, playerId);
+                } else {
+                    console.log(`[players.js] Using local function to decline request ${request._id}`);
+                    rejectFriendRequest(request._id, playerId);
+                }
+            } catch (error) {
+                console.error('[players.js] Error in decline friend click handler:', error);
+            }
+        });
+    });
 }
 
 // Function to check if a player is a friend
@@ -2650,6 +2902,9 @@ function setupFriendEventListeners() {
     if (window.SocketHandler && window.SocketHandler.socket) {
         // First remove any existing listeners to prevent duplicates
         window.SocketHandler.socket.off('friend-request-accepted');
+        window.SocketHandler.socket.off('friend-removed');
+        window.SocketHandler.socket.off('removedAsFriend');
+        window.SocketHandler.socket.off('you-removed-friend');
         
         // Listen for friend request accepted events
         window.SocketHandler.socket.on('friend-request-accepted', (data) => {
@@ -2688,6 +2943,133 @@ function setupFriendEventListeners() {
                 })
                 .catch(error => {
                     console.error('❌ Error refreshing friend data after acceptance:', error);
+                });
+        });
+        
+        // Listen for friend-removed event (when someone removes you as a friend)
+        window.SocketHandler.socket.on('friend-removed', (data) => {
+            console.log('👋 Friend removed event received:', data);
+            
+            // Create a deduplication key for this event
+            const eventId = `friend-removed:${data.friendId || data.removedFriendId}:${Date.now()}`;
+            
+            // Create a global set for deduplication if it doesn't exist
+            if (!window.processedFriendEvents) {
+                window.processedFriendEvents = new Set();
+            }
+            
+            // Check for duplicate events
+            if (window.processedFriendEvents.has(eventId)) {
+                console.log('🚫 Duplicate friend removal event, ignoring');
+                return;
+            }
+            
+            // Add to processed events
+            window.processedFriendEvents.add(eventId);
+            console.log('✅ Added friend removal event to processed set:', eventId);
+            
+            // Immediately perform a full friend data refresh from server
+            fetchLatestFriendData()
+                .then(() => {
+                    console.log('✅ Friend data refreshed after friend removal');
+                    
+                    // Update all player cards with new friend status
+                    updateAllPlayerCards();
+                    
+                    // Show notification if you were removed as friend
+                    const notificationMessage = `${data.removerName || 'Someone'} removed you from their friends list`;
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('Friend Removed', notificationMessage, 'info');
+                    } else if (typeof showNotification === 'function') {
+                        showNotification('Friend Removed', notificationMessage, 'info');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error refreshing friend data after removal:', error);
+                });
+        });
+        
+        // Listen for you-removed-friend event (when you remove a friend)
+        window.SocketHandler.socket.on('you-removed-friend', (data) => {
+            console.log('✂️ You removed friend event received:', data);
+            
+            // Create a deduplication key for this event
+            const eventId = `you-removed-friend:${data.removedFriendId}:${Date.now()}`;
+            
+            // Create a global set for deduplication if it doesn't exist
+            if (!window.processedFriendEvents) {
+                window.processedFriendEvents = new Set();
+            }
+            
+            // Check for duplicate events
+            if (window.processedFriendEvents.has(eventId)) {
+                console.log('🚫 Duplicate you removed friend event, ignoring');
+                return;
+            }
+            
+            // Add to processed events
+            window.processedFriendEvents.add(eventId);
+            
+            // Immediately perform a full friend data refresh from server
+            fetchLatestFriendData()
+                .then(() => {
+                    console.log('✅ Friend data refreshed after you removed a friend');
+                    
+                    // Update all player cards with new friend status
+                    updateAllPlayerCards();
+                    
+                    // Show notification
+                    const notificationMessage = `You removed ${data.removedFriendName || 'a friend'} from your friends list`;
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('Friend Removed', notificationMessage, 'info');
+                    } else if (typeof showNotification === 'function') {
+                        showNotification('Friend Removed', notificationMessage, 'info');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error refreshing friend data after removing a friend:', error);
+                });
+        });
+        
+        // Listen for removedAsFriend event (when someone removes you as a friend) - Legacy support
+        window.SocketHandler.socket.on('removedAsFriend', (data) => {
+            console.log('😢 Removed as friend event received:', data);
+            
+            // Create a deduplication key for this event
+            const eventId = `removed-as-friend:${data.by?._id || data.by}:${Date.now()}`;
+            
+            // Create a global set for deduplication if it doesn't exist
+            if (!window.processedFriendEvents) {
+                window.processedFriendEvents = new Set();
+            }
+            
+            // Check for duplicate events
+            if (window.processedFriendEvents.has(eventId)) {
+                console.log('🚫 Duplicate removed as friend event, ignoring');
+                return;
+            }
+            
+            // Add to processed events
+            window.processedFriendEvents.add(eventId);
+            
+            // Immediately perform a full friend data refresh from server
+            fetchLatestFriendData()
+                .then(() => {
+                    console.log('✅ Friend data refreshed after being removed as friend');
+                    
+                    // Update all player cards with new friend status
+                    updateAllPlayerCards();
+                    
+                    // Show notification
+                    const notificationMessage = `${data.by?.username || 'Someone'} removed you from their friends list`;
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('Friend Removed', notificationMessage, 'info');
+                    } else if (typeof showNotification === 'function') {
+                        showNotification('Friend Removed', notificationMessage, 'info');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error refreshing friend data after being removed as friend:', error);
                 });
         });
     }

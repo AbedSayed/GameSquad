@@ -1475,14 +1475,38 @@ function addFriendActionListeners() {
                         }
                     }, 500);
                     
+                    // Update localStorage data with the new friend status
+                    if (data.userInfo) {
+                        localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
+                    } else {
+                        // If server didn't return userInfo, fetch latest friend data
+                        if (window.FriendsService && typeof window.FriendsService.loadFriends === 'function') {
+                            await window.FriendsService.loadFriends();
+                        } else {
+                            // Fallback: Manually update localStorage
+                            const userInfoStr = localStorage.getItem('userInfo');
+                            if (userInfoStr) {
+                                const userInfo = JSON.parse(userInfoStr);
+                                if (userInfo.friends) {
+                                    userInfo.friends = userInfo.friends.filter(id => String(id) !== String(friendId));
+                                    localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                                }
+                            }
+                        }
+                    }
+                    
                     // Show success notification
                     showNotification('Friend Removed', `${friendName} has been removed from your friends list`, 'info');
                     
                     // Emit socket event if available
                     if (window.SocketHandler && window.SocketHandler.socket) {
                         window.SocketHandler.socket.emit('friend-removed', {
-                            friendId: friendId
+                            friendId: friendId,
+                            friendName: friendName,
+                            removedFriendId: friendId,
+                            timestamp: new Date().toISOString()
                         });
+                        console.log(`[messages.js] Emitted friend-removed event for ${friendId} (${friendName})`);
                     }
                 } else {
                     // Reset button
@@ -1493,7 +1517,7 @@ function addFriendActionListeners() {
                     showNotification('Error', data.message || 'Failed to remove friend', 'error');
                 }
             } catch (error) {
-                console.error('Error removing friend:', error);
+                console.error('[messages.js] Error removing friend:', error);
                 btn.innerHTML = originalText;
                 btn.disabled = false;
                 showNotification('Error', 'Could not remove friend', 'error');
