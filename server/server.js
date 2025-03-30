@@ -21,6 +21,10 @@ const io = socketIO(server, {
     }
 });
 
+// Create a map to track user socket connections
+const userSocketMap = {};
+app.set('userSocketMap', userSocketMap);
+
 // Make io available to routes
 app.set('io', io);
 
@@ -67,6 +71,9 @@ io.on('connection', (socket) => {
             currentUserId = data.userId;
             console.log(`Socket ${socket.id} authenticated as user ${currentUserId}`);
             
+            // Store the socket id in the userSocketMap
+            userSocketMap[currentUserId] = socket.id;
+            
             // Join a personal room for this user to receive notifications
             socket.join(`user:${currentUserId}`);
             
@@ -84,15 +91,14 @@ io.on('connection', (socket) => {
         
         console.log(`Socket ${socket.id}: User ${currentUserId} sent friend request to ${data.recipientId}`);
         
-        // Important: Broadcast the event to ALL sockets, as the recipient may have multiple tabs/windows open
-        // Use socket.broadcast.emit to send to all clients EXCEPT the sender
-        socket.broadcast.emit('new-friend-request', {
+        // Send to the specific recipient's room instead of broadcasting to all
+        io.to(`user:${data.recipientId}`).emit('new-friend-request', {
             senderId: currentUserId,
             senderName: data.senderName || 'A user',
             message: data.message || 'would like to be your friend!',
             timestamp: new Date(),
-            requestId: data.requestId, // Include the request ID if available
-            recipientId: data.recipientId // Include recipient ID so client can filter
+            requestId: data.requestId,
+            recipientId: data.recipientId
         });
         
         // Send confirmation back to sender
@@ -111,12 +117,34 @@ io.on('connection', (socket) => {
         
         console.log(`User ${currentUserId} accepted friend request from ${data.senderId}`);
         
-        // Emit to original sender's personal room
-        io.to(`user:${data.senderId}`).emit('friend-request-accepted', {
-            acceptedBy: currentUserId,
-            acceptedByName: data.acceptorName || 'A user',
-            timestamp: new Date()
-        });
+        // Get user details to send back to the original sender
+        try {
+            const { User } = require('./models');
+            const acceptingUser = await User.findById(currentUserId);
+            
+            if (!acceptingUser) {
+                console.error(`User ${currentUserId} not found when accepting request`);
+                return;
+            }
+            
+            const acceptorDetails = {
+                _id: acceptingUser._id,
+                username: acceptingUser.username,
+                email: acceptingUser.email,
+                profile: acceptingUser.profile
+            };
+            
+            // Emit to the sender's user room
+            io.to(`user:${data.senderId}`).emit('friend-request-accepted', {
+                senderId: data.senderId,
+                acceptorName: acceptingUser.username,
+                acceptorDetails: acceptorDetails,
+                requestId: data.requestId,
+                timestamp: new Date()
+            });
+        } catch (error) {
+            console.error('Error in friend-request-accepted handler:', error);
+        }
     });
     
     socket.on('friend-request-rejected', async (data) => {
@@ -127,14 +155,13 @@ io.on('connection', (socket) => {
         
         console.log(`User ${currentUserId} rejected friend request from ${data.senderId}`);
         
-        // Optionally notify the sender that their request was rejected
-        // Uncomment if you want the sender to know their request was rejected
-        /*
+        // Notify the sender that their request was rejected
         io.to(`user:${data.senderId}`).emit('friend-request-rejected', {
             rejectedBy: currentUserId,
+            rejectorName: data.rejectorName || 'A user',
+            requestId: data.requestId,
             timestamp: new Date()
         });
-        */
     });
     
     socket.on('friend-removed', async (data) => {
@@ -145,14 +172,19 @@ io.on('connection', (socket) => {
         
         console.log(`User ${currentUserId} removed friend ${data.friendId}`);
         
-        // Optionally notify the removed friend
-        // Uncomment if you want the removed friend to know they were removed
-        /*
+        // Notify the removed friend
         io.to(`user:${data.friendId}`).emit('friend-removed', {
             removedBy: currentUserId,
+            removerName: data.removerName || 'A user',
             timestamp: new Date()
         });
-        */
+        
+        // Also confirm to the remover
+        socket.emit('you-removed-friend', {
+            removedFriendId: data.friendId,
+            removedFriendName: data.friendName || 'Your friend',
+            timestamp: new Date()
+        });
     });
 
     // Handle joining a lobby
@@ -296,6 +328,14 @@ io.on('connection', (socket) => {
     // Handle disconnection
     socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
+        
+        // Remove from userSocketMap if this was an authenticated user
+        if (currentUserId) {
+            // Only remove if this is the current socket for this user
+            if (userSocketMap[currentUserId] === socket.id) {
+                delete userSocketMap[currentUserId];
+            }
+        }
     });
 });
 

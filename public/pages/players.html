@@ -41,6 +41,130 @@
             color: var(--light-color);
             text-shadow: 0 0 10px rgba(108, 92, 231, 0.4);
         }
+
+        /* Friend Request Banner Styles */
+        .friend-request-banner {
+            background: linear-gradient(135deg, rgba(108, 92, 231, 0.9), rgba(90, 24, 154, 0.9));
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(108, 92, 231, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            animation: slideInDown 0.5s ease-out;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .friend-request-banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('../resources/grid-pattern.svg');
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        .request-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .request-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-right: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.2);
+            font-size: 26px;
+            font-weight: bold;
+            color: #fff;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .request-info {
+            flex: 1;
+        }
+
+        .request-title {
+            font-size: 1.5rem;
+            color: #fff;
+            margin: 0 0 5px 0;
+            font-weight: 600;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .request-message {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin: 0;
+        }
+
+        .request-actions {
+            display: flex;
+            gap: 15px;
+            margin-left: 20px;
+        }
+
+        .request-actions .btn {
+            padding: 12px 24px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            border: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .request-actions .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .request-actions .btn-success {
+            background-color: #5cb85c;
+        }
+
+        .request-actions .btn-danger {
+            background-color: #d9534f;
+        }
+
+        .close-banner-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .close-banner-btn:hover {
+            color: #fff;
+            transform: scale(1.2);
+        }
+
+        @keyframes slideInDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
         
         .filters-container {
             background-color: rgba(26, 26, 36, 0.7);
@@ -472,6 +596,50 @@
             position: relative;
             z-index: 20;
         }
+        
+        /* Loading Indicator Styles */
+        .loading-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+            width: 100%;
+            height: 300px;
+        }
+        
+        .loading-indicator .spinner {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            animation: spin 1.5s linear infinite;
+        }
+        
+        .loading-indicator p {
+            color: var(--light-color);
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Error Message Styles */
+        .error-message {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            position: relative;
+        }
+        
+        /* Animation for notifications */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -507,7 +675,27 @@
             <h1 class="neon-text">Find Players</h1>
         </div>
 
-        <!-- Friend Request Notifications Section -->
+        <!-- New Friend Request Banner - will be shown at the top of the page -->
+        <div id="friendRequestBanner" class="friend-request-banner" style="display: none;">
+            <div class="request-content">
+                <div class="request-avatar"></div>
+                <div class="request-info">
+                    <h3 class="request-title">Friend Request</h3>
+                    <p class="request-message">Someone would like to be your friend!</p>
+                </div>
+            </div>
+            <div class="request-actions">
+                <button id="acceptFriendRequest" class="btn btn-success">
+                    <i class="fas fa-check"></i> Accept
+                </button>
+                <button id="rejectFriendRequest" class="btn btn-danger">
+                    <i class="fas fa-times"></i> Decline
+                </button>
+            </div>
+            <button id="closeFriendRequestBanner" class="close-banner-btn">×</button>
+        </div>
+
+        <!-- Old Friend Request Container - keeping it for backward compatibility -->
         <div class="friend-requests-container glow-effect" style="display: none;" id="friendRequestsFrame">
             <div class="section-header">
                 <h3><i class="fas fa-user-plus"></i> Friend Requests</h3>
@@ -766,6 +954,221 @@
                 }, 300);
             }, 3000);
         }
+        
+        // DIRECT FRIEND INJECTION FOR PLAYERS PAGE
+        // This will run immediately and retry every second until successful
+        (function() {
+            console.log('🔥 STARTING DIRECT INJECTION FOR PLAYERS PAGE 🔥');
+            
+            function injectFriendIntoFrame() {
+                console.log('Attempting to inject friend into iframe...');
+                
+                // Wait until frame exists and is visible
+                const frame = document.getElementById('friendRequestsFrame');
+                if (!frame || frame.style.display === 'none') {
+                    console.log('Friend requests frame not found or not visible yet, will retry...');
+                    setTimeout(injectFriendIntoFrame, 1000);
+                    return;
+                }
+                
+                // Look for or create the friends tab element
+                let friendsTab = frame.querySelector('.frame-tab[data-tab="friends"]');
+                
+                if (!friendsTab) {
+                    console.log('Friends tab not found, will try to create the tab structure');
+                    
+                    // Create tab structure if it doesn't exist
+                    const frameHeader = frame.querySelector('.section-header');
+                    if (frameHeader) {
+                        console.log('Creating tabs in frame header');
+                        const originalTitle = frameHeader.innerHTML;
+                        frameHeader.innerHTML = `
+                            <div class="frame-tabs">
+                                <div class="frame-tab active" data-tab="requests">
+                                    <i class="fas fa-user-plus"></i> Friend Requests
+                                </div>
+                                <div class="frame-tab" data-tab="friends">
+                                    <i class="fas fa-user-friends"></i> Friends
+                                </div>
+                            </div>
+                            ${originalTitle}
+                        `;
+                        
+                        friendsTab = frame.querySelector('.frame-tab[data-tab="friends"]');
+                        
+                        // Add tab content containers
+                        const frameContent = frame.querySelector('.friend-requests-content');
+                        if (frameContent) {
+                            console.log('Creating tab content containers');
+                            
+                            // Create the tab content structure
+                            const requestsContent = frameContent.innerHTML;
+                            frameContent.innerHTML = `
+                                <div class="tab-content active" id="requests-tab">
+                                    ${requestsContent}
+                                </div>
+                                <div class="tab-content" id="friends-tab">
+                                    <div id="friendsList">
+                                        <!-- Friends will be populated here -->
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // Set up tab click handlers
+                            const tabs = frameHeader.querySelectorAll('.frame-tab');
+                            tabs.forEach(tab => {
+                                tab.addEventListener('click', () => {
+                                    console.log(`Tab clicked: ${tab.dataset.tab}`);
+                                    
+                                    // Update active tab
+                                    tabs.forEach(t => t.classList.remove('active'));
+                                    tab.classList.add('active');
+                                    
+                                    // Update active content
+                                    const tabContents = frameContent.querySelectorAll('.tab-content');
+                                    tabContents.forEach(tc => tc.classList.remove('active'));
+                                    
+                                    const selectedTab = document.getElementById(`${tab.dataset.tab}-tab`);
+                                    if (selectedTab) selectedTab.classList.add('active');
+                                });
+                            });
+                        }
+                    }
+                }
+                
+                // Add CSS for the tabs
+                const styleEl = document.createElement('style');
+                styleEl.textContent = `
+                    .frame-tabs {
+                        display: flex;
+                        border-bottom: 1px solid rgba(108, 92, 231, 0.2);
+                        margin-bottom: 10px;
+                    }
+                    
+                    .frame-tab {
+                        padding: 8px 15px;
+                        cursor: pointer;
+                        opacity: 0.7;
+                        transition: all 0.3s;
+                        border-bottom: 2px solid transparent;
+                    }
+                    
+                    .frame-tab:hover {
+                        opacity: 1;
+                        background-color: rgba(108, 92, 231, 0.1);
+                    }
+                    
+                    .frame-tab.active {
+                        opacity: 1;
+                        border-bottom: 2px solid var(--primary-color);
+                        font-weight: bold;
+                    }
+                    
+                    .tab-content {
+                        display: none;
+                    }
+                    
+                    .tab-content.active {
+                        display: block;
+                        animation: fadeIn 0.3s ease;
+                    }
+                    
+                    .friends-list-container {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 10px;
+                        max-height: 300px;
+                        overflow-y: auto;
+                    }
+                    
+                    .friend-item {
+                        display: flex;
+                        align-items: center;
+                        padding: 10px;
+                        border-radius: 5px;
+                        background-color: rgba(20, 20, 30, 0.7);
+                        transition: all 0.3s ease;
+                    }
+                    
+                    .friend-item:hover {
+                        background-color: rgba(30, 30, 40, 0.7);
+                        transform: translateY(-2px);
+                    }
+                    
+                    .friend-avatar {
+                        width: 40px;
+                        height: 40px;
+                        margin-right: 15px;
+                    }
+                    
+                    .avatar-placeholder {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 50%;
+                        background-color: var(--primary-color);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: white;
+                        font-weight: bold;
+                    }
+                    
+                    .friend-info {
+                        flex: 1;
+                    }
+                    
+                    .friend-name {
+                        font-weight: bold;
+                        color: var(--light-color);
+                    }
+                    
+                    .friend-status {
+                        font-size: 0.8rem;
+                        display: flex;
+                        align-items: center;
+                        gap: 5px;
+                    }
+                    
+                    .friend-status.online {
+                        color: #4cd137;
+                    }
+                    
+                    .friend-status.offline {
+                        color: #718093;
+                    }
+                    
+                    .friend-actions {
+                        display: flex;
+                        gap: 5px;
+                    }
+                    
+                    .empty-state {
+                        text-align: center;
+                        padding: 20px;
+                        color: rgba(255,255,255,0.7);
+                    }
+                    
+                    @keyframes fadeIn {
+                        from {
+                            opacity: 0;
+                        }
+                        to {
+                            opacity: 1;
+                        }
+                    }
+                `;
+                document.head.appendChild(styleEl);
+            }
+
+            // Initialize UI when DOM is loaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    setTimeout(setupFriendRequestsFrame, 1000);
+                });
+            } else {
+                setTimeout(setupFriendRequestsFrame, 1000);
+            }
+        })();
     </script>
 </body>
 </html>

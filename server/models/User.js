@@ -1,6 +1,58 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+// Friend request sub-schema for sent requests
+const sentRequestSchema = new mongoose.Schema({
+  _id: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: () => new mongoose.Types.ObjectId()
+  },
+  recipient: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected'],
+    default: 'pending'
+  },
+  message: {
+    type: String,
+    default: 'I would like to be your friend!'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Friend request sub-schema for received requests
+const receivedRequestSchema = new mongoose.Schema({
+  _id: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: () => new mongoose.Types.ObjectId()
+  },
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected'],
+    default: 'pending'
+  },
+  message: {
+    type: String,
+    default: 'I would like to be your friend!'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -35,38 +87,8 @@ const userSchema = new mongoose.Schema({
     ref: 'User'
   }],
   friendRequests: {
-    sent: [{
-      _id: mongoose.Schema.Types.ObjectId,
-      recipient: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-      status: {
-        type: String,
-        enum: ['pending', 'accepted', 'rejected'],
-        default: 'pending',
-      },
-      createdAt: {
-        type: Date,
-        default: Date.now,
-      },
-    }],
-    received: [{
-      _id: mongoose.Schema.Types.ObjectId,
-      sender: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-      status: {
-        type: String,
-        enum: ['pending', 'accepted', 'rejected'],
-        default: 'pending',
-      },
-      createdAt: {
-        type: Date,
-        default: Date.now,
-      },
-    }],
+    sent: [sentRequestSchema],
+    received: [receivedRequestSchema]
   }
 }, {
   timestamps: true

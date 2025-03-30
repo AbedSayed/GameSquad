@@ -5,16 +5,21 @@ const FriendsService = {
     // Initialize the service
     init: function() {
         console.log('Initializing FriendsService');
+        
+        // Initialize data structures
         this.friends = [];
         this.friendRequests = { sent: [], received: [] };
         
-        // Clean up any invalid requests in localStorage right away
-        this.cleanupLocalStorage();
+        // Clean up any invalid requests right away
+        this.cleanupInvalidRequests();
         
-        // Load friends and requests data
+        // Load friends and friend requests
         this.loadFriends();
         this.loadFriendRequests();
+        
+        // Set up socket listeners
         this.setupSocketListeners();
+        
         return this;
     },
     
@@ -650,6 +655,52 @@ const FriendsService = {
                 }
             });
         });
+    },
+    
+    cleanupInvalidRequests: function() {
+        try {
+            console.log('Cleaning up invalid friend requests');
+            
+            // Get from localStorage
+            const userInfoStr = localStorage.getItem('userInfo');
+            if (!userInfoStr) return;
+            
+            const userInfo = JSON.parse(userInfoStr);
+            
+            if (!userInfo.friendRequests) return;
+            
+            let invalidRequestsRemoved = 0;
+            
+            // Clean up received requests - filter out Unknown User and missing sender info
+            if (userInfo.friendRequests.received && Array.isArray(userInfo.friendRequests.received)) {
+                const originalCount = userInfo.friendRequests.received.length;
+                
+                userInfo.friendRequests.received = userInfo.friendRequests.received.filter(request => {
+                    // Check for valid sender info
+                    const hasValidSender = request.sender && 
+                        (typeof request.sender === 'object' ? 
+                            (request.sender.username && request.sender.username !== 'Unknown User') : 
+                            true);
+                    
+                    // Check for valid sender name
+                    const hasValidSenderName = request.senderName && 
+                        request.senderName !== 'Unknown User';
+                    
+                    return hasValidSender || hasValidSenderName;
+                });
+                
+                invalidRequestsRemoved = originalCount - userInfo.friendRequests.received.length;
+            }
+            
+            if (invalidRequestsRemoved > 0) {
+                console.log(`Removed ${invalidRequestsRemoved} invalid friend requests`);
+                
+                // Save back to localStorage
+                localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            }
+        } catch (error) {
+            console.error('Error cleaning up invalid friend requests:', error);
+        }
     }
 };
 

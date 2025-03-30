@@ -163,41 +163,17 @@ const SocketHandler = {
             // Show notification
             this.showNotification('Friend Request', `${data.senderName} sent you a friend request!`, 'info');
             
-            // Play a sound if available
-            if (typeof Audio !== 'undefined') {
-                try {
-                    // Use Web Audio API to create a notification sound programmatically
-                    // This doesn't rely on external files that might be missing
-                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    
-                    // Create an oscillator for the notification sound
-                    const oscillator = audioContext.createOscillator();
-                    const gainNode = audioContext.createGain();
-                    
-                    // Configure the sound
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
-                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                    
-                    // Connect the nodes
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioContext.destination);
-                    
-                    // Play a short beep
-                    oscillator.start(audioContext.currentTime);
-                    oscillator.stop(audioContext.currentTime + 0.2);
-                    
-                    // Fade out
-                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
-                    
-                    console.log('Notification sound played successfully');
-                } catch (e) {
-                    console.log('Could not play notification sound', e);
-                }
-            }
+            // Play notification sound
+            this.playNotificationSound();
             
             // Store the friend request in localStorage
             this.storeFriendRequest(data);
+            
+            // Display friend request in banner on any page
+            if (!window.location.href.includes('login.html') && 
+                !window.location.href.includes('register.html')) {
+                this.displayFriendRequestInBanner(data);
+            }
             
             // Update UI if on messages page
             if (window.location.href.includes('messages.html')) {
@@ -237,6 +213,24 @@ const SocketHandler = {
             if (data.type === 'join' || data.type === 'leave') {
                 this.showNotification('Lobby Update', data.message);
             }
+        });
+        
+        // Friend request acceptance
+        this.socket.on('friend-request-accepted', (data) => {
+            console.log('[SocketHandler] Friend request accepted:', data);
+            this.handleFriendRequestAccepted(data);
+        });
+        
+        // Friend request rejection
+        this.socket.on('friend-request-rejected', (data) => {
+            console.log('[SocketHandler] Friend request rejected:', data);
+            // Handle rejection if needed
+        });
+        
+        // When you accept a friend request
+        this.socket.on('friend-request-you-accepted', (data) => {
+            console.log('[SocketHandler] You accepted a friend request:', data);
+            this.handleYouAcceptedFriendRequest(data);
         });
     },
     
@@ -808,114 +802,220 @@ const SocketHandler = {
     displayFriendRequestInIframe: function(data) {
         // Check if we're on the players page
         if (window.location.href.includes('players.html')) {
-            console.log('Displaying friend request in iframe on players page');
+            console.log('Displaying friend request in banner on players page');
             
-            // Get the friend requests frame
-            const friendRequestsFrame = document.getElementById('friendRequestsFrame');
-            if (!friendRequestsFrame) {
-                console.error('Friend requests frame not found');
-                return;
-            }
+            // First, display in the new banner at the top of the page
+            this.displayFriendRequestInBanner(data);
             
-            // Show the frame
-            friendRequestsFrame.style.display = 'block';
+            // For backward compatibility, also update the old container
+            this.updateLegacyFriendRequestFrame(data);
+        }
+    },
+    
+    // Display friend request in the new banner at the top of the page
+    displayFriendRequestInBanner: function(data) {
+        console.log('Displaying friend request in top banner:', data);
+        
+        // Get or create the friend request banner
+        let banner = document.getElementById('friendRequestBanner');
+        if (!banner) {
+            console.log('Friend request banner not found, creating it');
+            banner = document.createElement('div');
+            banner.id = 'friendRequestBanner';
+            banner.className = 'friend-request-banner';
             
-            // Get the list container
-            const friendRequestsList = document.getElementById('friendRequestsList');
-            if (!friendRequestsList) {
-                console.error('Friend requests list not found');
-                return;
-            }
-            
-            // Remove empty state if it exists
-            const emptyState = friendRequestsList.querySelector('.empty-state');
-            if (emptyState) {
-                emptyState.remove();
-            }
-            
-            // Check if this request already exists in the list
-            const existingRequest = friendRequestsList.querySelector(`[data-sender-id="${data.senderId}"]`);
-            if (existingRequest) {
-                console.log('Request already in list, not adding again');
-                return;
-            }
-            
-            // Create request item
-            const requestItem = document.createElement('div');
-            requestItem.className = 'friend-request-item';
-            requestItem.dataset.id = data.requestId;
-            requestItem.dataset.senderId = data.senderId;
-            
-            requestItem.innerHTML = `
-                <div class="request-info">
-                    <strong>${data.senderName}</strong>
-                    <p>${data.message || `${data.senderName} would like to be your friend!`}</p>
-                </div>
-                <div class="request-actions">
-                    <button class="btn btn-primary accept-request">
-                        <i class="fas fa-check"></i> Accept
-                    </button>
-                    <button class="btn btn-danger reject-request">
-                        <i class="fas fa-times"></i> Decline
-                    </button>
-                </div>
-            `;
-            
-            // Add to the list
-            friendRequestsList.appendChild(requestItem);
-            
-            // Add event listeners to the buttons
-            const acceptBtn = requestItem.querySelector('.accept-request');
-            const rejectBtn = requestItem.querySelector('.reject-request');
-            
-            acceptBtn.addEventListener('click', () => {
-                this.acceptFriendRequest(data.requestId, data.senderId, data.senderName);
-                requestItem.remove();
-                
-                // Check if there are no more requests
-                if (friendRequestsList.children.length === 0) {
-                    friendRequestsList.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-user-plus"></i>
-                            <p>No friend requests</p>
-                        </div>
-                    `;
-                    
-                    // Hide the frame after a delay
-                    setTimeout(() => {
-                        friendRequestsFrame.style.display = 'none';
-                    }, 2000);
-                }
-            });
-            
-            rejectBtn.addEventListener('click', () => {
-                this.rejectFriendRequest(data.requestId, data.senderId);
-                requestItem.remove();
-                
-                // Check if there are no more requests
-                if (friendRequestsList.children.length === 0) {
-                    friendRequestsList.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-user-plus"></i>
-                            <p>No friend requests</p>
-                        </div>
-                    `;
-                    
-                    // Hide the frame after a delay
-                    setTimeout(() => {
-                        friendRequestsFrame.style.display = 'none';
-                    }, 2000);
-                }
-            });
-            
-            // Add close button functionality
-            const closeBtn = document.getElementById('closeFriendRequests');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => {
-                    friendRequestsFrame.style.display = 'none';
-                });
+            // Add it to the top of the page, before the main content
+            const playersContainer = document.querySelector('.players-container');
+            if (playersContainer) {
+                playersContainer.parentNode.insertBefore(banner, playersContainer);
+            } else {
+                // If no players container, add it to the body
+                document.body.prepend(banner);
             }
         }
+        
+        // Create or update the content of the banner
+        const senderInitial = data.senderName ? data.senderName.charAt(0).toUpperCase() : 'U';
+        const notificationMessage = `${data.senderName} would like to be your friend`;
+        
+        banner.innerHTML = `
+            <div class="request-content">
+                <div class="request-avatar">${senderInitial}</div>
+                <div class="request-info">
+                    <h3 class="request-title">Friend Request</h3>
+                    <p class="request-message">${data.message || notificationMessage}</p>
+                </div>
+            </div>
+            <div class="request-actions">
+                <button class="btn btn-success accept-request-btn" data-sender-id="${data.senderId}" data-request-id="${data.requestId || ''}" data-sender-name="${data.senderName || ''}">
+                    ACCEPT
+                </button>
+                <button class="btn btn-danger reject-request-btn" data-sender-id="${data.senderId}" data-request-id="${data.requestId || ''}" data-sender-name="${data.senderName || ''}">
+                    DECLINE
+                </button>
+            </div>
+            <button class="close-banner-btn" aria-label="Close">×</button>
+        `;
+        
+        // Add event listeners to the buttons
+        const acceptBtn = banner.querySelector('.accept-request-btn');
+        const rejectBtn = banner.querySelector('.reject-request-btn');
+        const closeBtn = banner.querySelector('.close-banner-btn');
+        
+        acceptBtn.addEventListener('click', () => {
+            console.log('Accept button clicked in banner');
+            const senderId = acceptBtn.dataset.senderId;
+            const requestId = acceptBtn.dataset.requestId || `local_${Date.now()}`;
+            const senderName = acceptBtn.dataset.senderName || 'User';
+            
+            // Show loading state
+            acceptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ACCEPTING...';
+            acceptBtn.disabled = true;
+            rejectBtn.disabled = true;
+            
+            this.acceptFriendRequest(requestId, senderId, senderName);
+            
+            // Close the banner after a delay
+            setTimeout(() => {
+                banner.style.animation = 'fadeOut 0.5s ease-out forwards';
+                setTimeout(() => {
+                    banner.remove();
+                }, 500);
+            }, 1500);
+        });
+        
+        rejectBtn.addEventListener('click', () => {
+            console.log('Reject button clicked in banner');
+            const senderId = rejectBtn.dataset.senderId;
+            const requestId = rejectBtn.dataset.requestId || `local_${Date.now()}`;
+            
+            // Show loading state
+            rejectBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> DECLINING...';
+            rejectBtn.disabled = true;
+            acceptBtn.disabled = true;
+            
+            this.rejectFriendRequest(requestId, senderId);
+            
+            // Close the banner after a delay
+            setTimeout(() => {
+                banner.style.animation = 'fadeOut 0.5s ease-out forwards';
+                setTimeout(() => {
+                    banner.remove();
+                }, 500);
+            }, 1500);
+        });
+        
+        closeBtn.addEventListener('click', () => {
+            console.log('Close button clicked in banner');
+            banner.style.animation = 'fadeOut 0.5s ease-out forwards';
+            setTimeout(() => {
+                banner.remove();
+            }, 500);
+        });
+        
+        // Add fadeOut animation to CSS if it doesn't exist
+        if (!document.getElementById('friendRequestAnimations')) {
+            const styleEl = document.createElement('style');
+            styleEl.id = 'friendRequestAnimations';
+            styleEl.textContent = `
+                @keyframes fadeOut {
+                    from { opacity: 1; transform: translateY(0); }
+                    to { opacity: 0; transform: translateY(-20px); }
+                }
+            `;
+            document.head.appendChild(styleEl);
+        }
+    },
+    
+    // Update the legacy friend request frame for backward compatibility
+    updateLegacyFriendRequestFrame: function(data) {
+        // Get the friend requests frame
+        const friendRequestsFrame = document.getElementById('friendRequestsFrame');
+        if (!friendRequestsFrame) {
+            console.error('Legacy friend requests frame not found');
+            return;
+        }
+        
+        // Hide it by default - we're using the banner now
+        friendRequestsFrame.style.display = 'none';
+        
+        // Get the list container
+        const friendRequestsList = document.getElementById('friendRequestsList');
+        if (!friendRequestsList) {
+            console.error('Friend requests list not found');
+            return;
+        }
+        
+        // Remove empty state if it exists
+        const emptyState = friendRequestsList.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.remove();
+        }
+        
+        // Check if this request already exists in the list
+        const existingRequest = friendRequestsList.querySelector(`[data-sender-id="${data.senderId}"]`);
+        if (existingRequest) {
+            console.log('Request already in list, not adding again');
+            return;
+        }
+        
+        // Create request item
+        const requestItem = document.createElement('div');
+        requestItem.className = 'friend-request-item';
+        requestItem.dataset.id = data.requestId;
+        requestItem.dataset.senderId = data.senderId;
+        
+        requestItem.innerHTML = `
+            <div class="request-info">
+                <strong>${data.senderName}</strong>
+                <p>${data.message || `${data.senderName} would like to be your friend!`}</p>
+            </div>
+            <div class="request-actions">
+                <button class="btn btn-primary accept-request">
+                    <i class="fas fa-check"></i> Accept
+                </button>
+                <button class="btn btn-danger reject-request">
+                    <i class="fas fa-times"></i> Decline
+                </button>
+            </div>
+        `;
+        
+        // Add to the list
+        friendRequestsList.appendChild(requestItem);
+        
+        // Add event listeners to the buttons
+        const acceptBtn = requestItem.querySelector('.accept-request');
+        const rejectBtn = requestItem.querySelector('.reject-request');
+        
+        acceptBtn.addEventListener('click', () => {
+            this.acceptFriendRequest(data.requestId, data.senderId, data.senderName);
+            requestItem.remove();
+            
+            // Check if there are no more requests
+            if (friendRequestsList.children.length === 0) {
+                friendRequestsList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-user-plus"></i>
+                        <p>No friend requests</p>
+                    </div>
+                `;
+            }
+        });
+        
+        rejectBtn.addEventListener('click', () => {
+            this.rejectFriendRequest(data.requestId, data.senderId);
+            requestItem.remove();
+            
+            // Check if there are no more requests
+            if (friendRequestsList.children.length === 0) {
+                friendRequestsList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-user-plus"></i>
+                        <p>No friend requests</p>
+                    </div>
+                `;
+            }
+        });
     },
     
     // Accept a friend request
@@ -1178,10 +1278,16 @@ const SocketHandler = {
                 console.log('Generated request ID for sync:', data.requestId);
             }
             
-            // Ensure we have a sender name
-            if (!data.senderName) {
-                data.senderName = 'Unknown User';
-                console.log('Using default sender name for sync');
+            // Validate sender information
+            if (!data.senderId || !data.senderName) {
+                console.error('Missing required sender information, cannot sync friend request', data);
+                return; // Don't proceed with incomplete sender information
+            }
+
+            // Don't allow "Unknown User" friend requests
+            if (data.senderName === 'Unknown User') {
+                console.error('Cannot sync friend request with "Unknown User" as sender');
+                return;
             }
             
             const apiUrl = window.APP_CONFIG?.API_URL || '/api';
@@ -1448,6 +1554,260 @@ const SocketHandler = {
             console.error('Error refreshing user data:', error);
             throw error;
         });
+    },
+
+    // Handle friend request acceptance (for the sender of the request)
+    handleFriendRequestAccepted: function(data) {
+        console.log('[SocketHandler] Processing accepted friend request:', data);
+        
+        try {
+            // Get current user info
+            const userInfoStr = localStorage.getItem('userInfo');
+            if (!userInfoStr) {
+                console.error('[SocketHandler] No user info in localStorage');
+                return;
+            }
+            
+            const userInfo = JSON.parse(userInfoStr);
+            
+            // Update sent requests - mark this one as accepted
+            if (userInfo.friendRequests && userInfo.friendRequests.sent) {
+                const updatedSent = userInfo.friendRequests.sent.map(req => {
+                    if (req.recipient && req.recipient.toString() === data.acceptorDetails._id) {
+                        return { ...req, status: 'accepted' };
+                    }
+                    return req;
+                });
+                
+                userInfo.friendRequests.sent = updatedSent;
+            }
+            
+            // Add the acceptor to friends list if not already there
+            if (!userInfo.friends) {
+                userInfo.friends = [];
+            }
+            
+            if (!userInfo.friends.includes(data.acceptorDetails._id)) {
+                userInfo.friends.push(data.acceptorDetails._id);
+            }
+            
+            // Store complete friend data
+            if (!userInfo.friendsData) {
+                userInfo.friendsData = [];
+            }
+            
+            // Check if we already have this friend in data
+            const existingIndex = userInfo.friendsData.findIndex(f => f._id === data.acceptorDetails._id);
+            
+            if (existingIndex >= 0) {
+                // Update existing entry
+                userInfo.friendsData[existingIndex] = data.acceptorDetails;
+            } else {
+                // Add new entry
+                userInfo.friendsData.push(data.acceptorDetails);
+            }
+            
+            // Save updated user info
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            
+            // Show notification
+            this.showFriendAcceptedNotification(data.acceptorDetails.username || 'A user');
+            
+            // Refresh the UI components
+            this.refreshUIAfterFriendUpdate();
+            
+        } catch (error) {
+            console.error('[SocketHandler] Error handling friend request acceptance:', error);
+        }
+    },
+
+    // Handle when you accept a friend request (for the recipient/acceptor)
+    handleYouAcceptedFriendRequest: function(data) {
+        console.log('[SocketHandler] Processing your acceptance of friend request:', data);
+        
+        try {
+            // Get current user info
+            const userInfoStr = localStorage.getItem('userInfo');
+            if (!userInfoStr) {
+                console.error('[SocketHandler] No user info in localStorage');
+                return;
+            }
+            
+            const userInfo = JSON.parse(userInfoStr);
+            
+            // Update friends data with the sender's complete information
+            if (!userInfo.friendsData) {
+                userInfo.friendsData = [];
+            }
+            
+            // Check if we already have this friend in data
+            const existingIndex = userInfo.friendsData.findIndex(f => f._id === data.senderDetails._id);
+            
+            if (existingIndex >= 0) {
+                // Update existing entry
+                userInfo.friendsData[existingIndex] = data.senderDetails;
+            } else {
+                // Add new entry
+                userInfo.friendsData.push(data.senderDetails);
+            }
+            
+            // Save updated user info
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            
+            // Refresh the UI components
+            this.refreshUIAfterFriendUpdate();
+            
+        } catch (error) {
+            console.error('[SocketHandler] Error handling your friend request acceptance:', error);
+        }
+    },
+
+    // Handle new friend request
+    handleNewFriendRequest: function(data) {
+        // Only process requests meant for this user
+        const userInfoStr = localStorage.getItem('userInfo');
+        if (!userInfoStr) return;
+        
+        const userInfo = JSON.parse(userInfoStr);
+        const currentUserId = userInfo._id;
+        
+        if (data.recipientId !== currentUserId) {
+            console.log('[SocketHandler] Friend request not for current user');
+            return;
+        }
+        
+        // Check if we have the FriendsService available
+        if (window.FriendsService) {
+            console.log('[SocketHandler] Notifying FriendsService about new friend request');
+            window.FriendsService.addIncomingRequest(data);
+        }
+        
+        // Show notification
+        this.showNewFriendRequestNotification(data.senderName);
+        
+        // Update request frame if on players page
+        if (typeof checkForFriendRequests === 'function') {
+            setTimeout(checkForFriendRequests, 500);
+        }
+        
+        // Update badges
+        this.updateFriendRequestBadges();
+    },
+
+    // Show notification for new friend request
+    showNewFriendRequestNotification: function(senderName) {
+        if (typeof showNotification === 'function') {
+            showNotification(`New Friend Request from ${senderName}`, 'info');
+        } else if (typeof showToast === 'function') {
+            showToast('info', 'New Friend Request', `${senderName} sent you a friend request`);
+        } else {
+            console.log('[SocketHandler] New friend request notification shown');
+        }
+    },
+
+    // Show notification when friend request is accepted
+    showFriendAcceptedNotification: function(acceptorName) {
+        if (typeof showNotification === 'function') {
+            showNotification(`${acceptorName} accepted your friend request`, 'success');
+        } else if (typeof showToast === 'function') {
+            showToast('success', 'Friend Request Accepted', `${acceptorName} is now your friend!`);
+        } else {
+            console.log('[SocketHandler] Friend request accepted notification shown');
+        }
+    },
+
+    // Update friend request badges
+    updateFriendRequestBadges: function() {
+        // Update badge count if the function exists (in navbar)
+        if (typeof updateFriendRequestBadge === 'function') {
+            const userInfoStr = localStorage.getItem('userInfo');
+            if (userInfoStr) {
+                const userInfo = JSON.parse(userInfoStr);
+                const requests = userInfo.friendRequests?.received?.filter(r => r.status === 'pending') || [];
+                updateFriendRequestBadge(requests.length);
+            }
+        }
+    },
+
+    // Refresh UI components after friend updates
+    refreshUIAfterFriendUpdate: function() {
+        // Refresh friend list in messages page if available
+        if (typeof displayFriends === 'function') {
+            console.log('[SocketHandler] Refreshing friends list display');
+            displayFriends();
+        }
+        
+        // Refresh friend status in players page if available
+        if (typeof refreshFriendStatus === 'function') {
+            console.log('[SocketHandler] Refreshing friend status');
+            refreshFriendStatus();
+        }
+        
+        // Refresh friend requests if available
+        if (typeof checkForFriendRequests === 'function') {
+            console.log('[SocketHandler] Refreshing friend requests');
+            checkForFriendRequests();
+        }
+        
+        // Update friends service if available
+        if (window.FriendsService && typeof window.FriendsService.refreshFriends === 'function') {
+            console.log('[SocketHandler] Notifying FriendsService to refresh');
+            window.FriendsService.refreshFriends();
+        }
+        
+        // If we're on the players page, update all player cards
+        const playerCards = document.querySelectorAll('.player-card');
+        if (playerCards.length > 0) {
+            console.log('[SocketHandler] Refreshing player cards UI');
+            playerCards.forEach(card => {
+                const playerId = card.dataset.id;
+                if (playerId) {
+                    const friendButtons = card.querySelectorAll('.friend-button, .add-friend, .friend-pending, .friend-status');
+                    friendButtons.forEach(button => {
+                        // Force a refresh of this button's state
+                        if (typeof updateFriendButtonUI === 'function' && playerId) {
+                            const playerName = card.dataset.name || 'Unknown';
+                            updateFriendButtonUI(playerId, playerName, null); // null will cause a fresh check
+                        }
+                    });
+                }
+            });
+        }
+    },
+
+    // Play notification sound
+    playNotificationSound: function() {
+        if (typeof Audio !== 'undefined') {
+            try {
+                // Use Web Audio API to create a notification sound programmatically
+                // This doesn't rely on external files that might be missing
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create an oscillator for the notification sound
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                // Configure the sound
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                
+                // Connect the nodes
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                // Play a short beep
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.2);
+                
+                // Fade out
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
+                
+                console.log('Notification sound played successfully');
+            } catch (e) {
+                console.log('Could not play notification sound', e);
+            }
+        }
     }
 };
 

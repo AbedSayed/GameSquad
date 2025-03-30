@@ -170,37 +170,20 @@ router.post('/sync-request', protect, async (req, res) => {
     } 
     // If sender doesn't exist but we have sender info
     else if (senderId && senderName) {
-      console.log('Sender not found in database, but have sender info. Creating placeholder request');
+      console.log('Sender not found in database');
       
-      // Create new request with placeholder sender
-      const newRequest = {
-        _id: new mongoose.Types.ObjectId(),
-        requestId: requestId || `req_${Date.now()}`,
-        sender: senderId,
-        senderName: senderName,
-        message: message || `${senderName} would like to be your friend!`,
-        createdAt: new Date()
-      };
-      
-      user.friendRequests.received.push(newRequest);
-      await user.save();
-      
-      return res.status(200).json({
-        success: true,
-        message: 'Friend request synchronized with placeholder sender',
-        userInfo: {
-          _id: user._id,
-          username: user.username,
-          email: user.email,
-          friends: user.friends || [],
-          friendRequests: user.friendRequests
-        }
+      // Don't create placeholder requests anymore
+      return res.status(404).json({
+        success: false,
+        message: 'Sender user does not exist in database',
+        error: 'SENDER_NOT_FOUND'
       });
     }
     
+    // If we get here, we don't have enough information
     return res.status(400).json({
       success: false,
-      message: 'Could not sync friend request - invalid sender information'
+      message: 'Invalid request data'
     });
   } catch (error) {
     console.error('Error syncing friend request:', error);

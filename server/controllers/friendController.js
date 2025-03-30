@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 const mongoose = require('mongoose');
+const FriendRequest = require('../models/FriendRequest');
 
 // @desc    Send friend request
 // @route   POST /api/friends/request/:id
@@ -16,6 +17,10 @@ const sendFriendRequest = asyncHandler(async (req, res) => {
     // Check if users exist
     const sender = await User.findById(senderId);
     const recipient = await User.findById(recipientId);
+    
+    if (!sender) {
+      return res.status(404).json({ success: false, message: 'Sender user not found' });
+    }
     
     if (!recipient) {
       return res.status(404).json({ success: false, message: 'Recipient user not found' });
@@ -157,83 +162,142 @@ const acceptFriendRequest = asyncHandler(async (req, res) => {
   try {
     const userId = req.user.id;
     const requestId = req.params.requestId;
-    
-    // Find the user
+
+    console.log(`User ${userId} is accepting friend request ${requestId}`);
+
+    // Find the user and their received request
     const user = await User.findById(userId);
-    
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
     }
-    
-    // Find the friend request in received requests
+
+    // Ensure friendRequests structure exists
+    if (!user.friendRequests) {
+      user.friendRequests = { sent: [], received: [] };
+    }
+
+    // Find the request in the user's received requests
     const requestIndex = user.friendRequests.received.findIndex(
       req => req._id.toString() === requestId
     );
-    
+
     if (requestIndex === -1) {
-      return res.status(404).json({ success: false, message: 'Friend request not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Friend request not found'
+      });
     }
-    
-    const request = user.friendRequests.received[requestIndex];
-    const senderId = request.sender;
-    
-    // Find the sender user
+
+    const friendRequest = user.friendRequests.received[requestIndex];
+    const senderId = friendRequest.sender.toString();
+
+    // Check if the request is still pending
+    if (friendRequest.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Friend request already ${friendRequest.status}`
+      });
+    }
+
+    // Find the sender
     const sender = await User.findById(senderId);
-    
     if (!sender) {
-      return res.status(404).json({ success: false, message: 'Sender user not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Sender not found'
+      });
     }
-    
-    // Update request status to accepted
+
+    // Ensure sender's friendRequests structure exists
+    if (!sender.friendRequests) {
+      sender.friendRequests = { sent: [], received: [] };
+    }
+
+    // Update request status in user's received requests
     user.friendRequests.received[requestIndex].status = 'accepted';
-    
-    // Find the matching sent request from the sender
+
+    // Find and update the matching request in sender's sent requests
     const senderRequestIndex = sender.friendRequests.sent.findIndex(
       req => req._id.toString() === requestId
     );
-    
+
     if (senderRequestIndex !== -1) {
       sender.friendRequests.sent[senderRequestIndex].status = 'accepted';
     }
-    
-    // Add each other as friends if not already friends
+
+    // Add each user to the other's friends list if not already friends
     if (!user.friends) {
       user.friends = [];
     }
-    
     if (!sender.friends) {
       sender.friends = [];
     }
-    
-    // Check if already friends
-    if (!user.friends.some(friend => friend.toString() === senderId.toString())) {
+
+    // Check if they're already friends and add if not
+    if (!user.friends.some(id => id.toString() === senderId)) {
       user.friends.push(senderId);
     }
-    
-    if (!sender.friends.some(friend => friend.toString() === userId)) {
+
+    // Add the user to the sender's friends list if not already a friend
+    if (!sender.friends.some(id => id.toString() === userId)) {
       sender.friends.push(userId);
     }
-    
+
+    // Save both users
     await user.save();
     await sender.save();
-    
-    // Emit socket event if available
+
+    // Get sender and user details for response and socket events
+    const senderDetails = {
+      _id: sender._id,
+      username: sender.username,
+      email: sender.email,
+      profile: sender.profile
+    };
+
+    const userDetails = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      profile: user.profile
+    };
+
+    // Emit a socket event to notify the sender
     const io = req.app.get('io');
     if (io) {
-      io.to(`user:${senderId}`).emit('friend-request-accepted', {
-        acceptedBy: userId,
-        acceptedByName: user.username,
-        timestamp: new Date()
+      io.to(`user:${senderId}`).emit('friend-request-accepted', { 
+        senderId: senderId, 
+        acceptorName: user.username,
+        acceptorDetails: userDetails
       });
     }
-    
-    res.status(200).json({
+
+    // Emit an event to the acceptor (current user) as well
+    if (io) {
+      io.to(`user:${userId}`).emit('friend-request-you-accepted', { 
+        recipientId: userId,
+        senderDetails: senderDetails
+      });
+    }
+
+    console.log(`User ${userId} accepted friend request from ${senderId}`);
+
+    return res.status(200).json({
       success: true,
-      message: 'Friend request accepted successfully'
+      message: 'Friend request accepted',
+      data: {
+        friendRequest,
+        senderDetails,
+        userDetails
+      }
     });
+
   } catch (error) {
     console.error('Error accepting friend request:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Error accepting friend request',
       error: error.message
@@ -256,6 +320,15 @@ const rejectFriendRequest = asyncHandler(async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     
+    // Ensure friendRequests structure exists
+    if (!user.friendRequests) {
+      user.friendRequests = { sent: [], received: [] };
+    }
+    
+    if (!user.friendRequests.received) {
+      user.friendRequests.received = [];
+    }
+    
     // Find the friend request in received requests
     const requestIndex = user.friendRequests.received.findIndex(
       req => req._id.toString() === requestId
@@ -266,7 +339,16 @@ const rejectFriendRequest = asyncHandler(async (req, res) => {
     }
     
     const request = user.friendRequests.received[requestIndex];
-    const senderId = request.sender;
+    
+    // Check if the request is still pending
+    if (request.status !== 'pending') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Friend request already ${request.status}` 
+      });
+    }
+    
+    const senderId = request.sender.toString();
     
     // Update request status to rejected
     user.friendRequests.received[requestIndex].status = 'rejected';
@@ -275,6 +357,15 @@ const rejectFriendRequest = asyncHandler(async (req, res) => {
     const sender = await User.findById(senderId);
     
     if (sender) {
+      // Ensure sender's friendRequests structure exists
+      if (!sender.friendRequests) {
+        sender.friendRequests = { sent: [], received: [] };
+      }
+      
+      if (!sender.friendRequests.sent) {
+        sender.friendRequests.sent = [];
+      }
+      
       // Find the matching sent request from the sender
       const senderRequestIndex = sender.friendRequests.sent.findIndex(
         req => req._id.toString() === requestId
@@ -288,11 +379,13 @@ const rejectFriendRequest = asyncHandler(async (req, res) => {
     
     await user.save();
     
-    // Optionally emit socket event if available
+    // Emit socket event if available
     const io = req.app.get('io');
     if (io) {
       io.to(`user:${senderId}`).emit('friend-request-rejected', {
         rejectedBy: userId,
+        rejectorName: user.username,
+        requestId: requestId,
         timestamp: new Date()
       });
     }
@@ -357,24 +450,50 @@ const removeFriend = asyncHandler(async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     
+    // Check if the friend exists
+    if (!friend) {
+      return res.status(404).json({ success: false, message: 'Friend not found' });
+    }
+    
+    // Check if they are actually friends
+    if (!user.friends || !user.friends.some(id => id.toString() === friendId)) {
+      return res.status(400).json({ success: false, message: 'This user is not in your friends list' });
+    }
+    
+    // Initialize friends array if it doesn't exist
+    if (!user.friends) {
+      user.friends = [];
+    }
+    
     // Remove from user's friends list
-    if (user.friends) {
-      user.friends = user.friends.filter(id => id.toString() !== friendId);
+    user.friends = user.friends.filter(id => id.toString() !== friendId);
+    
+    // Initialize friend's friends array if it doesn't exist
+    if (!friend.friends) {
+      friend.friends = [];
     }
     
+    // Remove from friend's friends list
+    friend.friends = friend.friends.filter(id => id.toString() !== userId);
+    
+    // Save both users
     await user.save();
+    await friend.save();
     
-    // Remove from friend's friends list if friend exists
-    if (friend && friend.friends) {
-      friend.friends = friend.friends.filter(id => id.toString() !== userId);
-      await friend.save();
-    }
-    
-    // Optionally emit socket event
+    // Emit socket event if available
     const io = req.app.get('io');
     if (io) {
+      // Notify the removed friend
       io.to(`user:${friendId}`).emit('friend-removed', {
         removedBy: userId,
+        removerName: user.username,
+        timestamp: new Date()
+      });
+      
+      // Notify the current user
+      io.to(`user:${userId}`).emit('you-removed-friend', {
+        removedFriendId: friendId,
+        removedFriendName: friend.username,
         timestamp: new Date()
       });
     }

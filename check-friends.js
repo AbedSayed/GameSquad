@@ -13,50 +13,103 @@ mongoose.connect(MONGODB_URI, {
 .then(async () => {
   console.log('Connected to MongoDB successfully!');
   
-  // Define a simple schema for the User collection based on what we saw
+  // Define a simple schema for the User collection based on the actual schema
   const userSchema = new mongoose.Schema({
     username: String,
     email: String,
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     profile: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile' },
-    receivedFriendRequests: Array,
-    sentFriendRequests: Array
+    friendRequests: {
+      sent: [{
+        _id: mongoose.Schema.Types.ObjectId,
+        recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        status: String,
+        message: String,
+        createdAt: Date
+      }],
+      received: [{
+        _id: mongoose.Schema.Types.ObjectId,
+        sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        status: String,
+        message: String,
+        createdAt: Date
+      }]
+    }
   }, { strict: false });  // Use strict:false to allow for fields not defined in the schema
   
   const User = mongoose.model('User', userSchema);
   
   try {
     // Query all users
-    const users = await User.find({}).lean();
+    const users = await User.find({}).populate('friends', 'username email').lean();
     console.log(`Total users found: ${users.length}`);
     
     // Check which users have friends
     let usersWithFriends = 0;
+    let usersWithSentRequests = 0;
+    let usersWithReceivedRequests = 0;
+    let brokenFriendships = 0;
+    let brokenRequests = 0;
+    
     for(const user of users) {
-      console.log(`User ${user.username || user.email || user._id}:`);
+      console.log(`\nUser ${user.username || user.email || user._id}:`);
       
       // Check friends array
       if(user.friends && user.friends.length > 0) {
-        console.log(`  Has ${user.friends.length} friends: ${JSON.stringify(user.friends)}`);
+        console.log(`  Has ${user.friends.length} friends:`);
+        for(const friend of user.friends) {
+          // If the friend was populated successfully
+          if(friend.username) {
+            console.log(`    - ${friend.username} (${friend._id})`);
+          } else {
+            console.log(`    - Non-existent user: ${friend}`);
+            brokenFriendships++;
+          }
+        }
         usersWithFriends++;
       } else {
         console.log('  No friends found');
       }
       
-      // Check friend requests
-      if(user.receivedFriendRequests && user.receivedFriendRequests.length > 0) {
-        console.log(`  Has ${user.receivedFriendRequests.length} received friend requests`);
+      // Check sent friend requests
+      if(user.friendRequests && user.friendRequests.sent && user.friendRequests.sent.length > 0) {
+        console.log(`  Has ${user.friendRequests.sent.length} sent friend requests:`);
+        for(const request of user.friendRequests.sent) {
+          console.log(`    - To: ${request.recipient}, Status: ${request.status || 'unknown'}, Created: ${request.createdAt || 'unknown'}`);
+          if(!request.recipient) {
+            brokenRequests++;
+          }
+        }
+        usersWithSentRequests++;
+      } else {
+        console.log('  No sent friend requests');
       }
       
-      if(user.sentFriendRequests && user.sentFriendRequests.length > 0) {
-        console.log(`  Has ${user.sentFriendRequests.length} sent friend requests`);
+      // Check received friend requests
+      if(user.friendRequests && user.friendRequests.received && user.friendRequests.received.length > 0) {
+        console.log(`  Has ${user.friendRequests.received.length} received friend requests:`);
+        for(const request of user.friendRequests.received) {
+          console.log(`    - From: ${request.sender}, Status: ${request.status || 'unknown'}, Created: ${request.createdAt || 'unknown'}`);
+          if(!request.sender) {
+            brokenRequests++;
+          }
+        }
+        usersWithReceivedRequests++;
+      } else {
+        console.log('  No received friend requests');
       }
       
       console.log('-------------------');
     }
     
     // Summary
-    console.log(`\nSUMMARY: ${usersWithFriends} out of ${users.length} users have friends`);
+    console.log(`\nSUMMARY:`);
+    console.log(`- Total users: ${users.length}`);
+    console.log(`- Users with friends: ${usersWithFriends} (${Math.round(usersWithFriends/users.length*100)}%)`);
+    console.log(`- Users with sent requests: ${usersWithSentRequests} (${Math.round(usersWithSentRequests/users.length*100)}%)`);
+    console.log(`- Users with received requests: ${usersWithReceivedRequests} (${Math.round(usersWithReceivedRequests/users.length*100)}%)`);
+    console.log(`- Broken friendships found: ${brokenFriendships}`);
+    console.log(`- Broken requests found: ${brokenRequests}`);
     
   } catch (error) {
     console.error('Error querying the database:', error);

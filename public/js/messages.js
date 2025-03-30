@@ -260,32 +260,70 @@ function displayFriendRequests() {
     }
     
     try {
-        // Get current user info
+        // Get friend requests from localStorage
         const userInfoStr = localStorage.getItem('userInfo');
         if (!userInfoStr) {
-            console.log('[messages.js] No user info found in localStorage');
-            requestsContainer.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-user-plus"></i>
-                    <p>No friend requests</p>
-                </div>`;
+            console.log('[messages.js] No user info in localStorage');
+            requestsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-user-plus"></i><p>No friend requests</p></div>';
             return;
         }
         
         const userInfo = JSON.parse(userInfoStr);
+        
+        // Check if we have friend requests data structure
+        const hasRequests = userInfo.friendRequests !== undefined;
+        const hasReceivedArray = hasRequests && Array.isArray(userInfo.friendRequests.received);
+        const receivedLength = hasReceivedArray ? userInfo.friendRequests.received.length : 0;
+        
         console.log('[messages.js] User info structure:', {
-            hasRequests: !!userInfo.friendRequests,
-            hasReceivedArray: !!(userInfo.friendRequests && userInfo.friendRequests.received),
-            receivedLength: userInfo.friendRequests?.received?.length || 0
+            hasRequests,
+            hasReceivedArray,
+            receivedLength
         });
         
-        // Check if there are any friend requests
-        let friendRequests = [];
-        if (userInfo.friendRequests && userInfo.friendRequests.received) {
-            friendRequests = userInfo.friendRequests.received;
+        // If no friend requests structure, show empty state
+        if (!hasRequests || !hasReceivedArray) {
+            console.log('[messages.js] No friend requests structure in user info');
+            requestsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-user-plus"></i><p>No friend requests</p></div>';
+            return;
         }
         
+        // Filter to only pending requests
+        const friendRequests = userInfo.friendRequests.received.filter(req => 
+            req && (req.status === 'pending' || req.status === undefined)
+        );
+        
         console.log(`[messages.js] Found ${friendRequests.length} friend requests in localStorage`);
+        
+        // Clean up rejected or processed requests after a certain time
+        const now = new Date();
+        let needToSave = false;
+        
+        userInfo.friendRequests.received = userInfo.friendRequests.received.filter(req => {
+            if (!req) return false;
+            
+            // Keep pending requests
+            if (req.status === 'pending' || req.status === undefined) return true;
+            
+            // For rejected/processed requests, keep them for 24 hours then remove
+            if (req.status === 'rejected' || req.status === 'accepted') {
+                const reqDate = new Date(req.createdAt || 0);
+                const hoursSince = (now - reqDate) / (1000 * 60 * 60);
+                
+                // Keep if less than 24 hours old
+                const shouldKeep = hoursSince < 24;
+                if (!shouldKeep) needToSave = true;
+                return shouldKeep;
+            }
+            
+            return true;
+        });
+        
+        // Save back to localStorage if we cleaned up any requests
+        if (needToSave) {
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            console.log('[messages.js] Cleaned up old rejected/accepted requests');
+        }
         
         // Clear container
         requestsContainer.innerHTML = '';
@@ -440,51 +478,66 @@ function displayFriends() {
             return;
         }
         
-        // Check if we already have friend data in localStorage
-        let friendsData = userInfo.friendsData || [];
+        // Show loading state
+        friendsContainer.innerHTML = `
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading friends...</p>
+            </div>`;
+            
+        // Always make an API call to get fresh friend data
+        console.log('[messages.js] Making API call to fetch fresh friends data');
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.error('[messages.js] No token found, cannot fetch friends data');
+            return;
+        }
         
-        // If we don't have detailed friend data, make API call
-        if (!friendsData.length) {
-            console.log('[messages.js] Making API call to fetch friends data');
-            const token = localStorage.getItem('token');
-            if (!token) {
-                console.error('[messages.js] No token found, cannot fetch friends data');
-                return;
+        // Get the API URL from config
+        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+        
+        // Fetch friends data
+        fetch(`${apiUrl}/friends`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
             }
+        })
+        .then(response => {
+            console.log('[messages.js] Friends API response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('[messages.js] Friends API response data:', data);
             
-            // Get the API URL from config
-            const apiUrl = window.APP_CONFIG?.API_URL || '/api';
-            
-            // Fetch friends data
-            fetch(`${apiUrl}/friends`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            })
-            .then(response => {
-                console.log('[messages.js] Friends API response status:', response.status);
-                return response.json();
-            })
-            .then(data => {
-                console.log('[messages.js] Friends API response data:', data);
+            if (data.success && data.data && data.data.length > 0) {
+                // Update localStorage with fresh friend data
+                userInfo.friendsData = data.data;
+                localStorage.setItem('userInfo', JSON.stringify(userInfo));
                 
-                if (data.success && data.data) {
-                    friendsData = data.data;
-                    
-                    // Update localStorage with friend data
-                    userInfo.friendsData = friendsData;
-                    localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                    
-                    // Now render the friends
-                    renderFriends(friendsData);
+                // Now render the friends with fresh data
+                renderFriends(data.data);
+            } else {
+                console.log('[messages.js] No friends returned from API or empty list');
+                
+                // Check if we have any cached friend data to use as fallback
+                let cachedFriendsData = userInfo.friendsData || [];
+                
+                if (cachedFriendsData.length > 0) {
+                    console.log('[messages.js] Using cached friend data as fallback:', cachedFriendsData);
+                    renderFriends(cachedFriendsData);
                 } else {
-                    console.log('[messages.js] No friends returned from API');
-                    
                     // Fallback to using IDs only if we have basic data
                     if (friendIds.length > 0) {
                         console.log('[messages.js] Using friend IDs to display basic info');
-                        const basicFriendsData = friendIds.map(id => ({ _id: id, username: 'Friend', email: '' }));
-                        renderFriends(basicFriendsData);
+                        // Force a delay to make sure we have latest socket events processed
+                        setTimeout(() => {
+                            const basicFriendsData = friendIds.map(id => ({ 
+                                _id: id, 
+                                username: 'Loading...', 
+                                email: '' 
+                            }));
+                            renderFriends(basicFriendsData);
+                        }, 500);
                     } else {
                         friendsContainer.innerHTML = `
                             <div class="empty-state">
@@ -493,29 +546,34 @@ function displayFriends() {
                             </div>`;
                     }
                 }
-            })
-            .catch(error => {
-                console.error('[messages.js] Error fetching friends:', error);
-                
-                // Fallback to using IDs only if the API call fails
-                if (friendIds.length > 0) {
-                    console.log('[messages.js] Using friend IDs to display basic info after error');
-                    const basicFriendsData = friendIds.map(id => ({ _id: id, username: 'Friend', email: '' }));
-                    renderFriends(basicFriendsData);
-                } else {
-                    friendsContainer.innerHTML = `
-                        <div class="empty-state error">
-                            <i class="fas fa-exclamation-circle"></i>
-                            <p>Error loading friends</p>
-                            <p class="error-details">${error.message}</p>
-                        </div>`;
-                }
-            });
-        } else {
-            // We already have the data, render it
-            console.log('[messages.js] Using cached friends data:', friendsData);
-            renderFriends(friendsData);
-        }
+            }
+        })
+        .catch(error => {
+            console.error('[messages.js] Error fetching friends:', error);
+            
+            // Fallback to using cached data if available
+            const cachedFriendsData = userInfo.friendsData || [];
+            
+            if (cachedFriendsData.length > 0) {
+                console.log('[messages.js] Using cached friend data after error:', cachedFriendsData);
+                renderFriends(cachedFriendsData);
+            } else if (friendIds.length > 0) {
+                console.log('[messages.js] Using friend IDs to display basic info after error');
+                const basicFriendsData = friendIds.map(id => ({ 
+                    _id: id, 
+                    username: 'Friend', 
+                    email: '' 
+                }));
+                renderFriends(basicFriendsData);
+            } else {
+                friendsContainer.innerHTML = `
+                    <div class="empty-state error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Error loading friends</p>
+                        <p class="error-details">${error.message}</p>
+                    </div>`;
+            }
+        });
         
         // Helper function to render friends
         function renderFriends(friends) {
@@ -547,11 +605,18 @@ function displayFriends() {
                 // Determine status class (default to offline)
                 const statusClass = (friend.isOnline || friend.profile?.isOnline) ? 'online' : 'offline';
                 
-                // Create avatar with first letter of username
-                const avatarLetter = (friend.username && friend.username[0]) ? friend.username[0].toUpperCase() : '?';
+                // Create avatar with first letter of username or default to '?'
+                const avatarLetter = (friend.username && friend.username !== 'Unknown User' && friend.username[0]) 
+                    ? friend.username[0].toUpperCase() 
+                    : '?';
                 
-                // Use profile data if available
-                const displayName = friend.profile?.displayName || friend.username || 'User';
+                // Get the best possible name to display
+                const displayName = friend.username && friend.username !== 'Unknown User' 
+                    ? friend.username 
+                    : friend.email && friend.email !== 'Unknown User' 
+                    ? friend.email.split('@')[0] 
+                    : 'User ' + friend._id.substring(0, 6);
+                
                 const avatarUrl = friend.profile?.avatar || null;
                 
                 friendEl.innerHTML = `
@@ -588,7 +653,7 @@ function displayFriends() {
         friendsContainer.innerHTML = `
             <div class="empty-state error">
                 <i class="fas fa-exclamation-circle"></i>
-                <p>Error loading friends list</p>
+                <p>Error loading friends</p>
                 <p class="error-details">${err.message}</p>
             </div>`;
     }
@@ -1151,6 +1216,23 @@ function addFriendRequestButtonListeners() {
                 
                 console.log(`[messages.js] Making API call to: ${url} with senderId: ${senderId}, senderName: ${senderName}`);
                 
+                // First try to sync the request with the server
+                if (window.SocketHandler && typeof window.SocketHandler.syncFriendRequestWithServer === 'function') {
+                    try {
+                        console.log('[messages.js] Syncing friend request with server before accepting');
+                        await window.SocketHandler.syncFriendRequestWithServer({
+                            requestId: requestId,
+                            senderId: senderId,
+                            senderName: senderName,
+                            message: `${senderName} would like to be your friend!`
+                        });
+                        console.log('[messages.js] Friend request synced with server');
+                    } catch (syncError) {
+                        console.warn('[messages.js] Error syncing friend request:', syncError);
+                        // Continue anyway, as the accept attempt might still work
+                    }
+                }
+                
                 // Make API call to accept the request
                 const response = await fetch(url, {
                     method: 'POST',
@@ -1160,7 +1242,8 @@ function addFriendRequestButtonListeners() {
                     },
                     body: JSON.stringify({
                         senderId: senderId,
-                        senderName: senderName
+                        senderName: senderName,
+                        requestId: requestId
                     })
                 });
                 
@@ -1215,6 +1298,55 @@ function addFriendRequestButtonListeners() {
                             acceptorName: JSON.parse(localStorage.getItem('userInfo'))?.username || 'User'
                         });
                     }
+                } else if (response.status === 404) {
+                    console.log('[messages.js] Friend request not found on server, attempting to create virtual request');
+                    
+                    // Try to make a virtual request directly
+                    const virtualRequestUrl = `${apiUrl}/users/friends/accept/${requestId}`;
+                    console.log(`[messages.js] Making virtual request to: ${virtualRequestUrl}`);
+                    
+                    const virtualResponse = await fetch(virtualRequestUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            senderId: senderId,
+                            senderName: senderName,
+                            requestId: requestId
+                        })
+                    });
+                    
+                    console.log(`[messages.js] Virtual request response status: ${virtualResponse.status}`);
+                    const virtualData = await virtualResponse.json();
+                    console.log('[messages.js] Virtual request response data:', virtualData);
+                    
+                    if (virtualResponse.ok && virtualData.success) {
+                        // Update localStorage
+                        if (virtualData.userInfo) {
+                            localStorage.setItem('userInfo', JSON.stringify(virtualData.userInfo));
+                        }
+                        
+                        // Remove the request from UI
+                        if (requestItem) {
+                            requestItem.classList.add('fade-out');
+                            setTimeout(() => requestItem.remove(), 500);
+                        }
+                        
+                        // Show success notification
+                        showNotification('Success', `Friend request from ${senderName} accepted!`, 'success');
+                        
+                        // Update friends list
+                        displayFriends();
+                    } else {
+                        // Reset button
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        
+                        // Show error
+                        showNotification('Error', virtualData?.message || 'Failed to accept friend request', 'error');
+                    }
                 } else {
                     // Reset button
                     btn.innerHTML = originalText;
@@ -1231,9 +1363,9 @@ function addFriendRequestButtonListeners() {
                 btn.disabled = false;
                 showNotification('Error', error.message || 'Could not process friend request', 'error');
                 
-                // If 404 error, try to sync the request with the server and retry
-                if (error.message && error.message.includes('404') && window.SocketHandler) {
-                    console.log('[messages.js] Friend request not found, attempting to sync with server...');
+                // If error, try to sync the request with the server and retry
+                if (window.SocketHandler) {
+                    console.log('[messages.js] Error occurred, attempting to sync with server...');
                     
                     // Use SocketHandler to sync the request
                     window.SocketHandler.syncFriendRequestWithServer({
@@ -1276,6 +1408,23 @@ function addFriendRequestButtonListeners() {
                 const apiUrl = window.APP_CONFIG?.API_URL || '/api';
                 const token = localStorage.getItem('token');
                 
+                // First try to sync the request with the server
+                if (window.SocketHandler && typeof window.SocketHandler.syncFriendRequestWithServer === 'function') {
+                    try {
+                        console.log('[messages.js] Syncing friend request with server before rejecting');
+                        await window.SocketHandler.syncFriendRequestWithServer({
+                            requestId: requestId,
+                            senderId: senderId,
+                            senderName: senderName,
+                            message: `${senderName} would like to be your friend!`
+                        });
+                        console.log('[messages.js] Friend request synced with server');
+                    } catch (syncError) {
+                        console.warn('[messages.js] Error syncing friend request:', syncError);
+                        // Continue anyway, as the reject attempt might still work
+                    }
+                }
+                
                 // Make API call to reject the request
                 const response = await fetch(`${apiUrl}/friends/reject/${requestId}`, {
                     method: 'POST',
@@ -1285,16 +1434,31 @@ function addFriendRequestButtonListeners() {
                     },
                     body: JSON.stringify({
                         senderId: senderId,
-                        senderName: senderName
+                        senderName: senderName,
+                        requestId: requestId
                     })
                 });
                 
+                console.log(`[messages.js] Response status: ${response.status}`);
                 const data = await response.json();
+                console.log('[messages.js] Response data:', data);
                 
-                if (response.ok) {
+                if (response.ok && data.success) {
                     // Update localStorage
                     if (data.userInfo) {
                         localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
+                    } else {
+                        // If no userInfo in response, manually update the local request status
+                        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                        if (userInfo.friendRequests && userInfo.friendRequests.received) {
+                            const requestIndex = userInfo.friendRequests.received.findIndex(
+                                req => req._id === requestId
+                            );
+                            if (requestIndex !== -1) {
+                                userInfo.friendRequests.received[requestIndex].status = 'rejected';
+                                localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                            }
+                        }
                     }
                     
                     // Remove the request from UI
@@ -1320,12 +1484,36 @@ function addFriendRequestButtonListeners() {
                     
                     // Show success notification
                     showNotification('Friend Request', `Friend request from ${senderName} declined`, 'info');
+                } else if (response.status === 404) {
+                    console.log('[messages.js] Friend request not found on server, attempting to handle locally');
                     
-                    // Emit socket event if available
-                    if (window.SocketHandler && window.SocketHandler.socket) {
-                        window.SocketHandler.socket.emit('friend-request-rejected', {
-                            senderId: senderId
-                        });
+                    // Update locally even if server request failed
+                    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                    if (userInfo.friendRequests && userInfo.friendRequests.received) {
+                        const requestIndex = userInfo.friendRequests.received.findIndex(
+                            req => req._id === requestId
+                        );
+                        if (requestIndex !== -1) {
+                            userInfo.friendRequests.received[requestIndex].status = 'rejected';
+                            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                            
+                            // Remove the request from UI
+                            const requestItem = btn.closest('.friend-request-item');
+                            if (requestItem) {
+                                requestItem.classList.add('fade-out');
+                                setTimeout(() => requestItem.remove(), 500);
+                            }
+                            
+                            // Show success notification
+                            showNotification('Friend Request', `Friend request declined locally`, 'info');
+                        } else {
+                            // Reset button
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                            
+                            // Show error
+                            showNotification('Error', 'Friend request not found locally or on server', 'error');
+                        }
                     }
                 } else {
                     // Reset button
@@ -1333,13 +1521,39 @@ function addFriendRequestButtonListeners() {
                     btn.disabled = false;
                     
                     // Show error
-                    showNotification('Error', data.message || 'Failed to decline friend request', 'error');
+                    showNotification('Error', data?.message || 'Failed to decline friend request', 'error');
                 }
             } catch (error) {
-                console.error('Error rejecting friend request:', error);
+                console.error('[messages.js] Error rejecting friend request:', error);
                 btn.innerHTML = originalText;
                 btn.disabled = false;
-                showNotification('Error', 'Could not process friend request', 'error');
+                showNotification('Error', error.message || 'Could not process friend request', 'error');
+                
+                // If error, update locally as a fallback
+                try {
+                    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                    if (userInfo.friendRequests && userInfo.friendRequests.received) {
+                        const requestIndex = userInfo.friendRequests.received.findIndex(
+                            req => req._id === requestId
+                        );
+                        if (requestIndex !== -1) {
+                            userInfo.friendRequests.received[requestIndex].status = 'rejected';
+                            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                            
+                            // Show notification
+                            showNotification('Info', 'Request was declined locally', 'info');
+                            
+                            // Remove from UI
+                            const requestItem = btn.closest('.friend-request-item');
+                            if (requestItem) {
+                                requestItem.classList.add('fade-out');
+                                setTimeout(() => requestItem.remove(), 500);
+                            }
+                        }
+                    }
+                } catch (localUpdateError) {
+                    console.error('[messages.js] Error updating local friend request:', localUpdateError);
+                }
             }
         });
     });
