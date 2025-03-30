@@ -14,76 +14,80 @@ function showNotification(title, message, type = 'info') {
         window.recentNotifications = new Set();
     }
     
+    // Track notification counts for enhanced deduplication
+    if (!window.notificationsMap) {
+        window.notificationsMap = new Map();
+    }
+    
     // Create a unique key for this notification
     const notificationKey = `${title}:${message}:${type}`;
     
-    // Check if we've shown this notification recently (last 2 seconds)
+    // Check if we've shown this notification recently (last 5 seconds)
     if (window.recentNotifications.has(notificationKey)) {
         console.log(`🚫 DUPLICATE NOTIFICATION BLOCKED: "${title} - ${message}"`);
+        
+        // Track number of duplicates for debugging
+        const count = window.notificationsMap.get(notificationKey) || 0;
+        window.notificationsMap.set(notificationKey, count + 1);
+        console.log(`🔢 Duplicate count for "${title}": ${count + 1}`);
+        
         return;
     }
     
     // Add this notification to the recent set
     window.recentNotifications.add(notificationKey);
+    window.notificationsMap.set(notificationKey, 1);
     
-    // Remove it after 2 seconds to allow future notifications
+    // Remove it after 5 seconds to allow future notifications
     setTimeout(() => {
         window.recentNotifications.delete(notificationKey);
-    }, 2000);
+        console.log(`🧹 Cleared deduplication for: "${title} - ${message}"`);
+    }, 5000);
     
-    const notification = document.getElementById('notification');
-    
-    if (!notification) {
-        // Create notification element if it doesn't exist
-        const newNotification = document.createElement('div');
-        newNotification.id = 'notification';
-        newNotification.className = `notification ${type}`;
-        newNotification.innerHTML = `
-            <div class="notification-content">
-                <span class="notification-title">${title}</span>
-                <span class="notification-message">${message}</span>
-            </div>
-            <button class="notification-close">&times;</button>
-        `;
-        
-        document.body.appendChild(newNotification);
-        
-        // Add close event listener
-        const closeBtn = newNotification.querySelector('.notification-close');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                newNotification.classList.remove('show');
-            });
-        }
-        
-        // Show the notification
-        setTimeout(() => {
-            newNotification.classList.add('show');
-        }, 10);
-        
-        // Hide after 3 seconds
-        setTimeout(() => {
-            newNotification.classList.remove('show');
-        }, 3000);
-    } else {
-        // Update existing notification
-        const titleEl = notification.querySelector('.notification-title');
-        const messageEl = notification.querySelector('.notification-message');
-        
-        if (titleEl) titleEl.textContent = title;
-        if (messageEl) messageEl.textContent = message;
-        
-        // Remove existing type classes and add the new one
-        notification.className = `notification ${type}`;
-        
-        // Show the notification
-        notification.classList.add('show');
-        
-        // Hide after 3 seconds
-        setTimeout(() => {
-            notification.classList.remove('show');
-        }, 3000);
+    // Find notifications container
+    const notificationsContainer = document.querySelector('.notifications-container');
+    if (!notificationsContainer) {
+        console.error('Notifications container not found');
+        ensureNotificationsContainer();
+        return showNotification(title, message, type); // Try again after creating container
     }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-title">${title}</span>
+            <span class="notification-message">${message}</span>
+        </div>
+        <button class="notification-close">&times;</button>
+    `;
+    
+    // Add notification to container
+    notificationsContainer.appendChild(notification);
+    
+    // Add close event listener
+    const closeBtn = notification.querySelector('.notification-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            notification.classList.add('fade-out');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 500);
+        });
+    }
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        notification.classList.add('fade-out');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 500);
+    }, 5000);
 }
 
 /**

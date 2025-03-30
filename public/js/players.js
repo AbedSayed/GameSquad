@@ -1293,6 +1293,23 @@ async function removeFriend(friendId, friendName) {
         return;
     }
     
+    // Use a deduplication set to prevent multiple simultaneous remove actions
+    if (!window.activeRemovals) {
+        window.activeRemovals = new Set();
+    }
+    
+    // Create a unique key for this removal
+    const removalKey = `removing:${friendId}`;
+    
+    // Check if this removal is already in progress
+    if (window.activeRemovals.has(removalKey)) {
+        console.log(`🚫 [players.js] Friend removal for ${friendId} already in progress`);
+        return;
+    }
+    
+    // Mark this removal as in progress
+    window.activeRemovals.add(removalKey);
+    
     let isConfirmed = false;
     
     // Check if customConfirm exists
@@ -1314,6 +1331,8 @@ async function removeFriend(friendId, friendName) {
     }
     
     if (!isConfirmed) {
+        // Cleanup
+        window.activeRemovals.delete(removalKey);
         return;
     }
     
@@ -1330,6 +1349,8 @@ async function removeFriend(friendId, friendName) {
             showNotification('Error', 'You must be logged in to remove friends', 'error');
         }
         
+        // Cleanup
+        window.activeRemovals.delete(removalKey);
         return;
     }
     
@@ -1369,22 +1390,35 @@ async function removeFriend(friendId, friendName) {
             // Update all player cards with new friend status
             updateAllPlayerCards();
             
-            // Show success notification
-            if (typeof window.showNotification === 'function') {
-                window.showNotification('Friend Removed', `${friendName || 'Friend'} has been removed from your friends list`, 'info');
-            } else if (typeof showNotification === 'function') {
-                showNotification('Friend Removed', `${friendName || 'Friend'} has been removed from your friends list`, 'info');
+            // Indicate success with a single notification
+            const notificationMessage = `${friendName || 'Friend'} has been removed from your friends list`;
+            
+            // Track this notification to avoid duplicates with socket events
+            if (!window.sentRemovalNotifications) {
+                window.sentRemovalNotifications = new Set();
             }
             
-            // Emit socket event if available
-            if (window.SocketHandler && window.SocketHandler.socket) {
-                window.SocketHandler.socket.emit('friend-removed', {
-                    friendId: friendId,
-                    friendName: friendName,
-                    removedFriendId: friendId,
-                    timestamp: new Date().toISOString()
-                });
-                console.log(`[players.js] Emitted friend-removed event for ${friendId} (${friendName})`);
+            // Create a unique notification key
+            const notificationKey = `removed:${friendId}`;
+            
+            // Only show the notification if we haven't shown one for this friend recently
+            if (!window.sentRemovalNotifications.has(notificationKey)) {
+                // Add to tracking set
+                window.sentRemovalNotifications.add(notificationKey);
+                
+                // Remove from tracking after 5 seconds to prevent memory leaks
+                setTimeout(() => {
+                    if (window.sentRemovalNotifications) {
+                        window.sentRemovalNotifications.delete(notificationKey);
+                    }
+                }, 5000);
+                
+                // Show notification
+            if (typeof window.showNotification === 'function') {
+                    window.showNotification('Friend Removed', notificationMessage, 'info');
+            } else if (typeof showNotification === 'function') {
+                    showNotification('Friend Removed', notificationMessage, 'info');
+                }
             }
         } else {
             console.error('[players.js] Error removing friend:', data.message);
@@ -1405,6 +1439,9 @@ async function removeFriend(friendId, friendName) {
         } else if (typeof showNotification === 'function') {
             showNotification('Error', 'Failed to remove friend. Please try again.', 'error');
         }
+    } finally {
+        // Always remove from active removals set, regardless of success/failure
+        window.activeRemovals.delete(removalKey);
     }
 }
 
@@ -1794,12 +1831,45 @@ function checkForFriendRequests() {
         
         console.log(`📬 Found ${userInfo.friendRequests.received.length} friend requests in localStorage`);
         
-        // Filter to only show pending requests
-        const pendingRequests = userInfo.friendRequests.received.filter(request => 
-            !request.status || request.status === 'pending'
-        );
+        // Get user's current friends list
+        const userFriends = userInfo.friends || [];
         
-        console.log(`⏳ Found ${pendingRequests.length} pending friend requests`);
+        // Filter to only show genuinely pending requests - ignoring:
+        // 1. Requests with status other than 'pending' or null
+        // 2. Requests from users who are already friends (shouldn't happen, but for safety)
+        const pendingRequests = userInfo.friendRequests.received.filter(request => {
+            // Check if the status is pending
+            const isPending = !request.status || request.status === 'pending';
+            if (!isPending) {
+                console.log(`ℹ️ Skipping request ${request._id} with status ${request.status}`);
+                return false;
+            }
+            
+            // Check if the sender is already a friend
+            const senderId = request.sender && typeof request.sender === 'object' ? 
+                request.sender._id || request.sender.toString() : 
+                request.sender;
+                
+            const isAlreadyFriend = userFriends.some(friendId => 
+                friendId.toString() === senderId || friendId === senderId
+            );
+            
+            if (isAlreadyFriend) {
+                console.log(`⚠️ Found a pending request from user ${senderId} who is already a friend - will ignore`);
+                
+                // Mark this as accepted in localStorage to avoid showing again
+                request.status = 'accepted';
+                
+                return false;
+            }
+            
+            return true;
+        });
+        
+        console.log(`⏳ Found ${pendingRequests.length} genuine pending friend requests`);
+        
+        // Save updated requests back to localStorage
+        localStorage.setItem('userInfo', JSON.stringify(userInfo));
         
         if (pendingRequests.length > 0) {
             // Clear the previous queue
@@ -2455,6 +2525,40 @@ function displayFriendRequestInBanner(data) {
     const message = data.message || `${senderName} would like to be your friend!`;
     const requestId = data.requestId || `local_${Date.now()}`;
     
+    // IMPORTANT: Double-check if this user is already a friend
+    // Don't show friend requests from people who are already friends
+    try {
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+        const userFriends = userInfo.friends || [];
+        
+        // Check if the sender is already a friend
+        const isAlreadyFriend = userFriends.some(friendId => 
+            friendId.toString() === senderId || friendId === senderId
+        );
+        
+        if (isAlreadyFriend) {
+            console.log(`⚠️ Not showing request banner: ${senderName} is already a friend`);
+            
+            // Mark this as accepted in localStorage if found
+            if (userInfo.friendRequests && userInfo.friendRequests.received) {
+                const request = userInfo.friendRequests.received.find(req => 
+                    (req._id === requestId) || 
+                    (req.sender && (req.sender.toString() === senderId || req.sender === senderId))
+                );
+                
+                if (request) {
+                    request.status = 'accepted';
+                    localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                    console.log(`✅ Marked request ${requestId} as accepted in localStorage`);
+                }
+            }
+            
+            return; // Don't show the banner
+        }
+    } catch (err) {
+        console.error('Error checking friend status:', err);
+    }
+    
     // Ensure we have CSS for the friend request banner
     ensureFriendRequestStyles();
     
@@ -2773,10 +2877,58 @@ function acceptFriendRequest(requestId, senderId) {
         window.showNotification('Processing', 'Accepting friend request...', 'info');
     }
     
+    // IMMEDIATELY update the UI to prevent confusion
+    try {
+        // Get the sender's name
+        let senderName = 'Unknown';
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+        if (userInfo.friendRequests && userInfo.friendRequests.received) {
+            const request = userInfo.friendRequests.received.find(req => 
+                req._id === requestId || (req.sender && req.sender.toString() === senderId)
+            );
+            if (request) {
+                senderName = request.senderName || 'User';
+                
+                // IMMEDIATELY mark as accepted in localStorage
+                request.status = 'accepted';
+                
+                // Update friend arrays in localStorage
+                if (!userInfo.friends) {
+                    userInfo.friends = [];
+                }
+                if (!userInfo.friends.includes(senderId)) {
+                    userInfo.friends.push(senderId);
+                }
+                
+                // Save updated user info
+                localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                console.log('💾 Updated localStorage with accepted request', request);
+            }
+        }
+        
+        // IMMEDIATELY update UI for this player
+        updateFriendButtonUI(senderId, senderName, 'friend');
+        console.log(`🔄 Immediately updated UI for ${senderId} to friend status`);
+        
+        // IMMEDIATELY hide the banner if it exists
+        const banner = document.getElementById('friendRequestBanner');
+        if (banner) {
+            console.log('🧹 Immediately hiding friend request banner');
+            banner.style.animation = 'fadeOut 0.5s ease-out forwards';
+            setTimeout(() => {
+                if (banner.parentNode) {
+                    banner.parentNode.removeChild(banner);
+                }
+            }, 500);
+        }
+    } catch (err) {
+        console.error('❌ Error during immediate UI update:', err);
+    }
+    
     // Send accept request to server API
     const apiUrl = window.APP_CONFIG?.API_URL || '/api';
     
-    fetch(`${apiUrl}/friends/requests/${requestId}/accept`, {
+    fetch(`${apiUrl}/friends/accept/${requestId}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -2797,9 +2949,9 @@ function acceptFriendRequest(requestId, senderId) {
         if (data.success) {
             // Show success notification
             if (typeof window.showNotification === 'function') {
-                window.showNotification('Success', 'Friend request accepted!', 'success');
+                window.showNotification('Friend Request Accepted', `${data.data?.senderDetails?.username || 'User'} is now your friend!`, 'success');
             } else {
-            showNotification('Friend request accepted!', 'success');
+                showNotification('Friend Request Accepted', `${data.data?.senderDetails?.username || 'User'} is now your friend!`, 'success');
             }
             
             // Fetch latest data from server to ensure all views are updated
@@ -2815,26 +2967,15 @@ function acceptFriendRequest(requestId, senderId) {
                         console.log('🔄 Refreshing friends list after accepting request');
                         loadFriendsList();
                     }
-                    
-                    // Hide banner if it exists
-                    const banner = document.getElementById('friendRequestBanner');
-                    if (banner) {
-                        banner.style.animation = 'fadeOut 0.5s ease-out forwards';
-                        setTimeout(() => {
-                            banner.remove();
-                        }, 500);
-                    }
                 })
                 .catch(error => {
                     console.error('❌ Error refreshing friend data after accepting request:', error);
-                    // Still try to update UI with local data
-                    updateAllPlayerCards();
                 });
-            } else {
+        } else {
             if (typeof window.showNotification === 'function') {
                 window.showNotification('Error', data.message || 'Error accepting friend request', 'error');
-        } else {
-            showNotification(data.message || 'Error accepting friend request', 'error');
+            } else {
+                showNotification(data.message || 'Error accepting friend request', 'error');
             }
         }
     })
@@ -2843,7 +2984,7 @@ function acceptFriendRequest(requestId, senderId) {
         if (typeof window.showNotification === 'function') {
             window.showNotification('Error', 'Failed to accept friend request: ' + error.message, 'error');
         } else {
-        showNotification('Error accepting friend request: ' + error.message, 'error');
+            showNotification('Error accepting friend request: ' + error.message, 'error');
         }
     });
 }
@@ -2919,11 +3060,30 @@ function rejectFriendRequest(requestId, senderId) {
 function setupFriendEventListeners() {
     // If SocketHandler is available, set up listeners
     if (window.SocketHandler && window.SocketHandler.socket) {
+        console.log('🔄 Setting up friend event listeners for socket:', window.SocketHandler.socket.id);
+        
         // First remove any existing listeners to prevent duplicates
         window.SocketHandler.socket.off('friend-request-accepted');
         window.SocketHandler.socket.off('friend-removed');
         window.SocketHandler.socket.off('removedAsFriend');
         window.SocketHandler.socket.off('you-removed-friend');
+        
+        // Create a global set for deduplication if it doesn't exist
+        if (!window.processedFriendEvents) {
+            window.processedFriendEvents = new Set();
+        }
+        
+        // Clear old entries from the deduplication set (prevent memory leaks)
+        const clearOldDedupEntries = () => {
+            // If the set has more than 100 entries, clear it to prevent memory bloat
+            if (window.processedFriendEvents.size > 100) {
+                console.log('🧹 Clearing friend events deduplication set - it had grown too large');
+                window.processedFriendEvents.clear();
+            }
+        };
+        
+        // Run cleanup periodically
+        clearOldDedupEntries();
         
         // Listen for friend request accepted events
         window.SocketHandler.socket.on('friend-request-accepted', (data) => {
@@ -2931,18 +3091,17 @@ function setupFriendEventListeners() {
             
             // Use just the requestId for deduplication
             const requestId = data.requestId || '';
+            const dedupeKey = `fr-accept:${requestId}`;
             
             // Check if the request has already been processed globally
-            if (window.processedFriendRequests && window.processedFriendRequests.has(requestId)) {
-                console.log('🚫 DUPLICATE! This request was already processed globally:', requestId);
+            if (window.processedFriendEvents.has(dedupeKey)) {
+                console.log('🚫 DUPLICATE! This friend request acceptance was already processed:', requestId);
                 return;
             }
             
             // Add to global processed set
-            if (window.processedFriendRequests) {
-                window.processedFriendRequests.add(requestId);
-                console.log('✅ Added to global processed set:', requestId);
-            }
+            window.processedFriendEvents.add(dedupeKey);
+            console.log('✅ Added to global processed set:', dedupeKey);
             
             // Immediately perform a full friend data refresh from server
             fetchLatestFriendData()
@@ -2969,23 +3128,25 @@ function setupFriendEventListeners() {
         window.SocketHandler.socket.on('friend-removed', (data) => {
             console.log('👋 Friend removed event received:', data);
             
-            // Create a deduplication key for this event
-            const eventId = `friend-removed:${data.friendId || data.removedFriendId}:${Date.now()}`;
-            
-            // Create a global set for deduplication if it doesn't exist
-            if (!window.processedFriendEvents) {
-                window.processedFriendEvents = new Set();
-            }
+            // Create a deduplication key based on the event and user involved
+            const friendId = data.removedBy || data.removerName || 'unknown';
+            const dedupeKey = `friend-removed:${friendId}`;
             
             // Check for duplicate events
-            if (window.processedFriendEvents.has(eventId)) {
-                console.log('🚫 Duplicate friend removal event, ignoring');
+            if (window.processedFriendEvents.has(dedupeKey)) {
+                console.log('🚫 Duplicate friend removal event, ignoring:', dedupeKey);
                 return;
             }
             
-            // Add to processed events
-            window.processedFriendEvents.add(eventId);
-            console.log('✅ Added friend removal event to processed set:', eventId);
+            // Add to processed events with a 30-second expiration
+            window.processedFriendEvents.add(dedupeKey);
+            console.log('✅ Added friend removal event to processed set:', dedupeKey);
+            
+            // Remove the deduplication key after 30 seconds
+            setTimeout(() => {
+                window.processedFriendEvents.delete(dedupeKey);
+                console.log('🧹 Cleared deduplication for:', dedupeKey);
+            }, 30000); // 30 seconds
             
             // Immediately perform a full friend data refresh from server
             fetchLatestFriendData()
@@ -3008,74 +3169,64 @@ function setupFriendEventListeners() {
                 });
         });
         
-        // Listen for you-removed-friend event (when you remove a friend)
+        // Similar handling for other friend events...
         window.SocketHandler.socket.on('you-removed-friend', (data) => {
             console.log('✂️ You removed friend event received:', data);
             
-            // Create a deduplication key for this event
-            const eventId = `you-removed-friend:${data.removedFriendId}:${Date.now()}`;
-            
-            // Create a global set for deduplication if it doesn't exist
-            if (!window.processedFriendEvents) {
-                window.processedFriendEvents = new Set();
-            }
+            // Create a more stable deduplication key
+            const friendId = data.removedFriendId || 'unknown';
+            const dedupeKey = `you-removed-friend:${friendId}`;
             
             // Check for duplicate events
-            if (window.processedFriendEvents.has(eventId)) {
-                console.log('🚫 Duplicate you removed friend event, ignoring');
+            if (window.processedFriendEvents.has(dedupeKey)) {
+                console.log('🚫 Duplicate you-removed-friend event, ignoring:', dedupeKey);
                 return;
             }
             
             // Add to processed events
-            window.processedFriendEvents.add(eventId);
+            window.processedFriendEvents.add(dedupeKey);
             
-            // Immediately perform a full friend data refresh from server
+            // Remove the deduplication key after 30 seconds
+            setTimeout(() => {
+                window.processedFriendEvents.delete(dedupeKey);
+                console.log('🧹 Cleared deduplication for:', dedupeKey);
+            }, 30000); // 30 seconds
+            
+            // Handle the event normally...
             fetchLatestFriendData()
-                .then(() => {
-                    console.log('✅ Friend data refreshed after you removed a friend');
-                    
-                    // Update all player cards with new friend status
-                    updateAllPlayerCards();
-                    
-                    // Show notification
-                    const notificationMessage = `You removed ${data.removedFriendName || 'a friend'} from your friends list`;
-                    if (typeof window.showNotification === 'function') {
-                        window.showNotification('Friend Removed', notificationMessage, 'info');
-                    } else if (typeof showNotification === 'function') {
-                        showNotification('Friend Removed', notificationMessage, 'info');
-                    }
-                })
-                .catch(error => {
-                    console.error('❌ Error refreshing friend data after removing a friend:', error);
-                });
+                .then(() => updateAllPlayerCards())
+                .catch(error => console.error('Error updating UI after you-removed-friend event:', error));
+            
+            // We don't need to show a notification here since the user initiated the action
+            // and already received a notification from the removeFriend function
         });
         
-        // Listen for removedAsFriend event (when someone removes you as a friend) - Legacy support
+        // Listen for removedAsFriend event (legacy support)
         window.SocketHandler.socket.on('removedAsFriend', (data) => {
             console.log('😢 Removed as friend event received:', data);
             
-            // Create a deduplication key for this event
-            const eventId = `removed-as-friend:${data.by?._id || data.by}:${Date.now()}`;
-            
-            // Create a global set for deduplication if it doesn't exist
-            if (!window.processedFriendEvents) {
-                window.processedFriendEvents = new Set();
-            }
+            // Create a more stable deduplication key
+            const byId = data.by?._id || data.by || 'unknown';
+            const dedupeKey = `removed-as-friend:${byId}`;
             
             // Check for duplicate events
-            if (window.processedFriendEvents.has(eventId)) {
-                console.log('🚫 Duplicate removed as friend event, ignoring');
+            if (window.processedFriendEvents.has(dedupeKey)) {
+                console.log('🚫 Duplicate removedAsFriend event, ignoring:', dedupeKey);
                 return;
             }
             
             // Add to processed events
-            window.processedFriendEvents.add(eventId);
+            window.processedFriendEvents.add(dedupeKey);
+            
+            // Remove the deduplication key after 30 seconds
+            setTimeout(() => {
+                window.processedFriendEvents.delete(dedupeKey);
+                console.log('🧹 Cleared deduplication for:', dedupeKey);
+            }, 30000); // 30 seconds
             
             // Immediately perform a full friend data refresh from server
             fetchLatestFriendData()
                 .then(() => {
-                    console.log('✅ Friend data refreshed after being removed as friend');
-                    
                     // Update all player cards with new friend status
                     updateAllPlayerCards();
                     
