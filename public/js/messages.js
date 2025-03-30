@@ -719,8 +719,8 @@ function loadAndDisplayInvites() {
     
     if (!invitesContainer) {
         console.error('[messages.js] Invites container not found');
-            return;
-        }
+        return;
+    }
         
     try {
         // Show loading state
@@ -744,6 +744,9 @@ function loadAndDisplayInvites() {
             return;
         }
         
+        // First, check localStorage for any invites
+        const localInvites = getLocalInvites();
+        
         // Fetch invites from the database API
         fetch(`${apiUrl}/invites`, {
             headers: {
@@ -757,73 +760,73 @@ function loadAndDisplayInvites() {
         .then(data => {
             console.log('[messages.js] Invites API response data:', data);
         
-        // Clear container
-        invitesContainer.innerHTML = '';
-        
-            // Get the invites data
-            const invites = data.invites || [];
+            // Clear container
+            invitesContainer.innerHTML = '';
             
-            if (!invites.length) {
+            // Get the invites data from API
+            const apiInvites = data.data || data.invites || [];
+            
+            // Combine API invites with local invites, removing duplicates
+            const allInvites = mergeAndDeduplicateInvites(apiInvites, localInvites);
+            
+            if (!allInvites.length) {
                 invitesContainer.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-envelope-open"></i>
                         <p>No invites</p>
                     </div>`;
-            return;
-        }
-        
-        // Sort invites by date (newest first)
-            invites.sort((a, b) => {
+                return;
+            }
+            
+            // Sort invites by date (newest first)
+            allInvites.sort((a, b) => {
                 const dateA = new Date(a.createdAt || a.timestamp || 0);
                 const dateB = new Date(b.createdAt || b.timestamp || 0);
                 return dateB - dateA;
             });
-        
-        // Add each invite to UI
-        invites.forEach(invite => {
-            const inviteEl = document.createElement('div');
+            
+            // Add each invite to UI
+            allInvites.forEach(invite => {
+                const inviteEl = document.createElement('div');
                 inviteEl.className = 'invite-item pulse-glow';
                 inviteEl.dataset.id = invite._id || invite.id;
-            
+                
                 const time = new Date(invite.createdAt || invite.timestamp).toLocaleTimeString();
                 const date = new Date(invite.createdAt || invite.timestamp).toLocaleDateString();
-            
-            inviteEl.innerHTML = `
-                <div class="invite-header">
+                
+                inviteEl.innerHTML = `
+                    <div class="invite-header">
                         <span class="invite-game neon-text-secondary">${invite.gameType || 'Game'}</span>
-                    <span class="invite-time">${time} ${date}</span>
-                </div>
-                <div class="invite-body">
+                        <span class="invite-time">${time} ${date}</span>
+                    </div>
+                    <div class="invite-body">
                         <p><strong>${invite.senderName}</strong> invited you to join "<span class="neon-text">${invite.lobbyName}</span>"</p>
-                    <p class="invite-message">${invite.message || ''}</p>
-                </div>
-                <div class="invite-actions">
-                    <button class="btn btn-primary accept-invite" data-lobby-id="${invite.lobbyId}">
-                        <i class="fas fa-check"></i> Accept & Join
-                    </button>
+                        <p class="invite-message">${invite.message || ''}</p>
+                    </div>
+                    <div class="invite-actions">
+                        <button class="btn btn-primary accept-invite" data-lobby-id="${invite.lobbyId}">
+                            <i class="fas fa-check"></i> Accept & Join
+                        </button>
                         <button class="btn btn-danger reject-invite" data-invite-id="${invite._id || invite.id}">
-                        <i class="fas fa-times"></i> Decline
-                    </button>
-                </div>
-            `;
+                            <i class="fas fa-times"></i> Decline
+                        </button>
+                    </div>
+                `;
+                
+                invitesContainer.appendChild(inviteEl);
+            });
             
-            invitesContainer.appendChild(inviteEl);
-        });
-        
-        // Add event listeners to buttons
+            // Add event listeners to buttons
             addInviteButtonListeners();
             
             // Update badge count
-            updateInviteBadge(invites.length);
+            updateInviteBadge(allInvites.length);
         })
         .catch(error => {
             console.error('Error fetching invites:', error);
-            invitesContainer.innerHTML = `
-                <div class="empty-state error">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <p>Error loading invites</p>
-                    <p class="error-details">${error.message}</p>
-                </div>`;
+            
+            // If the API fails, display any local invites we have
+            displayLocalInvites(invitesContainer, localInvites);
         });
     } catch (err) {
         console.error('Error displaying invites:', err);
@@ -834,6 +837,112 @@ function loadAndDisplayInvites() {
                 <p class="error-details">${err.message}</p>
             </div>`;
     }
+}
+
+// Get invites from localStorage
+function getLocalInvites() {
+    try {
+        // Get user ID to filter invites
+        const userInfo = JSON.parse(localStorage.getItem('userInfo')) || {};
+        const userId = userInfo._id;
+        
+        if (!userId) return [];
+        
+        // Get all invites from localStorage
+        const invitesStr = localStorage.getItem('invites');
+        if (!invitesStr) return [];
+        
+        const allInvites = JSON.parse(invitesStr);
+        
+        // Filter invites for this user
+        return allInvites.filter(invite => invite.recipientId === userId);
+    } catch (err) {
+        console.error('[messages.js] Error getting invites from localStorage:', err);
+        return [];
+    }
+}
+
+// Function to merge and deduplicate invites from API and localStorage
+function mergeAndDeduplicateInvites(apiInvites, localInvites) {
+    // Create a map to identify duplicates based on ID
+    const invitesMap = new Map();
+    
+    // Add API invites to map
+    apiInvites.forEach(invite => {
+        const key = invite._id || invite.id;
+        invitesMap.set(key, invite);
+    });
+    
+    // Add local invites to map (will overwrite API invites with same ID)
+    localInvites.forEach(invite => {
+        const key = invite._id || invite.id;
+        // Only add if not already in the map
+        if (!invitesMap.has(key)) {
+            invitesMap.set(key, invite);
+        }
+    });
+    
+    // Convert map values back to array
+    return Array.from(invitesMap.values());
+}
+
+// Function to display local invites when API fails
+function displayLocalInvites(container, invites) {
+    if (!invites.length) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-envelope-open"></i>
+                <p>No invites</p>
+            </div>`;
+        return;
+    }
+    
+    // Clear container
+    container.innerHTML = '';
+    
+    // Sort invites by date (newest first)
+    invites.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.timestamp || 0);
+        const dateB = new Date(b.createdAt || b.timestamp || 0);
+        return dateB - dateA;
+    });
+    
+    // Add each invite to UI
+    invites.forEach(invite => {
+        const inviteEl = document.createElement('div');
+        inviteEl.className = 'invite-item pulse-glow';
+        inviteEl.dataset.id = invite._id || invite.id;
+        
+        const time = new Date(invite.createdAt || invite.timestamp).toLocaleTimeString();
+        const date = new Date(invite.createdAt || invite.timestamp).toLocaleDateString();
+        
+        inviteEl.innerHTML = `
+            <div class="invite-header">
+                <span class="invite-game neon-text-secondary">${invite.gameType || 'Game'}</span>
+                <span class="invite-time">${time} ${date}</span>
+            </div>
+            <div class="invite-body">
+                <p><strong>${invite.senderName}</strong> invited you to join "<span class="neon-text">${invite.lobbyName}</span>"</p>
+                <p class="invite-message">${invite.message || ''}</p>
+            </div>
+            <div class="invite-actions">
+                <button class="btn btn-primary accept-invite" data-lobby-id="${invite.lobbyId}">
+                    <i class="fas fa-check"></i> Accept & Join
+                </button>
+                <button class="btn btn-danger reject-invite" data-invite-id="${invite._id || invite.id}">
+                    <i class="fas fa-times"></i> Decline
+                </button>
+            </div>
+        `;
+        
+        container.appendChild(inviteEl);
+    });
+    
+    // Add event listeners to buttons
+    addInviteButtonListeners();
+    
+    // Update badge count
+    updateInviteBadge(invites.length);
 }
 
 // Function to update the invite badge with a count
@@ -1025,6 +1134,11 @@ function addInviteButtonListeners() {
                 console.log('[messages.js] Accept invite response:', data);
                 
                 if (response.ok && data.success) {
+                    // Remove the invite from localStorage
+                    if (SocketHandler && typeof SocketHandler.removeInvite === 'function') {
+                        SocketHandler.removeInvite(inviteId);
+                    }
+                    
                     // Remove the invite from UI with animation
                     if (inviteItem) {
                         inviteItem.classList.add('fade-out');
@@ -1095,8 +1209,8 @@ function addInviteButtonListeners() {
                 const apiUrl = window.APP_CONFIG?.API_URL || '/api';
                 const token = localStorage.getItem('token');
                 
-                // Make API call to reject the invite
-                const response = await fetch(`${apiUrl}/invites/${inviteId}/reject`, {
+                // Make API call to decline the invite
+                const response = await fetch(`${apiUrl}/invites/${inviteId}/decline`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1105,9 +1219,14 @@ function addInviteButtonListeners() {
                 });
                 
                 const data = await response.json();
-                console.log('[messages.js] Reject invite response:', data);
+                console.log('[messages.js] Decline invite response:', data);
                 
                 if (response.ok && data.success) {
+                    // Remove the invite from localStorage
+                    if (SocketHandler && typeof SocketHandler.removeInvite === 'function') {
+                        SocketHandler.removeInvite(inviteId);
+                    }
+                    
                     // Remove the invite from UI with animation
                     if (inviteItem) {
                         inviteItem.classList.add('fade-out');
@@ -1129,10 +1248,6 @@ function addInviteButtonListeners() {
                     
                     // Show success notification
                     showNotification('Success', 'Invite declined', 'info');
-                    
-                    // Update badge count
-                    const remainingCount = document.querySelectorAll('.invite-item').length - 1;
-                    updateInviteBadge(Math.max(0, remainingCount));
                 } else {
                     // Reset button
                     btn.innerHTML = originalText;
@@ -1140,11 +1255,11 @@ function addInviteButtonListeners() {
                     
                     // Show error
                     const errorMessage = data?.message || 'Failed to decline invite';
-                    console.error('[messages.js] Reject invite failed:', errorMessage);
+                    console.error('[messages.js] Decline invite failed:', errorMessage);
                     showNotification('Error', errorMessage, 'error');
                 }
             } catch (error) {
-                console.error('[messages.js] Error rejecting invite:', error);
+                console.error('[messages.js] Error declining invite:', error);
                 btn.innerHTML = originalText;
                 btn.disabled = false;
                 showNotification('Error', 'Could not process invite', 'error');

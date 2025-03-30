@@ -543,14 +543,16 @@ const SocketHandler = {
     handleNewInvite: function(invite) {
         console.log('Processing invite:', invite);
         
-        if (!invite || !invite.id) {
+        if (!invite || (!invite.id && !invite._id)) {
             console.error('Invalid invite received - missing ID:', invite);
             return;
         }
         
         // Ensure the invite has all necessary properties with fallbacks
         const processedInvite = {
-            id: invite.id,
+            // Use _id (database ID) if available, otherwise use provided id or generate one
+            _id: invite._id || null,
+            id: invite.id || `inv_${Date.now()}${Math.random().toString(36).substring(2, 7)}`,
             lobbyId: invite.lobbyId || invite.lobby_id || '',
             senderName: invite.senderName || invite.sender_name || 'Someone',
             senderId: invite.senderId || invite.sender_id || '',
@@ -558,7 +560,8 @@ const SocketHandler = {
             lobbyName: invite.lobbyName || invite.lobby_name || 'Game Lobby',
             gameType: invite.gameType || invite.game_type || 'Game',
             message: invite.message || '',
-            timestamp: invite.timestamp || new Date().toISOString()
+            timestamp: invite.timestamp || new Date().toISOString(),
+            status: invite.status || 'pending'
         };
         
         console.log('Processed invite with fallbacks:', processedInvite);
@@ -569,14 +572,15 @@ const SocketHandler = {
         // Show notification
         this.showNotification('New Invite', `${processedInvite.senderName} invited you to join "${processedInvite.lobbyName}"`);
         
-        // Update invites UI if on messages page
-        if (window.location.href.includes('messages.html')) {
+        // Update the UI if we're on the messages page
+        if (window.location.pathname.includes('/messages.html') || window.location.pathname.includes('/pages/messages.html')) {
             this.updateInvitesUI();
             
-            // Make the invites tab active if it's not already
-            const invitesTab = document.querySelector('[data-tab="invites"]');
-            if (invitesTab && !invitesTab.classList.contains('active')) {
-                invitesTab.click();
+            // Also try to refresh invites from the server
+            if (typeof loadAndDisplayInvites === 'function') {
+                setTimeout(() => {
+                    loadAndDisplayInvites();
+                }, 500);
             }
         }
     },
@@ -584,35 +588,49 @@ const SocketHandler = {
     // Store invite in localStorage
     storeInvite: function(invite) {
         try {
+            // Get user info to check if this invite is for the current user
+            const userInfo = JSON.parse(localStorage.getItem('userInfo')) || {};
+            
+            // Check if this invite is for the current user
+            if (invite.recipientId && invite.recipientId !== userInfo._id) {
+                console.log(`Invite not for current user (${userInfo._id}), skipping storage`);
+                return;
+            }
+            
+            // Get existing invites
             let invites = [];
             const invitesStr = localStorage.getItem('invites');
             
             if (invitesStr) {
                 invites = JSON.parse(invitesStr);
                 
-                // Check if this invite already exists (avoid duplicates)
-                const existingIndex = invites.findIndex(item => item.id === invite.id);
+                // Check if this invite already exists (by id or _id)
+                const existingIndex = invites.findIndex(i => 
+                    (invite.id && i.id === invite.id) || 
+                    (invite._id && i._id === invite._id)
+                );
+                
                 if (existingIndex >= 0) {
-                    console.log('Updating existing invite in localStorage');
                     // Update existing invite
-                    invites[existingIndex] = invite;
+                    invites[existingIndex] = { ...invites[existingIndex], ...invite };
+                    console.log('Updated existing invite in localStorage');
                 } else {
-                    console.log('Adding new invite to localStorage');
                     // Add new invite
                     invites.push(invite);
+                    console.log('Added new invite to localStorage');
                 }
             } else {
-                console.log('Creating first invite in localStorage');
-                // First invite
-                invites.push(invite);
+                // Create new invites array
+                invites = [invite];
+                console.log('Created new invites array in localStorage');
             }
             
-            // Store back in localStorage
+            // Save to localStorage
             localStorage.setItem('invites', JSON.stringify(invites));
-            console.log('Invites stored in localStorage:', invites);
             
             // Update notification badge
             this.updateNotificationBadge();
+            
         } catch (err) {
             console.error('Error storing invite in localStorage:', err);
         }

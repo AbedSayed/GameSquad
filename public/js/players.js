@@ -3110,3 +3110,184 @@ window.addEventListener('load', function() {
         checkForFriendRequests();
     }, 500);
 });
+
+/**
+ * Invite a player to join a lobby
+ * @param {string} playerId - ID of player to invite
+ * @param {string} playerName - Name of player to display
+ */
+function inviteToLobby(playerId, playerName) {
+    console.log(`Inviting player ${playerName} (${playerId}) to lobby`);
+    
+    // Fetch user's lobbies first
+    fetchUserLobbies().then(lobbies => {
+        if (!lobbies || lobbies.length === 0) {
+            showNotification('You need to create a lobby first to invite players', 'info');
+            return;
+        }
+        
+        // Create modal HTML
+        const modalHtml = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Invite ${playerName} to Lobby</h2>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p>Select a lobby to invite this player to:</p>
+                    <div class="lobby-list">
+                        ${lobbies.map(lobby => `
+                            <div class="lobby-option" data-lobby-id="${lobby._id}">
+                                <h3>${lobby.name}</h3>
+                                <p>${lobby.gameType || 'Game'} | ${lobby.players ? lobby.players.length : 0}/${lobby.maxPlayers || 5} players</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="cancel-invite" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        `;
+        
+        // Create and display modal
+        const modalContainer = document.createElement('div');
+        modalContainer.className = 'modal';
+        modalContainer.innerHTML = modalHtml;
+        document.body.appendChild(modalContainer);
+        
+        // Show modal with animation
+        setTimeout(() => {
+            modalContainer.style.display = 'flex';
+            modalContainer.style.opacity = '1';
+        }, 50);
+        
+        // Add event listeners
+        modalContainer.querySelector('.close-modal').addEventListener('click', () => {
+            closeModal(modalContainer);
+        });
+        
+        modalContainer.querySelector('#cancel-invite').addEventListener('click', () => {
+            closeModal(modalContainer);
+        });
+        
+        // Add event listeners to lobby options
+        const lobbyOptions = modalContainer.querySelectorAll('.lobby-option');
+        lobbyOptions.forEach(option => {
+            option.addEventListener('click', async () => {
+                const lobbyId = option.getAttribute('data-lobby-id');
+                try {
+                    await inviteFriendToLobby(playerId, lobbyId);
+                    showNotification(`Invitation sent to ${playerName}!`, 'success');
+                } catch (error) {
+                    showNotification(`Failed to send invitation: ${error.message}`, 'error');
+                }
+                closeModal(modalContainer);
+            });
+        });
+    }).catch(error => {
+        console.error('Error fetching lobbies:', error);
+        showNotification('Failed to load your lobbies. Please try again later.', 'error');
+    });
+}
+
+/**
+ * Close modal helper
+ * @param {HTMLElement} modalElement - Modal element to close
+ */
+function closeModal(modalElement) {
+    modalElement.style.opacity = '0';
+    setTimeout(() => {
+        document.body.removeChild(modalElement);
+    }, 300);
+}
+
+/**
+ * Fetch user's lobbies
+ * @returns {Promise} - Promise resolving to array of lobbies
+ */
+async function fetchUserLobbies() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('Not authenticated');
+        }
+
+        const response = await fetch('/api/users/lobbies', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch lobbies');
+        }
+        
+        const data = await response.json();
+        return data.data || [];
+    } catch (error) {
+        console.error('Error fetching lobbies:', error);
+        return [];
+    }
+}
+
+/**
+ * Invite a friend to a lobby
+ * @param {string} friendId - Friend user ID
+ * @param {string} lobbyId - Lobby ID to invite to
+ * @returns {Promise} - Promise resolving to invitation data
+ */
+async function inviteFriendToLobby(friendId, lobbyId) {
+    try {
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            throw new Error('Not authenticated');
+        }
+
+        // First try the dedicated endpoint
+        try {
+            const response = await fetch(`/api/invites/send`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    recipientId: friendId,
+                    lobbyId: lobbyId
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to send lobby invitation');
+            }
+
+            return data;
+        } catch (firstError) {
+            console.warn('First invite method failed, trying fallback:', firstError);
+            
+            // Fallback to alternative endpoint
+            const response = await fetch(`/api/users/invite/${friendId}/lobby/${lobbyId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to send lobby invitation');
+            }
+
+            return data;
+        }
+    } catch (error) {
+        console.error('Invite friend to lobby error:', error);
+        throw error;
+    }
+}
