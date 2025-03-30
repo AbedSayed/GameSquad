@@ -6,7 +6,8 @@ const {
   acceptFriendRequest,
   rejectFriendRequest,
   getFriends,
-  removeFriend
+  removeFriend,
+  checkFriendStatus
 } = require('../controllers/friendController');
 const { protect } = require('../middleware/authMiddleware');
 const mongoose = require('mongoose');
@@ -17,6 +18,9 @@ router.use(protect);
 
 // GET /api/friends - Get all friends
 router.get('/', getFriends);
+
+// GET /api/friends/check/:id - Check friend status with another user
+router.get('/check/:id', checkFriendStatus);
 
 // GET /api/friends/requests - Get all friend requests
 router.get('/requests', getFriendRequests);
@@ -34,34 +38,37 @@ router.post('/reject/:requestId', rejectFriendRequest);
 router.delete('/:id', removeFriend);
 
 // Sync friend request route - handles client-server synchronization of friend requests
-router.post('/sync-request', protect, async (req, res) => {
+router.post('/sync-request', async (req, res) => {
   try {
     const userId = req.user.id;
     const { requestId, senderId, senderName, message } = req.body;
     
-    console.log('Syncing friend request:', { requestId, senderId, senderName });
-    
-    if (!senderId) {
+    if (!mongoose.Types.ObjectId.isValid(userId) || !senderId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Missing sender ID in request body' 
+        message: 'Invalid ID format or missing sender ID' 
       });
     }
     
     // Find both users
-    const user = await User.findById(userId);
-    const sender = await User.findById(senderId);
+    const [user, sender] = await Promise.all([
+      User.findById(userId),
+      User.findById(senderId)
+    ]);
     
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     
-    // Initialize friend requests if needed
+    // Initialize friend structures
     if (!user.friendRequests) {
       user.friendRequests = { sent: [], received: [] };
     }
     if (!user.friendRequests.received) {
       user.friendRequests.received = [];
+    }
+    if (!user.friends) {
+      user.friends = [];
     }
     
     // Check if a request from this sender already exists
@@ -73,8 +80,6 @@ router.post('/sync-request', protect, async (req, res) => {
     });
     
     if (existingRequestIndex !== -1) {
-      console.log('Friend request already exists in database, updating');
-      
       // Update existing request
       const existingRequest = user.friendRequests.received[existingRequestIndex];
       if (requestId) existingRequest.requestId = requestId;
@@ -100,10 +105,8 @@ router.post('/sync-request', protect, async (req, res) => {
     
     // If sender exists, create a valid request
     if (sender) {
-      console.log(`Sender found: ${sender.username}, creating friend request`);
-      
       // Check if they're already friends
-      const alreadyFriends = user.friends && user.friends.some(
+      const alreadyFriends = user.friends.some(
         friendId => friendId.toString() === senderId
       );
       
@@ -115,7 +118,7 @@ router.post('/sync-request', protect, async (req, res) => {
             _id: user._id,
             username: user.username,
             email: user.email,
-            friends: user.friends || [],
+            friends: user.friends,
             friendRequests: user.friendRequests
           }
         });
@@ -128,33 +131,56 @@ router.post('/sync-request', protect, async (req, res) => {
         sender: senderId,
         senderName: sender.username,
         message: message || `${sender.username} would like to be your friend!`,
-        createdAt: new Date()
+        createdAt: new Date(),
+        status: 'pending'
       };
       
       user.friendRequests.received.push(newRequest);
       
-      // Also add to sender's sent requests if they exist
-      if (sender.friendRequests && sender.friendRequests.sent) {
-        // Check if the request already exists in sender's sent
-        const senderHasSent = sender.friendRequests.sent.some(req => {
-          const reqRecipientId = req.recipient && typeof req.recipient === 'object' 
-            ? req.recipient.toString() 
-            : req.recipient;
-          return reqRecipientId === userId;
-        });
-        
-        if (!senderHasSent) {
-          sender.friendRequests.sent.push({
-            _id: newRequest._id,
-            recipient: userId,
-            message: newRequest.message,
-            createdAt: newRequest.createdAt
-          });
-          await sender.save();
-        }
+      // Initialize sender's friend structures if needed
+      if (!sender.friendRequests) {
+        sender.friendRequests = { sent: [], received: [] };
+      }
+      if (!sender.friendRequests.sent) {
+        sender.friendRequests.sent = [];
+      }
+      if (!sender.friends) {
+        sender.friends = [];
       }
       
-      await user.save();
+      // Add to sender's sent requests if it doesn't exist
+      const senderHasSent = sender.friendRequests.sent.some(req => {
+        const reqRecipientId = req.recipient && typeof req.recipient === 'object' 
+          ? req.recipient.toString() 
+          : req.recipient;
+        return reqRecipientId === userId;
+      });
+      
+      if (!senderHasSent) {
+        sender.friendRequests.sent.push({
+          _id: newRequest._id,
+          recipient: userId,
+          message: newRequest.message,
+          createdAt: newRequest.createdAt,
+          status: 'pending'
+        });
+      }
+      
+      // Use a transaction for consistency
+      const session = await mongoose.startSession();
+      session.startTransaction();
+      
+      try {
+        await user.save({ session });
+        await sender.save({ session });
+        
+        await session.commitTransaction();
+      } catch (error) {
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        session.endSession();
+      }
       
       return res.status(200).json({
         success: true,
@@ -163,28 +189,19 @@ router.post('/sync-request', protect, async (req, res) => {
           _id: user._id,
           username: user.username,
           email: user.email,
-          friends: user.friends || [],
+          friends: user.friends,
           friendRequests: user.friendRequests
         }
       });
     } 
-    // If sender doesn't exist but we have sender info
-    else if (senderId && senderName) {
-      console.log('Sender not found in database');
-      
-      // Don't create placeholder requests anymore
+    // If sender doesn't exist
+    else {
       return res.status(404).json({
         success: false,
         message: 'Sender user does not exist in database',
         error: 'SENDER_NOT_FOUND'
       });
     }
-    
-    // If we get here, we don't have enough information
-    return res.status(400).json({
-      success: false,
-      message: 'Invalid request data'
-    });
   } catch (error) {
     console.error('Error syncing friend request:', error);
     res.status(500).json({ 

@@ -701,11 +701,13 @@
                 <h3><i class="fas fa-user-plus"></i> Friend Requests</h3>
                 <button class="close-btn" id="closeFriendRequests">×</button>
             </div>
-            <div id="friendRequestsList">
-                <!-- Friend requests will be loaded here dynamically -->
-                <div class="empty-state">
-                    <i class="fas fa-user-plus"></i>
-                    <p>No friend requests</p>
+            <div class="friend-requests-content">
+                <div id="friendRequestsList">
+                    <!-- Friend requests will be loaded here dynamically -->
+                    <div class="empty-state">
+                        <i class="fas fa-user-plus"></i>
+                        <p>No friend requests</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -960,6 +962,12 @@
         (function() {
             console.log('🔥 STARTING DIRECT INJECTION FOR PLAYERS PAGE 🔥');
             
+            // Add a flag to track if we've already set up the friend requests
+            if (window.friendRequestsSetup) {
+                console.log('Friend requests already set up, skipping duplicate initialization');
+                return;
+            }
+            
             function injectFriendIntoFrame() {
                 console.log('Attempting to inject friend into iframe...');
                 
@@ -1035,6 +1043,9 @@
                         }
                     }
                 }
+                
+                // Mark as set up
+                window.friendRequestsSetup = true;
                 
                 // Add CSS for the tabs
                 const styleEl = document.createElement('style');
@@ -1163,10 +1174,16 @@
             // Initialize UI when DOM is loaded
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', () => {
-                    setTimeout(setupFriendRequestsFrame, 1000);
+                    // Check if already set up
+                    if (!window.friendRequestsSetup) {
+                        setTimeout(setupFriendRequestsFrame, 1000);
+                    }
                 });
             } else {
-                setTimeout(setupFriendRequestsFrame, 1000);
+                // Check if already set up
+                if (!window.friendRequestsSetup) {
+                    setTimeout(setupFriendRequestsFrame, 1000);
+                }
             }
         })();
     </script>

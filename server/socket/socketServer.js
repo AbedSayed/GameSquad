@@ -80,6 +80,332 @@ const initializeSocketServer = (server) => {
       console.error('Error joining lobby rooms:', error);
     }
     
+    // Handle friend request
+    socket.on('sendFriendRequest', async ({ recipientId, message }) => {
+      try {
+        // Validate recipient exists
+        const recipient = await User.findById(recipientId);
+        if (!recipient) {
+          return socket.emit('error', { message: 'Recipient not found' });
+        }
+        
+        // Get sender user
+        const sender = await User.findById(socket.user._id);
+        if (!sender) {
+          return socket.emit('error', { message: 'Sender not found' });
+        }
+        
+        // Ensure friend structures exist
+        if (!sender.friends) sender.friends = [];
+        if (!sender.friendRequests) sender.friendRequests = { sent: [], received: [] };
+        if (!sender.friendRequests.sent) sender.friendRequests.sent = [];
+        
+        if (!recipient.friends) recipient.friends = [];
+        if (!recipient.friendRequests) recipient.friendRequests = { sent: [], received: [] };
+        if (!recipient.friendRequests.received) recipient.friendRequests.received = [];
+        
+        // Check if they're already friends
+        if (sender.friends.some(id => id.toString() === recipientId)) {
+          return socket.emit('error', { message: 'You are already friends with this user' });
+        }
+        
+        // Check for existing pending request
+        const existingSentRequest = sender.friendRequests.sent.find(
+          request => request.recipient && request.recipient.toString() === recipientId && request.status === 'pending'
+        );
+        
+        if (existingSentRequest) {
+          return socket.emit('error', { message: 'Friend request already sent' });
+        }
+        
+        // Create a unique request ID
+        const newRequestId = new mongoose.Types.ObjectId();
+        const friendRequestMessage = message || 'I would like to be your friend!';
+        const now = new Date();
+        
+        // Add to sender's sent requests
+        sender.friendRequests.sent.push({
+          _id: newRequestId,
+          recipient: recipientId,
+          status: 'pending',
+          message: friendRequestMessage,
+          createdAt: now
+        });
+        
+        // Add to recipient's received requests
+        recipient.friendRequests.received.push({
+          _id: newRequestId,
+          sender: socket.user._id,
+          status: 'pending',
+          message: friendRequestMessage,
+          createdAt: now
+        });
+        
+        // Save both users
+        await Promise.all([sender.save(), recipient.save()]);
+        
+        // Emit to sender
+        socket.emit('friendRequestSent', {
+          requestId: newRequestId,
+          recipient: {
+            _id: recipient._id,
+            username: recipient.username
+          }
+        });
+        
+        // Emit to recipient if online
+        io.to(`user:${recipientId}`).emit('newFriendRequest', {
+          requestId: newRequestId,
+          sender: {
+            _id: sender._id,
+            username: sender.username
+          },
+          message: friendRequestMessage,
+          timestamp: now
+        });
+      } catch (error) {
+        console.error('Error sending friend request:', error);
+        socket.emit('error', { message: 'Failed to send friend request' });
+      }
+    });
+    
+    // Handle accepting friend request
+    socket.on('acceptFriendRequest', async ({ requestId }) => {
+      try {
+        // Find the user and request
+        const user = await User.findById(socket.user._id);
+        if (!user) {
+          return socket.emit('error', { message: 'User not found' });
+        }
+        
+        // Ensure friend structures exist
+        if (!user.friends) user.friends = [];
+        if (!user.friendRequests) user.friendRequests = { sent: [], received: [] };
+        if (!user.friendRequests.received) user.friendRequests.received = [];
+        
+        // Find the request
+        const requestIndex = user.friendRequests.received.findIndex(
+          req => req._id.toString() === requestId
+        );
+        
+        if (requestIndex === -1) {
+          return socket.emit('error', { message: 'Friend request not found' });
+        }
+        
+        const request = user.friendRequests.received[requestIndex];
+        
+        // Check if the request is still pending
+        if (request.status !== 'pending') {
+          return socket.emit('error', { message: `Friend request already ${request.status}` });
+        }
+        
+        const senderId = request.sender.toString();
+        
+        // Find the sender
+        const sender = await User.findById(senderId);
+        if (!sender) {
+          return socket.emit('error', { message: 'Sender not found' });
+        }
+        
+        // Ensure sender's friend structures exist
+        if (!sender.friends) sender.friends = [];
+        if (!sender.friendRequests) sender.friendRequests = { sent: [], received: [] };
+        if (!sender.friendRequests.sent) sender.friendRequests.sent = [];
+        
+        // Check if they're already friends (to prevent duplicate processing)
+        const alreadyFriends = user.friends.some(id => id.toString() === senderId) && 
+                              sender.friends.some(id => id.toString() === user._id.toString());
+        
+        if (alreadyFriends) {
+          return socket.emit('friendRequestAccepted', {
+            friend: {
+              _id: sender._id,
+              username: sender.username
+            },
+            alreadyProcessed: true
+          });
+        }
+        
+        // Update request status
+        user.friendRequests.received[requestIndex].status = 'accepted';
+        
+        // Find and update the matching request in sender's sent requests
+        const senderRequestIndex = sender.friendRequests.sent.findIndex(
+          req => req._id.toString() === requestId
+        );
+        
+        if (senderRequestIndex !== -1) {
+          sender.friendRequests.sent[senderRequestIndex].status = 'accepted';
+        }
+        
+        // Add each user to the other's friends list if not already friends
+        if (!user.friends.some(id => id.toString() === senderId)) {
+          user.friends.push(senderId);
+        }
+        
+        if (!sender.friends.some(id => id.toString() === user._id.toString())) {
+          sender.friends.push(user._id);
+        }
+        
+        // Save both users
+        await Promise.all([user.save(), sender.save()]);
+        
+        // Create notification data with source flag to prevent duplicate processing
+        const timestamp = new Date().getTime();
+        
+        // Emit to user who accepted
+        socket.emit('friendRequestAccepted', {
+          friend: {
+            _id: sender._id,
+            username: sender.username
+          },
+          timestamp: timestamp,
+          requestId: requestId,
+          source: 'socket'
+        });
+        
+        // Emit to the other user if online
+        io.to(`user:${senderId}`).emit('friendRequestAcceptedBy', {
+          friend: {
+            _id: user._id,
+            username: user.username
+          },
+          timestamp: timestamp,
+          requestId: requestId,
+          source: 'socket'
+        });
+      } catch (error) {
+        console.error('Error accepting friend request:', error);
+        socket.emit('error', { message: 'Failed to accept friend request' });
+      }
+    });
+    
+    // Handle rejecting friend request
+    socket.on('rejectFriendRequest', async ({ requestId }) => {
+      try {
+        // Find the user and request
+        const user = await User.findById(socket.user._id);
+        if (!user) {
+          return socket.emit('error', { message: 'User not found' });
+        }
+        
+        // Ensure friend structures exist
+        if (!user.friendRequests) user.friendRequests = { sent: [], received: [] };
+        if (!user.friendRequests.received) user.friendRequests.received = [];
+        
+        // Find the request
+        const requestIndex = user.friendRequests.received.findIndex(
+          req => req._id.toString() === requestId
+        );
+        
+        if (requestIndex === -1) {
+          return socket.emit('error', { message: 'Friend request not found' });
+        }
+        
+        const request = user.friendRequests.received[requestIndex];
+        
+        // Check if the request is still pending
+        if (request.status !== 'pending') {
+          return socket.emit('error', { message: `Friend request already ${request.status}` });
+        }
+        
+        const senderId = request.sender.toString();
+        
+        // Update request status to rejected
+        user.friendRequests.received[requestIndex].status = 'rejected';
+        await user.save();
+        
+        // Find and update the sender's sent request if they exist
+        const sender = await User.findById(senderId);
+        if (sender) {
+          // Ensure sender's friend structures exist
+          if (!sender.friendRequests) sender.friendRequests = { sent: [], received: [] };
+          if (!sender.friendRequests.sent) sender.friendRequests.sent = [];
+          
+          // Find the matching sent request
+          const senderRequestIndex = sender.friendRequests.sent.findIndex(
+            req => req._id.toString() === requestId
+          );
+          
+          if (senderRequestIndex !== -1) {
+            sender.friendRequests.sent[senderRequestIndex].status = 'rejected';
+            await sender.save();
+          }
+          
+          // Notify sender if online
+          io.to(`user:${senderId}`).emit('friendRequestRejected', {
+            rejector: {
+              _id: user._id,
+              username: user.username
+            },
+            requestId
+          });
+        }
+        
+        // Notify rejector
+        socket.emit('friendRequestRejectionComplete', { requestId });
+      } catch (error) {
+        console.error('Error rejecting friend request:', error);
+        socket.emit('error', { message: 'Failed to reject friend request' });
+      }
+    });
+    
+    // Handle removing friend
+    socket.on('removeFriend', async ({ friendId }) => {
+      try {
+        // Find both users
+        const [user, friend] = await Promise.all([
+          User.findById(socket.user._id),
+          User.findById(friendId)
+        ]);
+        
+        if (!user) {
+          return socket.emit('error', { message: 'User not found' });
+        }
+        
+        if (!friend) {
+          return socket.emit('error', { message: 'Friend not found' });
+        }
+        
+        // Ensure friend structures exist
+        if (!user.friends) user.friends = [];
+        if (!friend.friends) friend.friends = [];
+        
+        // Check if they are actually friends
+        if (!user.friends.some(id => id.toString() === friendId)) {
+          return socket.emit('error', { message: 'This user is not in your friends list' });
+        }
+        
+        // Remove from user's friends list
+        user.friends = user.friends.filter(id => id.toString() !== friendId);
+        
+        // Remove from friend's friends list
+        friend.friends = friend.friends.filter(id => id.toString() !== user._id.toString());
+        
+        // Save both users
+        await Promise.all([user.save(), friend.save()]);
+        
+        // Notify user who removed
+        socket.emit('friendRemoved', {
+          friend: {
+            _id: friend._id,
+            username: friend.username
+          }
+        });
+        
+        // Notify removed friend if online
+        io.to(`user:${friendId}`).emit('removedAsFriend', {
+          by: {
+            _id: user._id,
+            username: user.username
+          }
+        });
+      } catch (error) {
+        console.error('Error removing friend:', error);
+        socket.emit('error', { message: 'Failed to remove friend' });
+      }
+    });
+    
     // Handle joining a lobby
     socket.on('joinLobby', async (data) => {
       try {

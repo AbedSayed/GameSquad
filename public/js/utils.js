@@ -7,6 +7,30 @@
  * @param {string} type - The notification type (info, success, error, warning)
  */
 function showNotification(title, message, type = 'info') {
+    console.log(`[utils.js] Showing notification: ${title} - ${message}`);
+    
+    // Global notification deduplication
+    if (!window.recentNotifications) {
+        window.recentNotifications = new Set();
+    }
+    
+    // Create a unique key for this notification
+    const notificationKey = `${title}:${message}:${type}`;
+    
+    // Check if we've shown this notification recently (last 2 seconds)
+    if (window.recentNotifications.has(notificationKey)) {
+        console.log(`🚫 DUPLICATE NOTIFICATION BLOCKED: "${title} - ${message}"`);
+        return;
+    }
+    
+    // Add this notification to the recent set
+    window.recentNotifications.add(notificationKey);
+    
+    // Remove it after 2 seconds to allow future notifications
+    setTimeout(() => {
+        window.recentNotifications.delete(notificationKey);
+    }, 2000);
+    
     const notification = document.getElementById('notification');
     
     if (!notification) {

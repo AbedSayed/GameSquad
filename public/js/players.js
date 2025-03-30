@@ -1,9 +1,81 @@
 // We'll access APP_CONFIG directly rather than declaring constants
 // to avoid redeclaration issues across multiple files
 
+// Immediately call getSingleSocketInstance to establish connection and deduplication
+(function initializeSocketAndDeduplication() {
+    // Initialize on page load to ensure we have a single socket instance
+    console.log('🔄 Initializing socket and deduplication on page load');
+    getSingleSocketInstance();
+    
+    // Ensure the global deduplication sets exist
+    if (!window.processedFriendRequests) {
+        window.processedFriendRequests = new Set();
+        console.log('Created global processedFriendRequests set on page initialization');
+    }
+    
+    // Initialize notification deduplication
+    if (!window.recentNotifications) {
+        window.recentNotifications = new Set();
+        console.log('🔔 Created global recentNotifications set for notification deduplication');
+    }
+})();
+
+// Add a function to make sure we're using a single socket instance
+function getSingleSocketInstance() {
+    // Ensure we have the global deduplication set
+    if (!window.processedFriendRequests) {
+        window.processedFriendRequests = new Set();
+        console.log('Created global processedFriendRequests set from players.js');
+    }
+    
+    // Ensure notification deduplication is initialized
+    if (!window.recentNotifications) {
+        window.recentNotifications = new Set();
+        console.log('🔔 Created global recentNotifications set from getSingleSocketInstance');
+    }
+    
+    // If SocketHandler exists and is initialized, use it
+    if (window.SocketHandler && window.SocketHandler.socket) {
+        console.log('Using existing SocketHandler instance');
+        return window.SocketHandler;
+    }
+    
+    // If we're still initializing, wait for it
+    if (!window.io) {
+        console.warn('Socket.io not available yet, cannot initialize socket');
+        return null;
+    }
+    
+    // Only initialize if we don't already have a global instance
+    if (!window.SocketHandler) {
+        console.log('Initializing SocketHandler from players.js');
+        
+        // Wait for the main socket-handler.js to initialize
+        setTimeout(() => {
+            if (!window.SocketHandler) {
+                console.warn('SocketHandler still not available, trying to load it');
+                
+                // Try to load it if it's not already loaded
+                if (typeof SocketHandler !== 'undefined') {
+                    window.SocketHandler = SocketHandler;
+                    SocketHandler.init();
+                }
+            }
+        }, 1000);
+    }
+    
+    return window.SocketHandler;
+}
+
 // Simple function to set up friend requests frame - minimal implementation
 function setupFriendRequestsFrame() {
     console.log('Setting up friend requests system - using banner only');
+    
+    // Ensure global deduplication is initialized
+    if (!window.processedFriendRequests) {
+        window.processedFriendRequests = new Set();
+        console.log('Created global processedFriendRequests set from setupFriendRequestsFrame');
+    }
     
     // Hide the friend requests modal box if it exists
     const friendRequestsFrame = document.getElementById('friendRequestsFrame');
@@ -2291,18 +2363,32 @@ function setupFriendEventListeners() {
         window.SocketHandler.socket.on('friend-request-accepted', (data) => {
             console.log('Friend request accepted:', data);
             
+            // Use just the requestId for deduplication
+            const requestId = data.requestId || '';
+            
+            // Check if the request has already been processed globally
+            if (window.processedFriendRequests && window.processedFriendRequests.has(requestId)) {
+                console.log('🚫 DUPLICATE! This request was already processed globally:', requestId);
+                return;
+            }
+            
+            // Add to global processed set
+            if (window.processedFriendRequests) {
+                window.processedFriendRequests.add(requestId);
+                console.log('✅ Added to global processed set:', requestId);
+            }
+            
             // Refresh local user data
             const userInfoStr = localStorage.getItem('userInfo');
             if (userInfoStr) {
                 try {
                     const userInfo = JSON.parse(userInfoStr);
-                    const senderId = data.acceptedBy;
                     
                     // Update the UI to show friend status instead of pending
                     refreshFriendStatus();
                     
                     // Show notification
-                    showNotification(`${data.acceptedByName || 'User'} accepted your friend request!`, 'success');
+                    showNotification(`${data.acceptorName || 'User'} accepted your friend request!`, 'success');
                 } catch (e) {
                     console.error('Error updating friend status after acceptance:', e);
                 }
@@ -2355,6 +2441,41 @@ function createTabContentContainers(frame) {
     const frameContent = frame.querySelector('.friend-requests-content');
     if (!frameContent) {
         console.error('No .friend-requests-content found in frame');
+        // Create it if it doesn't exist
+        const frameContentDiv = document.createElement('div');
+        frameContentDiv.className = 'friend-requests-content';
+        
+        // Get existing content if any
+        const friendRequestsList = frame.querySelector('#friendRequestsList');
+        const requestsListContent = friendRequestsList ? friendRequestsList.innerHTML : '';
+        
+        // Set up the proper structure
+        frameContentDiv.innerHTML = `
+            <div class="tab-content active" id="requests-tab">
+                <div id="friendRequestsList">
+                    ${requestsListContent || '<div class="empty-state"><i class="fas fa-user-plus"></i><p>No friend requests</p></div>'}
+                </div>
+            </div>
+            <div class="tab-content" id="friends-tab">
+                <div id="friendsList">
+                    <div class="empty-state">
+                        <i class="fas fa-user-friends"></i>
+                        <p>Loading friends...</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add it to the frame after the section-header
+        const sectionHeader = frame.querySelector('.section-header');
+        if (sectionHeader) {
+            sectionHeader.after(frameContentDiv);
+            console.log('Created friend-requests-content container');
+        } else {
+            frame.appendChild(frameContentDiv);
+            console.log('Added friend-requests-content container to frame');
+        }
+        
         return;
     }
     
@@ -2368,7 +2489,7 @@ function createTabContentContainers(frame) {
     frameContent.innerHTML = `
         <div class="tab-content active" id="requests-tab">
             <div id="friendRequestsList">
-                ${requestsListContent}
+                ${requestsListContent || '<div class="empty-state"><i class="fas fa-user-plus"></i><p>No friend requests</p></div>'}
             </div>
         </div>
         <div class="tab-content" id="friends-tab">

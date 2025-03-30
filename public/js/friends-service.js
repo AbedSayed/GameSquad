@@ -471,9 +471,26 @@ const FriendsService = {
             await this.loadFriendRequests();
         });
         
-        // Listen for friend request accepted
+        // Listen for friend request accepted with deduplication
         socket.on('friend-request-accepted', async (data) => {
             console.log('Friend request accepted:', data);
+            
+            // Check for duplicates using timestamp and requestId
+            const eventId = `${data.requestId || ''}:${data.timestamp || ''}:${data.source || ''}`;
+            
+            if (this.processedEvents.has(eventId)) {
+                console.log('Ignoring duplicate friend acceptance notification:', eventId);
+                return;
+            }
+            
+            // Add to processed events set
+            this.processedEvents.add(eventId);
+            
+            // Limit size of set to prevent memory issues
+            if (this.processedEvents.size > 50) {
+                const iterator = this.processedEvents.values();
+                this.processedEvents.delete(iterator.next().value);
+            }
             
             // Reload friends
             await this.loadFriends();
@@ -754,7 +771,10 @@ const FriendsService = {
         
         console.log(`[FriendsService] Deduplication: ${friends.length} friends reduced to ${uniqueFriends.length} unique friends`);
         return uniqueFriends;
-    }
+    },
+    
+    // Add this property near the top of the FriendsService object
+    processedEvents: new Set(),
 };
 
 // Export the service

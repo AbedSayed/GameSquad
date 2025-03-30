@@ -2,9 +2,35 @@
 const SocketHandler = {
     socket: null,
     isConnected: false,
+    processedAcceptanceEvents: new Set(),
+    
+    // Initialize global deduplication tracking
+    initDeduplication: function() {
+        // Create or ensure the global set exists
+        if (!window.processedFriendRequests) {
+            window.processedFriendRequests = new Set();
+            console.log('Initialized global processedFriendRequests set');
+        }
+        return window.processedFriendRequests;
+    },
     
     // Initialize socket connection
     init: function() {
+        // Initialize deduplication
+        this.initDeduplication();
+        
+        // Initialize notification deduplication
+        if (!window.recentNotifications) {
+            window.recentNotifications = new Set();
+            console.log('🔔 Initialized global recentNotifications set for notification deduplication');
+        }
+        
+        // Check if we already have a socket connection
+        if (this.socket) {
+            console.log('Socket connection already exists, reusing existing connection');
+            return this.socket;
+        }
+        
         if (!window.io) {
             console.error('Socket.io not loaded');
             return;
@@ -102,6 +128,72 @@ const SocketHandler = {
         // Authentication error
         this.socket.on('auth_error', (error) => {
             console.error('Socket authentication error:', error);
+        });
+        
+        // Global deduplication tracking for friend acceptances
+        if (!window.processedFriendRequests) {
+            window.processedFriendRequests = new Set();
+        }
+        
+        // Add event handler for friend-request-accepted with deduplication
+        this.socket.on('friend-request-accepted', (data) => {
+            console.log('✅ Friend request accepted event received:', data);
+            
+            // Ensure we track both global deduplication sets
+            if (!window.recentNotifications) {
+                window.recentNotifications = new Set();
+                console.log('Created window.recentNotifications from socket event handler');
+            }
+            
+            // Use just the requestId for deduplication to catch events from all sources
+            const requestId = data.requestId || '';
+            
+            // Check if we already processed this notification 
+            if (window.processedFriendRequests && window.processedFriendRequests.has(requestId)) {
+                console.log('🚫 DUPLICATE DETECTED! Already processed this friend request:', requestId);
+                return;
+            }
+            
+            console.log('✨ Processing new acceptance for request:', requestId);
+            
+            // Add to processed events - use global window to ensure shared across instances
+            if (window.processedFriendRequests) {
+                window.processedFriendRequests.add(requestId);
+                console.log('Added request to processed set:', requestId);
+                
+                // Clean up old events (keep only last 50)
+                if (window.processedFriendRequests.size > 50) {
+                    const iterator = window.processedFriendRequests.values();
+                    const removed = iterator.next().value;
+                    window.processedFriendRequests.delete(removed);
+                    console.log('Removed oldest request from processed set:', removed);
+                }
+            }
+            
+            // Process the acceptance
+            this.handleFriendRequestAccepted(data);
+        });
+        
+        // Similar deduplication for friend-request-you-accepted event
+        this.socket.on('friend-request-you-accepted', (data) => {
+            console.log('You accepted friend request:', data);
+            
+            // Use just the requestId for deduplication
+            const requestId = data.requestId || '';
+            
+            // Check if we already processed this notification
+            if (window.processedFriendRequests.has(requestId)) {
+                console.log('🚫 DUPLICATE DETECTED! Already processed this friend acceptance:', requestId);
+                return;
+            }
+            
+            console.log('✨ Processing new self-acceptance for request:', requestId);
+            
+            // Add to processed events - use global window to ensure shared across instances
+            window.processedFriendRequests.add(requestId);
+            
+            // Process the acceptance
+            this.handleYouAcceptedFriendRequest(data);
         });
         
         // Friend status update
@@ -215,22 +307,10 @@ const SocketHandler = {
             }
         });
         
-        // Friend request acceptance
-        this.socket.on('friend-request-accepted', (data) => {
-            console.log('[SocketHandler] Friend request accepted:', data);
-            this.handleFriendRequestAccepted(data);
-        });
-        
         // Friend request rejection
         this.socket.on('friend-request-rejected', (data) => {
             console.log('[SocketHandler] Friend request rejected:', data);
             // Handle rejection if needed
-        });
-        
-        // When you accept a friend request
-        this.socket.on('friend-request-you-accepted', (data) => {
-            console.log('[SocketHandler] You accepted a friend request:', data);
-            this.handleYouAcceptedFriendRequest(data);
         });
     },
     
@@ -316,6 +396,28 @@ const SocketHandler = {
     // Show notification for new invite
     showNotification: function(title, message, type = 'info') {
         console.log(`[socket-handler.js] Showing notification: ${title} - ${message}`);
+        
+        // Global notification deduplication
+        if (!window.recentNotifications) {
+            window.recentNotifications = new Set();
+        }
+        
+        // Create a unique key for this notification
+        const notificationKey = `${title}:${message}:${type}`;
+        
+        // Check if we've shown this notification recently (last 2 seconds)
+        if (window.recentNotifications.has(notificationKey)) {
+            console.log(`🚫 DUPLICATE NOTIFICATION BLOCKED: "${title} - ${message}"`);
+            return;
+        }
+        
+        // Add this notification to the recent set
+        window.recentNotifications.add(notificationKey);
+        
+        // Remove it after 2 seconds to allow future notifications
+        setTimeout(() => {
+            window.recentNotifications.delete(notificationKey);
+        }, 2000);
         
         // IMPORTANT: Never check for window.showNotification here to avoid circular references
         // Create notification directly
@@ -1089,189 +1191,103 @@ const SocketHandler = {
     
     // Accept a friend request
     acceptFriendRequest: function(requestId, senderId, senderName) {
-        try {
-            console.log(`Attempting to accept friend request: ${requestId} from ${senderName} (${senderId})`);
-            
-            // Check request ID format and sender ID
-            if (!requestId || typeof requestId !== 'string') {
-                console.error('Invalid request ID format:', requestId);
-                this.showNotification('Error', 'Invalid friend request ID', 'error');
+        console.log(`Accepting friend request ${requestId} from ${senderId} (${senderName})`);
+        
+        // Ensure we have the global deduplication set
+        if (!window.processedFriendRequests) {
+            window.processedFriendRequests = new Set();
+        }
+        
+        // Mark this request as processed immediately to prevent duplicates
+        if (requestId) {
+            if (window.processedFriendRequests.has(requestId)) {
+                console.log('🚫 DUPLICATE ACCEPTANCE! This request was already processed:', requestId);
                 return;
             }
+            window.processedFriendRequests.add(requestId);
+            console.log('✨ Added request to processed set:', requestId);
+        }
+        
+        // Construct URL based on whether we have a requestId
+        const url = requestId 
+            ? `/api/friends/accept/${requestId}`
+            : '/api/friends/accept';
+        
+        // Prepare request body
+        const body = { 
+            senderId: senderId
+        };
+        
+        // Get token for authorization
+        const token = localStorage.getItem('token');
+        if (!token) {
+            this.showNotification('You must be logged in to accept friend requests', 'error');
+            return;
+        }
+        
+        // Make request to accept friend request
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(body)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Friend request acceptance response:', data);
             
-            if (!senderId) {
-                console.error('Missing sender ID for friend request');
-                this.showNotification('Error', 'Missing sender information', 'error');
-                return;
-            }
-            
-            // Get token for authorization
-            const token = localStorage.getItem('token');
-            if (!token) {
-                this.showNotification('Error', 'You must be logged in to accept friend requests', 'error');
-                return;
-            }
-            
-            // Get the API URL from config
-            const apiUrl = window.APP_CONFIG?.API_URL || '/api';
-            const url = `${apiUrl}/friends/accept/${requestId}`;
-            
-            console.log(`Making API call to: ${url}`);
-            console.log(`Request authorization: Bearer ${token.substring(0, 10)}...`);
-            
-            // First, check the local user info to see if the request still exists
-            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-            const friendRequest = userInfo.friendRequests?.received?.find(req => 
-                req._id === requestId || 
-                (req.sender && req.sender.toString() === senderId) ||
-                req.sender === senderId
-            );
-            
-            if (!friendRequest) {
-                console.warn('Friend request not found in local storage:', { requestId, senderId });
-                // Continue anyway as it might be in the database but not in localStorage
-            } else {
-                console.log('Found friend request in localStorage:', friendRequest);
-            }
-            
-            // Make the API call to accept the request with senderId in the body
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    senderId: senderId,
-                    senderName: senderName
-                })
-            })
-            .then(response => {
-                console.log(`Friend request acceptance response status: ${response.status}`);
-                
-                // Get the response text for better error reporting
-                return response.text().then(text => {
-                    if (!response.ok) {
-                        try {
-                            // Try to parse the error as JSON
-                            const errorData = JSON.parse(text);
-                            throw new Error(`Server error: ${errorData.message || response.statusText}`);
-                        } catch (e) {
-                            // If not valid JSON, use the raw text
-                            throw new Error(`Server returned ${response.status}: ${text || response.statusText}`);
-                        }
-                    }
-                    
-                    // If it's a successful response, parse as JSON
-                    try {
-                        return JSON.parse(text);
-                    } catch (e) {
-                        throw new Error('Invalid JSON in server response');
-                    }
-                });
-            })
-            .then(data => {
-                console.log('Friend request acceptance response:', data);
-                
-                if (data.success) {
-                    // Update localStorage with new user info if provided
-                    if (data.userInfo) {
-                        console.log('Updating user info in localStorage');
-                        localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
-                    }
-                    
-                    // Show notification
-                    this.showNotification('Friend Request Accepted', `${senderName} is now your friend!`, 'success');
-                    
-                    // Emit socket event if available
-                    if (this.socket) {
-                        console.log(`Emitting friend-request-accepted event for ${senderId}`);
-                        this.socket.emit('friend-request-accepted', {
-                            senderId: senderId,
-                            acceptorName: this.getUserInfo()?.username || 'User'
-                        });
-                    }
-                    
-                    // Refresh the friends list if we're on the messages page
-                    if (window.location.href.includes('messages.html') && typeof displayFriends === 'function') {
-                        console.log('Refreshing friends list');
-                        displayFriends();
-                    }
-                    
-                    // Add friend to friends list in memory
-                    const currentUserInfo = this.getUserInfo();
-                    if (currentUserInfo && !currentUserInfo.friends) {
-                        currentUserInfo.friends = [];
-                    }
-                    
-                    if (currentUserInfo && !currentUserInfo.friends.includes(senderId)) {
-                        currentUserInfo.friends.push(senderId);
-                        localStorage.setItem('userInfo', JSON.stringify(currentUserInfo));
-                    }
-                } else {
-                    this.showNotification('Error', data.message || 'Error accepting friend request', 'error');
-                    console.error('Friend request acceptance failed:', data.message);
+            if (data.success) {
+                // Update localStorage with new user info if provided
+                if (data.userInfo) {
+                    console.log('Updating user info in localStorage');
+                    localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
                 }
-            })
-            .catch(error => {
-                console.error('Error accepting friend request:', error);
-                this.showNotification('Error', 'Could not accept friend request: ' + error.message, 'error');
                 
-                // For 404 errors, try sending friend request data again to ensure it's in the system
-                if (error.message && error.message.includes('404')) {
-                    console.log('Friend request not found, attempting to resync request data...');
-                    
-                    // Re-sync the friend request with the server
-                    this.syncFriendRequestWithServer({
-                        requestId: requestId,
+                // Show notification
+                this.showNotification('Friend Request Accepted', `${senderName} is now your friend!`, 'success');
+                
+                // Emit socket event if available with timestamp and source for deduplication
+                if (this.socket) {
+                    console.log(`Emitting friend-request-accepted event for ${senderId}`);
+                    const timestamp = new Date().getTime();
+                    this.socket.emit('friend-request-accepted', {
                         senderId: senderId,
-                        senderName: senderName,
-                        message: `${senderName} would like to be your friend!`
+                        acceptorName: this.getUserInfo()?.username || 'User',
+                        timestamp: timestamp,
+                        requestId: requestId,
+                        source: 'client'
                     });
                     
-                    // Try to accept the friend request again after a delay to allow for sync
-                    setTimeout(() => {
-                        console.log('Retrying friend request acceptance after sync');
-                        // Use direct fetch for retry to avoid infinite retry loop
-                        fetch(url, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify({
-                                senderId: senderId,
-                                senderName: senderName
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                // Update localStorage
-                                if (data.userInfo) {
-                                    localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
-                                }
-                                this.showNotification('Friend Request Accepted', `${senderName} is now your friend!`, 'success');
-                                
-                                // Refresh UI if needed
-                                if (window.location.href.includes('messages.html') && typeof displayFriends === 'function') {
-                                    displayFriends();
-                                }
-                            } else {
-                                this.showNotification('Error', data.message || 'Friend request could not be accepted', 'error');
-                            }
-                        })
-                        .catch(retryError => {
-                            console.error('Error in retry:', retryError);
-                            this.showNotification('Error', 'Please try accepting the friend request again', 'info');
-                        });
-                    }, 1000);
+                    // The requestId is already in the global processed set from when we started the acceptance
+                    console.log(`✅ Sent socket notification for request ${requestId} acceptance`);
                 }
-            });
-        } catch (error) {
-            console.error('Exception in acceptFriendRequest:', error);
-            this.showNotification('Error', 'An unexpected error occurred: ' + error.message, 'error');
-        }
+                
+                // Refresh the friends list if we're on the messages page
+                if (window.location.href.includes('messages.html') && typeof displayFriends === 'function') {
+                    console.log('Refreshing friends list');
+                    displayFriends();
+                }
+                
+                // Add friend to friends list in memory
+                const currentUserInfo = this.getUserInfo();
+                if (currentUserInfo && !currentUserInfo.friends) {
+                    currentUserInfo.friends = [];
+                }
+                
+                if (currentUserInfo && !currentUserInfo.friends.includes(senderId)) {
+                    currentUserInfo.friends.push(senderId);
+                    localStorage.setItem('userInfo', JSON.stringify(currentUserInfo));
+                }
+            } else {
+                this.showNotification('Error', data.message || 'Failed to accept friend request', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error accepting friend request:', error);
+            this.showNotification('Error', 'Failed to accept friend request. Please try again.', 'error');
+        });
     },
     
     // Reject a friend request
@@ -1326,69 +1342,26 @@ const SocketHandler = {
         }
     },
     
-    // Handle friend request acceptance (for the sender of the request)
+    // Handle friend request acceptance
     handleFriendRequestAccepted: function(data) {
-        console.log('[SocketHandler] Processing accepted friend request:', data);
+        console.log('Processing friend request acceptance:', data);
         
-        try {
-            // Get current user info
-            const userInfoStr = localStorage.getItem('userInfo');
-            if (!userInfoStr) {
-                console.error('[SocketHandler] No user info in localStorage');
-                return;
-            }
-            
-            const userInfo = JSON.parse(userInfoStr);
-            
-            // Update sent requests - mark this one as accepted
-            if (userInfo.friendRequests && userInfo.friendRequests.sent) {
-                const updatedSent = userInfo.friendRequests.sent.map(req => {
-                    if (req.recipient && req.recipient.toString() === data.acceptorDetails._id) {
-                        return { ...req, status: 'accepted' };
-                    }
-                    return req;
-                });
-                
-                userInfo.friendRequests.sent = updatedSent;
-            }
-            
-            // Add the acceptor to friends list if not already there
-            if (!userInfo.friends) {
-                userInfo.friends = [];
-            }
-            
-            if (!userInfo.friends.includes(data.acceptorDetails._id)) {
-                userInfo.friends.push(data.acceptorDetails._id);
-            }
-            
-            // Store complete friend data
-            if (!userInfo.friendsData) {
-                userInfo.friendsData = [];
-            }
-            
-            // Check if we already have this friend in data
-            const existingIndex = userInfo.friendsData.findIndex(f => f._id === data.acceptorDetails._id);
-            
-            if (existingIndex >= 0) {
-                // Update existing entry
-                userInfo.friendsData[existingIndex] = data.acceptorDetails;
-            } else {
-                // Add new entry
-                userInfo.friendsData.push(data.acceptorDetails);
-            }
-            
-            // Save updated user info
-            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-            
-            // Show notification
-            this.showFriendAcceptedNotification(data.acceptorDetails.username || 'A user');
-            
-            // Refresh the UI components
-            this.refreshUIAfterFriendUpdate();
-            
-        } catch (error) {
-            console.error('[SocketHandler] Error handling friend request acceptance:', error);
+        // Ensure we have the request ID for tracking
+        const requestId = data.requestId || '';
+        
+        // Ensure the request is in our global processed set
+        if (window.processedFriendRequests && !window.processedFriendRequests.has(requestId) && requestId) {
+            window.processedFriendRequests.add(requestId);
+            console.log('✅ Added request to global processed set from handler:', requestId);
         }
+        
+        // Show notification with appropriate text
+        // This will be automatically deduplicated by our showNotification function
+        console.log('Showing acceptance notification with data:', data);
+        this.showNotification('Friend Request Accepted', `${data.username || data.acceptorName || 'User'} accepted your friend request!`);
+        
+        // Update UI if necessary
+        // ...
     },
 
     // Handle when you accept a friend request (for the recipient/acceptor)
@@ -1584,6 +1557,12 @@ const SocketHandler = {
 // Initialize SocketHandler when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing SocketHandler...');
+    
+    // Check if SocketHandler is already initialized
+    if (window.SocketHandler && window.SocketHandler.socket) {
+        console.log('SocketHandler already initialized, skipping initialization');
+        return;
+    }
     
     if (!window.io) {
         console.warn('Socket.io is not loaded yet. Will attempt to initialize when available.');
