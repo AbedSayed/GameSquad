@@ -4,6 +4,8 @@ const SocketHandler = {
     isConnected: false,
     processedAcceptanceEvents: new Set(),
     isInitialized: false,
+    reconnectAttempts: 0,
+    maxReconnectAttempts: 10,
     
     // Initialize global deduplication tracking
     initDeduplication: function() {
@@ -36,6 +38,10 @@ const SocketHandler = {
                                 console.log('[socket-handler.js] Socket already authenticated');
                             }
                         });
+                } else if (this.socket && !this.socket.connected) {
+                    // If we have a socket instance but it's not connected, try to reconnect
+                    console.log('[socket-handler.js] Socket exists but not connected, attempting to reconnect');
+                    this.reconnect();
                 }
             }
             return this;
@@ -115,21 +121,25 @@ const SocketHandler = {
             console.log('[socket-handler.js] Setting up socket connection...');
             if (typeof io === 'undefined') {
                 console.error('[socket-handler.js] Socket.io not loaded! Chat functionality will be limited.');
+                // Try to load socket.io dynamically if not available
+                this.loadSocketIOLibrary();
                 return;
             }
             
             // Connect to socket server
             this.socket = io(window.location.origin, {
                 reconnection: true,
-                reconnectionAttempts: 5,
+                reconnectionAttempts: 10,
                 reconnectionDelay: 1000,
-                timeout: 5000
+                timeout: 10000,
+                forceNew: false
             });
             
             // Set up connection events
             this.socket.on('connect', () => {
                 console.log('[socket-handler.js] Socket connected successfully:', this.socket.id);
                 this.isConnected = true;
+                this.reconnectAttempts = 0; // Reset reconnect counter on successful connection
                 
                 // Authenticate socket with user ID
                 const userInfo = this.getUserInfo();
@@ -152,6 +162,17 @@ const SocketHandler = {
                 console.error('[socket-handler.js] Socket connection error:', error);
                 this.isConnected = false;
                 
+                // Attempt to reconnect manually if needed
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    console.log(`[socket-handler.js] Reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+                    setTimeout(() => {
+                        if (!this.isConnected) {
+                            this.socket.connect();
+                        }
+                    }, 2000);
+                }
+                
                 // Notify any listeners that socket failed to connect
                 if (typeof window !== 'undefined' && window.dispatchEvent) {
                     window.dispatchEvent(new CustomEvent('socket:connect_error', { detail: error }));
@@ -161,6 +182,19 @@ const SocketHandler = {
             this.socket.on('disconnect', (reason) => {
                 console.log('[socket-handler.js] Socket disconnected:', reason);
                 this.isConnected = false;
+                
+                // If the disconnection is not from a user action, try to reconnect
+                if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'transport error') {
+                    // The disconnection was initiated by the server, try to reconnect manually
+                    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                        console.log(`[socket-handler.js] Attempting to reconnect after server-initiated disconnect`);
+                        setTimeout(() => {
+                            if (!this.isConnected) {
+                                this.socket.connect();
+                            }
+                        }, 1500);
+                    }
+                }
                 
                 // Notify any listeners that socket disconnected
                 if (typeof window !== 'undefined' && window.dispatchEvent) {
@@ -181,6 +215,43 @@ const SocketHandler = {
         } catch (error) {
             console.error('[socket-handler.js] Error setting up socket:', error);
         }
+    },
+    
+    // Manually reconnect socket
+    reconnect: function() {
+        if (this.socket) {
+            console.log('[socket-handler.js] Attempting to reconnect socket...');
+            if (this.socket.disconnected) {
+                this.socket.connect();
+            }
+        } else {
+            console.log('[socket-handler.js] No socket instance to reconnect, creating new connection');
+            this.setupSocket();
+        }
+    },
+    
+    // Load Socket.IO library dynamically if it's not available
+    loadSocketIOLibrary: function() {
+        // Detect Socket.IO version from existing script tags
+        const socketScripts = document.querySelectorAll('script[src*="socket.io"]');
+        if (socketScripts.length > 0) {
+            console.log('[socket-handler.js] Socket.IO script already exists in page');
+            return;
+        }
+        
+        console.log('[socket-handler.js] Attempting to load Socket.IO library dynamically');
+        const script = document.createElement('script');
+        script.src = "https://cdn.socket.io/4.8.1/socket.io.min.js";
+        script.integrity = "sha384-+NYyNeU5B8x8awkk+SkbvwapFmeUngUKyPZNBv6kW1Xy47/3fUE36yTVCQDH9DSB";
+        script.crossOrigin = "anonymous";
+        script.onload = () => {
+            console.log('[socket-handler.js] Socket.IO library loaded successfully, initializing socket');
+            this.setupSocket();
+        };
+        script.onerror = (error) => {
+            console.error('[socket-handler.js] Failed to load Socket.IO library:', error);
+        };
+        document.head.appendChild(script);
     },
     
     // Get user info from localStorage
@@ -1966,6 +2037,98 @@ const SocketHandler = {
     getUserId: function() {
         const userInfo = this.getUserInfo();
         return userInfo && userInfo._id ? userInfo._id : null;
+    },
+    
+    // Check and repair socket connection
+    checkConnection: function() {
+        console.log('[socket-handler.js] Checking socket connection status...');
+        
+        return new Promise((resolve) => {
+            // If socket doesn't exist at all, create it
+            if (!this.socket) {
+                console.log('[socket-handler.js] No socket instance exists, creating one');
+                this.setupSocket();
+                resolve({
+                    status: 'initialized',
+                    connected: false,
+                    message: 'Socket initialized, waiting for connection'
+                });
+                return;
+            }
+            
+            // If socket exists but is not connected
+            if (!this.socket.connected) {
+                console.log('[socket-handler.js] Socket exists but not connected, reconnecting');
+                this.reconnect();
+                
+                // Wait a bit to see if connection succeeds
+                setTimeout(() => {
+                    if (this.socket.connected) {
+                        console.log('[socket-handler.js] Reconnection successful');
+                        resolve({
+                            status: 'reconnected',
+                            connected: true,
+                            message: 'Reconnection successful'
+                        });
+                    } else {
+                        console.log('[socket-handler.js] Reconnection in progress');
+                        resolve({
+                            status: 'connecting',
+                            connected: false,
+                            message: 'Reconnection in progress'
+                        });
+                    }
+                }, 1000);
+                return;
+            }
+            
+            // Socket is connected, check authentication
+            this.isAuthenticated().then(authenticated => {
+                if (!authenticated) {
+                    console.log('[socket-handler.js] Socket connected but not authenticated, authenticating');
+                    const userId = this.getUserId();
+                    if (userId) {
+                        this.authenticate(userId)
+                            .then(() => {
+                                resolve({
+                                    status: 'reauthenticated',
+                                    connected: true,
+                                    message: 'Socket reauthenticated'
+                                });
+                            })
+                            .catch(error => {
+                                console.error('[socket-handler.js] Authentication failed:', error);
+                                resolve({
+                                    status: 'auth_failed',
+                                    connected: true,
+                                    message: 'Socket connected but authentication failed'
+                                });
+                            });
+                    } else {
+                        resolve({
+                            status: 'no_user',
+                            connected: true,
+                            message: 'Socket connected but no user ID available for authentication'
+                        });
+                    }
+                } else {
+                    // All good
+                    resolve({
+                        status: 'connected',
+                        connected: true,
+                        authenticated: true,
+                        message: 'Socket connected and authenticated'
+                    });
+                }
+            }).catch(error => {
+                console.error('[socket-handler.js] Error checking authentication:', error);
+                resolve({
+                    status: 'error',
+                    connected: true,
+                    message: 'Error checking authentication'
+                });
+            });
+        });
     }
 };
 

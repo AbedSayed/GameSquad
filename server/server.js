@@ -17,7 +17,11 @@ const io = socketIO(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    pingTimeout: 60000, // 60 seconds (increase from default)
+    pingInterval: 25000, // 25 seconds (default)
+    connectTimeout: 30000, // 30 seconds connection timeout
+    maxHttpBufferSize: 1e8 // 100 MB max buffer size
 });
 
 const userSocketMap = {};

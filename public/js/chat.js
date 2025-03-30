@@ -19,7 +19,7 @@ function initializeSocket() {
     return false;
   }
   
-  // Get current user info
+
   currentUser = Auth.getCurrentUser();
   
   if (!currentUser) {
@@ -27,20 +27,20 @@ function initializeSocket() {
     return false;
   }
   
-  // Initialize socket with auth token
-  socket = io('http://localhost:5000', {
+
+  socket = io(window.location.origin, {
     auth: {
       token: token
     }
   });
   
-  // Set up socket event listeners
+
   setupSocketListeners();
   
   return true;
 }
 
-// Set up socket event listeners
+
 function setupSocketListeners() {
   // Connection events
   socket.on('connect', () => {
