@@ -351,90 +351,33 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Make sure the sidebar nav is properly initialized
             setTimeout(() => {
-                const friendRequestsTab = document.querySelector('[data-tab="friend-requests"]');
-                if (friendRequestsTab) {
-                    friendRequestsTab.click();
-                }
-                
-                // Force refresh friend requests in case we missed any
-                if (typeof displayFriendRequests === 'function') {
-                    console.log('Refreshing friend requests on page load');
-                    displayFriendRequests();
-                }
-                
-                // Also force refreshing friends section
-                if (typeof displayFriends === 'function') {
-                    console.log('Refreshing friends list on page load');
-                    displayFriends();
+                const invitesTab = document.querySelector('[data-tab="invites"]');
+                if (invitesTab) {
+                    invitesTab.click();
                 }
             }, 500);
             
-            // Update invite badge on load
-            updateInviteBadge();
-            
-            // Ensure socket is connected
+            // Ensure socket is connected for real-time updates
             if (typeof SocketHandler !== 'undefined') {
                 console.log('Initializing SocketHandler from messages.html');
                 if (!SocketHandler.isConnected) {
                     SocketHandler.init();
                 }
                 
-                // Force re-authentication with the server
-                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-                if (userInfo && userInfo._id) {
-                    setTimeout(() => {
-                        if (SocketHandler.socket) {
-                            console.log('Re-authenticating socket with user ID:', userInfo._id);
-                            SocketHandler.authenticate(userInfo._id);
+                // Force re-authentication with the socket server if needed
+                setTimeout(() => {
+                    if (SocketHandler.socket) {
+                        const token = localStorage.getItem('token');
+                        if (token) {
+                            console.log('Re-authenticating socket connection');
+                            SocketHandler.authenticate(token);
                         }
-                    }, 1000);
-                }
+                    }
+                }, 1000);
             }
         });
-        
-        function updateInviteBadge() {
-            try {
-                // Get current user ID
-                const userInfoStr = localStorage.getItem('userInfo');
-                if (!userInfoStr) return;
-                
-                const userInfo = JSON.parse(userInfoStr);
-                const userId = userInfo._id;
-                
-                // Count unread invites
-                let inviteCount = 0;
-                const invitesStr = localStorage.getItem('invites');
-                
-                if (invitesStr) {
-                    const invites = JSON.parse(invitesStr);
-                    inviteCount = invites.filter(invite => 
-                        (invite.recipientId === userId || invite.recipientId === userId.toString())
-                    ).length;
-                }
-                
-                // Update badge
-                const badge = document.querySelector('.invite-badge');
-                if (badge) {
-                    if (inviteCount > 0) {
-                        badge.textContent = inviteCount;
-                        badge.classList.add('show');
-                        
-                        // If not already on the invites tab, keep badge visible
-                        const invitesTab = document.querySelector('[data-tab="invites"]');
-                        if (invitesTab && !invitesTab.classList.contains('active')) {
-                            badge.classList.add('show');
-                        } else {
-                            badge.classList.remove('show');
-                        }
-                    } else {
-                        badge.classList.remove('show');
-                    }
-                }
-            } catch (err) {
-                console.error('Error updating invite badge:', err);
-            }
-        }
     </script>
 </body>
 </html> 

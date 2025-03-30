@@ -5,23 +5,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if user is logged in first
     requireLogin();
     
-    // Refresh user data to ensure we have the latest friend list
-    if (window.SocketHandler && typeof window.SocketHandler.refreshUserData === 'function') {
-        console.log('[messages.js] Refreshing user data from server');
-        window.SocketHandler.refreshUserData()
-            .then(() => {
-                console.log('[messages.js] User data refreshed, continuing initialization');
+    // Complete initialization directly
                 completeInitialization();
-            })
-            .catch(error => {
-                console.error('[messages.js] Error refreshing user data:', error);
-                // Continue with initialization anyway
-                completeInitialization();
-            });
-    } else {
-        console.log('[messages.js] SocketHandler not available, proceeding with standard initialization');
-        completeInitialization();
-    }
     
     function completeInitialization() {
         // Setup UI components
@@ -30,11 +15,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Initialize socket events for real-time updates
         initSocketEvents();
         
-        // Load all messages and notifications
-        loadMessages();
-        
         // Initialize tabs
         initializeTabs();
+        
+        // Display friend requests from database
+        displayFriendRequests();
+        
+        // Display friends list from database
+        displayFriends();
         
         // Load and display invites
         loadAndDisplayInvites();
@@ -44,9 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add button event listeners
         addButtonEventListeners();
-        
-        // Display friends list
-        displayFriends();
     }
 });
 
@@ -104,126 +89,50 @@ function initSocketEvents() {
 
 // Function to load all messages and notifications
 function loadMessages() {
-    // Display user's invites
-    displayUserInvites();
-    
     // Display friend requests
     displayFriendRequests();
     
     // Display friends list
     displayFriends();
+    
+    // Display invites
+    loadAndDisplayInvites();
 }
 
 // Function to check if user is logged in, redirect if not
 function requireLogin() {
-    const userInfoStr = localStorage.getItem('userInfo');
+    console.log('[messages.js] Checking authentication status');
     const token = localStorage.getItem('token');
     
-    if (!userInfoStr || !token) {
+    if (!token) {
+        console.error('[messages.js] No authentication token found');
         window.location.href = '../index.html';
         return false;
     }
     
+    // For better UX, also check if token is valid/not expired
+    // This is a simple implementation - in a real app, you might validate the token on the server
     try {
-        const userInfo = JSON.parse(userInfoStr);
-        if (!userInfo || !userInfo._id) {
+        // Try to parse token (assuming JWT format)
+        const base64Url = token.split('.')[1];
+        if (base64Url) {
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(window.atob(base64));
+            
+            // Check if token is expired
+            if (payload.exp && payload.exp * 1000 < Date.now()) {
+                console.error('[messages.js] Token expired');
+                localStorage.removeItem('token');
             window.location.href = '../index.html';
             return false;
+            }
         }
         
         return true;
     } catch (e) {
-        console.error('Error parsing user info:', e);
-        window.location.href = '../index.html';
-        return false;
-    }
-}
-
-// Function to display stored invites for the current user
-function displayUserInvites() {
-    try {
-        // Make sure SocketHandler is defined and has the method
-        if (typeof SocketHandler !== 'undefined' && typeof SocketHandler.updateInvitesUI === 'function') {
-            SocketHandler.updateInvitesUI();
-            return;
-        }
-        
-        // Fallback implementation if SocketHandler isn't available
-        // Get current user
-        const userInfoStr = localStorage.getItem('userInfo');
-        if (!userInfoStr) return;
-        
-        const userInfo = JSON.parse(userInfoStr);
-        const userId = userInfo._id;
-        
-        // Get invites from localStorage
-        let invites = [];
-        const invitesStr = localStorage.getItem('invites');
-        
-        if (invitesStr) {
-            const allInvites = JSON.parse(invitesStr);
-            
-            // Filter invites for current user
-            invites = allInvites.filter(invite => 
-                invite.recipientId === userId || invite.recipientId === userId.toString()
-            );
-        }
-        
-        // Get the invites container
-        const invitesContainer = document.getElementById('invites-container');
-        if (!invitesContainer) return;
-        
-        // Clear container
-        invitesContainer.innerHTML = '';
-        
-        if (invites.length === 0) {
-            invitesContainer.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-envelope-open"></i>
-                    <p>No invites</p>
-                </div>`;
-            return;
-        }
-        
-        // Sort invites by date (newest first)
-        invites.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
-        // Add each invite to UI
-        invites.forEach(invite => {
-            const inviteEl = document.createElement('div');
-            inviteEl.className = 'invite-item pulse-glow';
-            inviteEl.dataset.id = invite.id;
-            
-            const time = new Date(invite.timestamp).toLocaleTimeString();
-            const date = new Date(invite.timestamp).toLocaleDateString();
-            
-            inviteEl.innerHTML = `
-                <div class="invite-header">
-                    <span class="invite-game neon-text-secondary">${invite.gameType || 'Game'}</span>
-                    <span class="invite-time">${time} ${date}</span>
-                </div>
-                <div class="invite-body">
-                    <p><strong>${invite.senderName}</strong> invited you to join "<span class="neon-text">${invite.lobbyName}</span>"</p>
-                    <p class="invite-message">${invite.message || ''}</p>
-                </div>
-                <div class="invite-actions">
-                    <button class="btn btn-primary accept-invite" data-lobby-id="${invite.lobbyId}">
-                        <i class="fas fa-check"></i> Accept & Join
-                    </button>
-                    <button class="btn btn-danger reject-invite">
-                        <i class="fas fa-times"></i> Decline
-                    </button>
-                </div>
-            `;
-            
-            invitesContainer.appendChild(inviteEl);
-        });
-        
-        // Add event listeners to buttons
-        addInviteButtonListeners();
-    } catch (err) {
-        console.error('Error displaying invites:', err);
-        showNotification('Error', 'Could not load invites', 'error');
+        console.error('[messages.js] Error checking token:', e);
+        // If we can't verify, assume it's valid and let the API calls fail if needed
+        return true;
     }
 }
 
@@ -237,73 +146,49 @@ function displayFriendRequests() {
     }
     
     try {
-        // Get friend requests from localStorage
-        const userInfoStr = localStorage.getItem('userInfo');
-        if (!userInfoStr) {
-            console.log('[messages.js] No user info in localStorage');
-            requestsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-user-plus"></i><p>No friend requests</p></div>';
+        // Show loading state
+        requestsContainer.innerHTML = `
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading friend requests...</p>
+            </div>`;
+        
+        // Get the API URL from config
+        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+            console.error('[messages.js] No token found, cannot fetch friend requests');
+            requestsContainer.innerHTML = `
+                <div class="empty-state error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Authentication error</p>
+                </div>`;
             return;
         }
         
-        const userInfo = JSON.parse(userInfoStr);
-        
-        // Check if we have friend requests data structure
-        const hasRequests = userInfo.friendRequests !== undefined;
-        const hasReceivedArray = hasRequests && Array.isArray(userInfo.friendRequests.received);
-        const receivedLength = hasReceivedArray ? userInfo.friendRequests.received.length : 0;
-        
-        console.log('[messages.js] User info structure:', {
-            hasRequests,
-            hasReceivedArray,
-            receivedLength
-        });
-        
-        // If no friend requests structure, show empty state
-        if (!hasRequests || !hasReceivedArray) {
-            console.log('[messages.js] No friend requests structure in user info');
-            requestsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-user-plus"></i><p>No friend requests</p></div>';
-            return;
-        }
-        
-        // Filter to only pending requests
-        const friendRequests = userInfo.friendRequests.received.filter(req => 
-            req && (req.status === 'pending' || req.status === undefined)
-        );
-        
-        console.log(`[messages.js] Found ${friendRequests.length} friend requests in localStorage`);
-        
-        // Clean up rejected or processed requests after a certain time
-        const now = new Date();
-        let needToSave = false;
-        
-        userInfo.friendRequests.received = userInfo.friendRequests.received.filter(req => {
-            if (!req) return false;
-            
-            // Keep pending requests
-            if (req.status === 'pending' || req.status === undefined) return true;
-            
-            // For rejected/processed requests, keep them for 24 hours then remove
-            if (req.status === 'rejected' || req.status === 'accepted') {
-                const reqDate = new Date(req.createdAt || 0);
-                const hoursSince = (now - reqDate) / (1000 * 60 * 60);
-                
-                // Keep if less than 24 hours old
-                const shouldKeep = hoursSince < 24;
-                if (!shouldKeep) needToSave = true;
-                return shouldKeep;
+        // Fetch friend requests directly from the database API
+        fetch(`${apiUrl}/friends/requests`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
             }
-            
-            return true;
-        });
-        
-        // Save back to localStorage if we cleaned up any requests
-        if (needToSave) {
-            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-            console.log('[messages.js] Cleaned up old rejected/accepted requests');
-        }
+        })
+        .then(response => {
+            console.log('[messages.js] Friend requests API response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('[messages.js] Friend requests API response data:', data);
         
         // Clear container
         requestsContainer.innerHTML = '';
+            
+            // Check if we have pending friend requests
+            const friendRequests = data.received?.filter(req => 
+                req && (req.status === 'pending' || req.status === undefined)
+            ) || [];
+            
+            console.log(`[messages.js] Found ${friendRequests.length} friend requests from API`);
         
         // If no friend requests, show empty state
         if (!friendRequests.length) {
@@ -336,32 +221,21 @@ function displayFriendRequests() {
             const requestEl = document.createElement('div');
             requestEl.className = 'invite-item friend-request-item pulse-glow';
             
-            // Ensure we have a valid request ID (use MongoDB ObjectId format if missing)
-            const requestId = request._id ? request._id.toString() : 
-                              `req_${Math.random().toString(36).substring(2, 15)}`;
-            
+                // Ensure we have a valid request ID
+                const requestId = request._id ? request._id.toString() : request.id;
             requestEl.dataset.id = requestId;
             
             // Get sender info - handle different possible structures
             let senderId, senderName;
             
             if (typeof request.sender === 'object' && request.sender !== null) {
-                // If sender is an object with _id
-                senderId = request.sender._id || request.sender.id;
-                senderName = request.sender.username || 'Unknown User';
-            } else if (typeof request.sender === 'string') {
+                    // If sender is populated as an object
+                    senderId = request.sender._id || request.sender;
+                    senderName = request.sender.username || request.senderName || 'Unknown User';
+                } else {
                 // If sender is just the ID string
                 senderId = request.sender;
                 senderName = request.senderName || 'Unknown User';
-            } else {
-                console.warn('[messages.js] Invalid sender data:', request.sender);
-                senderId = 'unknown';
-                senderName = 'Unknown User';
-            }
-            
-            // Warn if we don't have a proper sender ID
-            if (!senderId || senderId === 'unknown') {
-                console.warn('[messages.js] Missing sender ID for request:', request);
             }
             
             console.log(`[messages.js] Request ${requestId} from ${senderName} (${senderId})`);
@@ -403,7 +277,16 @@ function displayFriendRequests() {
         
         // Add event listeners for buttons
         addFriendRequestButtonListeners();
-        
+        })
+        .catch(error => {
+            console.error('Error fetching friend requests:', error);
+            requestsContainer.innerHTML = `
+                <div class="empty-state error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading friend requests</p>
+                    <p class="error-details">${error.message}</p>
+                </div>`;
+        });
     } catch (err) {
         console.error('Error displaying friend requests:', err);
         requestsContainer.innerHTML = `
@@ -425,36 +308,6 @@ function displayFriends() {
     }
     
     try {
-        // Get current user info
-        const userInfoStr = localStorage.getItem('userInfo');
-        if (!userInfoStr) {
-            console.error('[messages.js] No userInfo in localStorage');
-            friendsContainer.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-user-friends"></i>
-                    <p>No friends yet</p>
-                </div>`;
-            return;
-        }
-        
-        const userInfo = JSON.parse(userInfoStr);
-        console.log('[messages.js] User info from localStorage:', userInfo);
-        
-        // Get friends list
-        const friendIds = userInfo.friends || [];
-        console.log('[messages.js] Friends in localStorage:', friendIds);
-        
-        // If no friends, show empty state
-        if (!friendIds.length) {
-            console.log('[messages.js] No friends found in user info');
-            friendsContainer.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-user-friends"></i>
-                    <p>No friends yet</p>
-                </div>`;
-            return;
-        }
-        
         // Show loading state
         friendsContainer.innerHTML = `
             <div class="loading-state">
@@ -462,18 +315,21 @@ function displayFriends() {
                 <p>Loading friends...</p>
             </div>`;
             
-        // Always make an API call to get fresh friend data
-        console.log('[messages.js] Making API call to fetch fresh friends data');
+        // Get the API URL from config
+        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
         const token = localStorage.getItem('token');
+        
         if (!token) {
             console.error('[messages.js] No token found, cannot fetch friends data');
+            friendsContainer.innerHTML = `
+                <div class="empty-state error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Authentication error</p>
+                </div>`;
             return;
         }
         
-        // Get the API URL from config
-        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
-        
-        // Fetch friends data
+        // Fetch friends data directly from the database API
         fetch(`${apiUrl}/friends`, {
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -486,82 +342,20 @@ function displayFriends() {
         .then(data => {
             console.log('[messages.js] Friends API response data:', data);
             
-            if (data.success && data.data && data.data.length > 0) {
-                // Update localStorage with fresh friend data
-                userInfo.friendsData = data.data;
-                localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                
-                // Now render the friends with fresh data
-                renderFriends(data.data);
-            } else {
-                console.log('[messages.js] No friends returned from API or empty list');
-                
-                // Check if we have any cached friend data to use as fallback
-                let cachedFriendsData = userInfo.friendsData || [];
-                
-                if (cachedFriendsData.length > 0) {
-                    console.log('[messages.js] Using cached friend data as fallback:', cachedFriendsData);
-                    renderFriends(cachedFriendsData);
-                } else {
-                    // Fallback to using IDs only if we have basic data
-                    if (friendIds.length > 0) {
-                        console.log('[messages.js] Using friend IDs to display basic info');
-                        // Force a delay to make sure we have latest socket events processed
-                        setTimeout(() => {
-                            const basicFriendsData = friendIds.map(id => ({ 
-                                _id: id, 
-                                username: 'Loading...', 
-                                email: '' 
-                            }));
-                            renderFriends(basicFriendsData);
-                        }, 500);
-                    } else {
-                        friendsContainer.innerHTML = `
-                            <div class="empty-state">
-                                <i class="fas fa-user-friends"></i>
-                                <p>No friends yet</p>
-                            </div>`;
-                    }
-                }
-            }
-        })
-        .catch(error => {
-            console.error('[messages.js] Error fetching friends:', error);
-            
-            // Fallback to using cached data if available
-            const cachedFriendsData = userInfo.friendsData || [];
-            
-            if (cachedFriendsData.length > 0) {
-                console.log('[messages.js] Using cached friend data after error:', cachedFriendsData);
-                renderFriends(cachedFriendsData);
-            } else if (friendIds.length > 0) {
-                console.log('[messages.js] Using friend IDs to display basic info after error');
-                const basicFriendsData = friendIds.map(id => ({ 
-                    _id: id, 
-                    username: 'Friend', 
-                    email: '' 
-                }));
-                renderFriends(basicFriendsData);
-            } else {
-                friendsContainer.innerHTML = `
-                    <div class="empty-state error">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p>Error loading friends</p>
-                        <p class="error-details">${error.message}</p>
-                    </div>`;
-            }
-        });
-        
-        // Helper function to render friends
-        function renderFriends(friends) {
             // Clear container
             friendsContainer.innerHTML = '';
+            
+            // Get the friends data
+            const friends = data.data || [];
             
             if (!friends.length) {
                 friendsContainer.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-user-friends"></i>
                         <p>No friends yet</p>
+                        <button class="btn btn-primary mt-3" onclick="window.location.href='players.html'">
+                            <i class="fas fa-user-plus"></i> Find Friends
+                        </button>
                     </div>`;
                 return;
             }
@@ -624,7 +418,16 @@ function displayFriends() {
             
             // Add event listeners to the action buttons
             addFriendActionListeners();
-        }
+        })
+        .catch(error => {
+            console.error('Error fetching friends:', error);
+            friendsContainer.innerHTML = `
+                <div class="empty-state error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading friends</p>
+                    <p class="error-details">${error.message}</p>
+                </div>`;
+        });
     } catch (err) {
         console.error('Error displaying friends list:', err);
         friendsContainer.innerHTML = `
@@ -633,107 +436,6 @@ function displayFriends() {
                 <p>Error loading friends</p>
                 <p class="error-details">${err.message}</p>
             </div>`;
-    }
-}
-
-// Function to add event listeners to invite buttons
-function addInviteButtonListeners() {
-    // First check if SocketHandler is available
-    if (typeof SocketHandler !== 'undefined' && typeof SocketHandler.addInviteButtonListeners === 'function') {
-        SocketHandler.addInviteButtonListeners();
-        return;
-    }
-    
-    // Fallback implementation
-    // Accept invite buttons
-    document.querySelectorAll('.accept-invite').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            const lobbyId = this.dataset.lobbyId;
-            const inviteItem = this.closest('.invite-item');
-            const inviteId = inviteItem ? inviteItem.dataset.id : null;
-            
-            if (lobbyId && inviteId) {
-                // Show loading state
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Joining...';
-                this.disabled = true;
-                
-                // Remove invite from storage
-                removeInvite(inviteId);
-                
-                // Show notification
-                showNotification('Joining Lobby', 'Redirecting to lobby...');
-                
-                // Redirect to lobby page
-                setTimeout(() => {
-                    window.location.href = `lobby.html?id=${lobbyId}&join=true`;
-                }, 1000);
-            }
-        });
-    });
-    
-    // Reject invite buttons
-    document.querySelectorAll('.reject-invite').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            const inviteItem = this.closest('.invite-item');
-            const inviteId = inviteItem ? inviteItem.dataset.id : null;
-            
-            if (inviteId) {
-                // Show loading state
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Declining...';
-                this.disabled = true;
-                
-                // Remove invite from storage
-                removeInvite(inviteId);
-                
-                // Remove invite item from UI with animation
-                if (inviteItem && inviteItem.parentNode) {
-                    inviteItem.classList.add('fade-out');
-                    
-                    setTimeout(() => {
-                        inviteItem.parentNode.removeChild(inviteItem);
-                        
-                        // Check if there are no more invites
-                        const invitesContainer = document.getElementById('invites-container');
-                        if (invitesContainer && (!invitesContainer.children.length || invitesContainer.children.length === 0)) {
-                            invitesContainer.innerHTML = `
-                                <div class="empty-state">
-                                    <i class="fas fa-envelope-open"></i>
-                                    <p>No invites</p>
-                                </div>`;
-                        }
-                    }, 500);
-                }
-                
-                // Show notification
-                showNotification('Invite Declined', 'The invitation has been declined');
-            }
-        });
-    });
-}
-
-// Function to remove an invite from storage
-function removeInvite(inviteId) {
-    // Use SocketHandler if available
-    if (typeof SocketHandler !== 'undefined' && typeof SocketHandler.removeInvite === 'function') {
-        return SocketHandler.removeInvite(inviteId);
-    }
-    
-    // Fallback implementation
-    try {
-        let invites = [];
-        const invitesStr = localStorage.getItem('invites');
-        
-        if (invitesStr) {
-            invites = JSON.parse(invitesStr);
-            
-            // Remove the invite with the matching ID
-            invites = invites.filter(invite => invite.id !== inviteId);
-            
-            // Save updated invites
-            localStorage.setItem('invites', JSON.stringify(invites));
-        }
-    } catch (err) {
-        console.error('Error removing invite:', err);
     }
 }
 
@@ -781,290 +483,96 @@ function showNotification(title, message, type = 'info') {
     }
 }
 
-// Decline invite
-function declineInvite(inviteId) {
-    console.log('Declining invite:', inviteId);
-    
-    // Find the invite in storage
-    let invites = [];
-    try {
-        const invitesJSON = localStorage.getItem('invites');
-        if (invitesJSON) {
-            invites = JSON.parse(invitesJSON);
-        }
-    } catch (e) {
-        console.error('Error parsing invites from localStorage:', e);
-    }
-    
-    // Filter out the declined invite
-    const updatedInvites = invites.filter(invite => invite.id !== inviteId);
-    
-    // Save back to storage
-    localStorage.setItem('invites', JSON.stringify(updatedInvites));
-    
-    // Notify via socket if available
-    if (window.SocketHandler && window.SocketHandler.socket && window.SocketHandler.isConnected) {
-        window.SocketHandler.socket.emit('decline-invite', { inviteId });
-    }
-    
-    // Create notification directly to avoid recursive calls
-    console.log('[messages.js] Creating direct notification for decline invite');
-    
-    const notificationContainer = document.getElementById('notification-container');
-    if (notificationContainer) {
-        const notification = document.createElement('div');
-        notification.className = 'notification';
-        notification.innerHTML = `
-            <div class="notification-header">
-                <span class="notification-title">Invite Declined</span>
-                <button class="notification-close">&times;</button>
-            </div>
-            <div class="notification-body">
-                The invitation has been declined
-            </div>
-        `;
-        
-        notificationContainer.appendChild(notification);
-        
-        // Add close button functionality
-        const closeButton = notification.querySelector('.notification-close');
-        if (closeButton) {
-            closeButton.addEventListener('click', () => {
-                notification.remove();
-            });
-        }
-        
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            notification.remove();
-        }, 5000);
-    } else {
-        console.log('Invite declined: The invitation has been declined');
-    }
-    
-    // Remove from UI
-    const inviteItem = document.querySelector(`.invite-item[data-id="${inviteId}"]`);
-    if (inviteItem) {
-        inviteItem.remove();
-        
-        // Check if we need to show "no invites" message
-        const remainingInvites = document.querySelectorAll('.invite-item');
-        if (remainingInvites.length === 0) {
-            const invitesContainer = document.querySelector('.invites-list');
-            if (invitesContainer) {
-                invitesContainer.innerHTML = '<p class="no-invites-message">No invites to show</p>';
-            }
-        }
-    }
-    
-    // Refresh unread count
-    updateUnreadCount();
-}
-
-// Make key functions globally available
-window.displayUserInvites = displayUserInvites;
-window.displayFriendRequests = displayFriendRequests;
-window.displayFriends = displayFriends;
-window.showNotification = showNotification;
-
-// Add button event listeners
-function addButtonEventListeners() {
-    console.log('[messages.js] Adding event listeners to buttons');
-    
-    // Add event listeners to decline buttons
-    document.querySelectorAll('.decline-invite').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const inviteItem = e.target.closest('.invite-item');
-            const inviteId = inviteItem?.dataset.id;
-            
-            if (inviteId) {
-                // Show loading state
-                const originalText = button.innerHTML;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                button.disabled = true;
-                
-                // Call our new decline function
-                declineInvite(inviteId);
-            } else {
-                console.error('Cannot decline invite: No invite ID found');
-            }
-        });
-    });
-    
-    // Add event listeners to accept buttons - these will be handled by socket-handler
-    
-    // Add refresh button listener
-    const refreshButton = document.querySelector('#refresh-invites-btn');
-    if (refreshButton) {
-        refreshButton.addEventListener('click', () => {
-            loadAndDisplayInvites();
-        });
-    }
-}
-
-// Make sure to update event listeners when invites are loaded
-function updateEventListeners() {
-    addButtonEventListeners();
-}
-
-// Initialize tabs
-function initializeTabs() {
-    console.log('[messages.js] Initializing tabs');
-    
-    try {
-        // Get all tab navigation links
-        const tabLinks = document.querySelectorAll('.nav-link[data-tab]');
-        
-        // Get all tab content containers
-        const tabContents = document.querySelectorAll('.tab-content');
-        
-        // Set the "Invites" tab as active by default
-        let inviteTabActivated = false;
-        
-        tabLinks.forEach(link => {
-            // Add click event listeners to each tab link
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                
-                // Get the tab ID from the data-tab attribute
-                const tabId = link.getAttribute('data-tab');
-                console.log(`Tab link clicked: ${tabId}`);
-                
-                // Remove active class from all links
-                tabLinks.forEach(l => l.classList.remove('active'));
-                
-                // Add active class to clicked link
-                link.classList.add('active');
-                
-                // Hide all tab contents
-                tabContents.forEach(content => content.classList.remove('active'));
-                
-                // Show the selected tab content
-                const selectedContent = document.getElementById(`${tabId}-tab`);
-                if (selectedContent) {
-                    selectedContent.classList.add('active');
-                    
-                    // If switching to the invites tab, refresh invites
-                    if (tabId === 'invites') {
-                        loadAndDisplayInvites();
-                    }
-                }
-            });
-            
-            // Set "Invites" tab as active by default
-            if (link.getAttribute('data-tab') === 'invites' && !inviteTabActivated) {
-                // Trigger click to activate this tab
-                link.classList.add('active');
-                const invitesTab = document.getElementById('invites-tab');
-                if (invitesTab) {
-                    tabContents.forEach(content => content.classList.remove('active'));
-                    invitesTab.classList.add('active');
-                }
-                inviteTabActivated = true;
-            }
-        });
-        
-        // If no tabs were activated, activate the first one
-        if (!inviteTabActivated && tabLinks.length > 0) {
-            const firstTab = tabLinks[0];
-            firstTab.classList.add('active');
-            
-            const firstTabId = firstTab.getAttribute('data-tab');
-            const firstTabContent = document.getElementById(`${firstTabId}-tab`);
-            if (firstTabContent) {
-                tabContents.forEach(content => content.classList.remove('active'));
-                firstTabContent.classList.add('active');
-            }
-        }
-        
-        console.log('Tabs initialized successfully');
-    } catch (err) {
-        console.error('Error initializing tabs:', err);
-    }
-}
-
-// Load and display invites
+// Function to load and display invites 
 function loadAndDisplayInvites() {
     console.log('[messages.js] Loading and displaying invites');
+    const invitesContainer = document.getElementById('invites-container');
     
+    if (!invitesContainer) {
+        console.error('[messages.js] Invites container not found');
+            return;
+        }
+        
     try {
-        // Get current user
-        const userInfoStr = localStorage.getItem('userInfo');
-        if (!userInfoStr) {
-            console.error('No user info found in localStorage');
+        // Show loading state
+        invitesContainer.innerHTML = `
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading invites...</p>
+            </div>`;
+        
+        // Get the API URL from config
+        const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+            console.error('[messages.js] No token found, cannot fetch invites');
+            invitesContainer.innerHTML = `
+                <div class="empty-state error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Authentication error</p>
+                </div>`;
             return;
         }
         
-        const userInfo = JSON.parse(userInfoStr);
-        const userId = userInfo._id;
-        
-        if (!userId) {
-            console.error('User ID not found in user info');
-            return;
-        }
-        
-        // Get invites from localStorage
-        let invites = [];
-        const invitesStr = localStorage.getItem('invites');
-        
-        if (invitesStr) {
-            try {
-                const allInvites = JSON.parse(invitesStr);
-                
-                // Filter invites for current user
-                invites = allInvites.filter(invite => 
-                    invite.recipientId === userId || invite.recipientId === userId.toString()
-                );
-                
-                console.log(`Found ${invites.length} invites for user ${userId}`);
-            } catch (e) {
-                console.error('Error parsing invites from localStorage:', e);
+        // Fetch invites from the database API
+        fetch(`${apiUrl}/invites`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
             }
-        }
-        
-        // Get the invites container
-        const invitesContainer = document.querySelector('.invites-list');
-        if (!invitesContainer) {
-            console.error('Invites container not found in DOM');
-            return;
-        }
+        })
+        .then(response => {
+            console.log('[messages.js] Invites API response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('[messages.js] Invites API response data:', data);
         
         // Clear container
         invitesContainer.innerHTML = '';
         
-        if (invites.length === 0) {
-            invitesContainer.innerHTML = '<p class="no-invites-message">No invites to show</p>';
+            // Get the invites data
+            const invites = data.invites || [];
+            
+            if (!invites.length) {
+                invitesContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-envelope-open"></i>
+                        <p>No invites</p>
+                    </div>`;
             return;
         }
         
         // Sort invites by date (newest first)
-        invites.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+            invites.sort((a, b) => {
+                const dateA = new Date(a.createdAt || a.timestamp || 0);
+                const dateB = new Date(b.createdAt || b.timestamp || 0);
+                return dateB - dateA;
+            });
         
         // Add each invite to UI
         invites.forEach(invite => {
             const inviteEl = document.createElement('div');
-            inviteEl.className = 'invite-item';
-            inviteEl.dataset.id = invite.id;
-            inviteEl.dataset.lobbyId = invite.lobbyId;
+                inviteEl.className = 'invite-item pulse-glow';
+                inviteEl.dataset.id = invite._id || invite.id;
             
-            const timestamp = invite.timestamp ? new Date(invite.timestamp) : new Date();
-            const time = timestamp.toLocaleTimeString();
-            const date = timestamp.toLocaleDateString();
+                const time = new Date(invite.createdAt || invite.timestamp).toLocaleTimeString();
+                const date = new Date(invite.createdAt || invite.timestamp).toLocaleDateString();
             
             inviteEl.innerHTML = `
                 <div class="invite-header">
-                    <span class="invite-game">${invite.gameType || 'Game'}</span>
+                        <span class="invite-game neon-text-secondary">${invite.gameType || 'Game'}</span>
                     <span class="invite-time">${time} ${date}</span>
                 </div>
                 <div class="invite-body">
-                    <p><strong>${invite.senderName || 'Someone'}</strong> invited you to join "<span class="lobby-name">${invite.lobbyName || 'a lobby'}</span>"</p>
+                        <p><strong>${invite.senderName}</strong> invited you to join "<span class="neon-text">${invite.lobbyName}</span>"</p>
                     <p class="invite-message">${invite.message || ''}</p>
                 </div>
                 <div class="invite-actions">
                     <button class="btn btn-primary accept-invite" data-lobby-id="${invite.lobbyId}">
                         <i class="fas fa-check"></i> Accept & Join
                     </button>
-                    <button class="btn btn-danger decline-invite">
+                        <button class="btn btn-danger reject-invite" data-invite-id="${invite._id || invite.id}">
                         <i class="fas fa-times"></i> Decline
                     </button>
                 </div>
@@ -1073,16 +581,42 @@ function loadAndDisplayInvites() {
             invitesContainer.appendChild(inviteEl);
         });
         
-        // Update unread count
-        updateUnreadCount();
-        
         // Add event listeners to buttons
-        updateEventListeners();
-        
-        console.log('Invites displayed and event listeners attached');
+            addInviteButtonListeners();
+            
+            // Update badge count
+            updateInviteBadge(invites.length);
+        })
+        .catch(error => {
+            console.error('Error fetching invites:', error);
+            invitesContainer.innerHTML = `
+                <div class="empty-state error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading invites</p>
+                    <p class="error-details">${error.message}</p>
+                </div>`;
+        });
     } catch (err) {
         console.error('Error displaying invites:', err);
-        showNotification('Error', 'Could not load invites', 'error');
+        invitesContainer.innerHTML = `
+            <div class="empty-state error">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Error loading invites</p>
+                <p class="error-details">${err.message}</p>
+            </div>`;
+    }
+}
+
+// Function to update the invite badge with a count
+function updateInviteBadge(count) {
+    const badge = document.querySelector('.invite-badge');
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count;
+            badge.classList.add('show');
+        } else {
+            badge.classList.remove('show');
+        }
     }
 }
 
@@ -1090,39 +624,24 @@ function loadAndDisplayInvites() {
 function updateUnreadCount() {
     console.log('[messages.js] Updating unread count');
     
-    try {
-        // Get current user
-        const userInfoStr = localStorage.getItem('userInfo');
-        if (!userInfoStr) {
-            return;
+    // Get the API URL from config
+    const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+        console.error('[messages.js] No token found, cannot fetch unread counts');
+        return;
+    }
+    
+    // Fetch invites count from the API
+    fetch(`${apiUrl}/invites/count`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
         }
-        
-        const userInfo = JSON.parse(userInfoStr);
-        const userId = userInfo._id;
-        
-        if (!userId) {
-            return;
-        }
-        
-        // Get invites from localStorage
-        let invites = [];
-        const invitesStr = localStorage.getItem('invites');
-        
-        if (invitesStr) {
-            try {
-                const allInvites = JSON.parse(invitesStr);
-                
-                // Filter invites for current user
-                invites = allInvites.filter(invite => 
-                    invite.recipientId === userId || invite.recipientId === userId.toString()
-                );
-            } catch (e) {
-                console.error('Error parsing invites from localStorage:', e);
-            }
-        }
-        
-        // Count unread invites (all invites are considered unread for now)
-        const unreadCount = invites.length;
+    })
+    .then(response => response.json())
+    .then(data => {
+        const unreadCount = data.count || 0;
         
         // Update UI elements with unread count
         const unreadBadges = document.querySelectorAll('.unread-badge');
@@ -1151,13 +670,261 @@ function updateUnreadCount() {
             }
         }
         
-        console.log(`Updated unread count: ${unreadCount}`);
-    } catch (err) {
-        console.error('Error updating unread count:', err);
+        // Update invite badge
+        updateInviteBadge(unreadCount);
+        
+        console.log(`[messages.js] Updated unread count: ${unreadCount}`);
+    })
+    .catch(error => {
+        console.error('[messages.js] Error fetching unread count:', error);
+    });
+}
+
+// Add button event listeners
+function addButtonEventListeners() {
+    console.log('[messages.js] Adding event listeners to buttons');
+    
+    // Add event listeners for invite buttons
+    if (typeof addInviteButtonListeners === 'function') {
+        addInviteButtonListeners();
+    }
+    
+    // Add event listeners for friend request buttons
+    if (typeof addFriendRequestButtonListeners === 'function') {
+        addFriendRequestButtonListeners();
+    }
+    
+    // Add event listeners for friend action buttons
+    if (typeof addFriendActionListeners === 'function') {
+        addFriendActionListeners();
+    }
+    
+    // Add refresh button listener
+    const refreshButton = document.querySelector('#refresh-invites-btn');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', () => {
+            loadAndDisplayInvites();
+        });
     }
 }
 
-// Add event listeners for friend request buttons
+// Make sure to update event listeners when invites are loaded
+function updateEventListeners() {
+    addButtonEventListeners();
+}
+
+// Function to initialize tabs
+function initializeTabs() {
+    const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+    navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+            // Get the tab identifier
+                const tabId = link.getAttribute('data-tab');
+            console.log(`[messages.js] Switching to tab: ${tabId}`);
+                
+            // Remove active class from all links and tabs
+            navLinks.forEach(navLink => navLink.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+                
+            // Add active class to current link and tab
+                link.classList.add('active');
+            const activeTab = document.getElementById(`${tabId}-tab`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
+            
+            // When switching to friends tab, refresh friends data
+            if (tabId === 'friends') {
+                console.log('[messages.js] Refreshing friends data');
+                displayFriends();
+                displayFriendRequests();
+            }
+            
+            // When switching to invites tab, refresh invites data
+                    if (tabId === 'invites') {
+                console.log('[messages.js] Refreshing invites data');
+                        loadAndDisplayInvites();
+            }
+        });
+    });
+}
+
+// Function to add invite button event listeners
+function addInviteButtonListeners() {
+    console.log('[messages.js] Adding invite button listeners');
+    
+    // Accept invite buttons
+    document.querySelectorAll('.accept-invite').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const lobbyId = btn.dataset.lobbyId;
+            const inviteItem = btn.closest('.invite-item');
+            const inviteId = inviteItem?.dataset.id;
+            
+            if (!lobbyId) {
+                console.error('Missing lobby ID for invite');
+                showNotification('Error', 'Invalid invite data', 'error');
+                return;
+            }
+            
+            console.log(`[messages.js] Accepting invite to lobby: ${lobbyId}`);
+            
+            try {
+                // Show loading state
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Joining...';
+                btn.disabled = true;
+                
+                // Get API URL and token
+                const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+                const token = localStorage.getItem('token');
+                
+                // Make API call to accept the invite
+                const response = await fetch(`${apiUrl}/invites/${inviteId}/accept`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('[messages.js] Accept invite response:', data);
+                
+                if (response.ok && data.success) {
+                    // Remove the invite from UI with animation
+                    if (inviteItem) {
+                        inviteItem.classList.add('fade-out');
+                        setTimeout(() => {
+                            inviteItem.remove();
+                            // Check if there are no more invites
+                            if (document.querySelectorAll('.invite-item').length === 0) {
+                                const container = document.getElementById('invites-container');
+                                if (container) {
+                                    container.innerHTML = `
+                                        <div class="empty-state">
+                                            <i class="fas fa-envelope-open"></i>
+                                            <p>No invites</p>
+                                        </div>`;
+                                }
+                            }
+                        }, 500);
+                    }
+                    
+                    // Show success notification
+                    showNotification('Success', 'Invite accepted! Redirecting to lobby...', 'success');
+                    
+                    // Redirect to the lobby page
+                    setTimeout(() => {
+                        window.location.href = `lobby.html?id=${lobbyId}`;
+                    }, 1000);
+                } else {
+                    // Reset button
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    
+                    // Show error
+                    const errorMessage = data?.message || 'Failed to accept invite';
+                    console.error('[messages.js] Accept invite failed:', errorMessage);
+                    showNotification('Error', errorMessage, 'error');
+                }
+            } catch (error) {
+                console.error('[messages.js] Error accepting invite:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showNotification('Error', 'Could not process invite', 'error');
+            }
+        });
+    });
+    
+    // Reject/decline invite buttons
+    document.querySelectorAll('.reject-invite').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const inviteItem = btn.closest('.invite-item');
+            const inviteId = btn.dataset.inviteId || inviteItem?.dataset.id;
+            
+            if (!inviteId) {
+                console.error('Missing invite ID');
+                showNotification('Error', 'Invalid invite data', 'error');
+                return;
+            }
+            
+            console.log(`[messages.js] Rejecting invite: ${inviteId}`);
+            
+            try {
+                // Show loading state
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Declining...';
+                btn.disabled = true;
+                
+                // Get API URL and token
+                const apiUrl = window.APP_CONFIG?.API_URL || '/api';
+                const token = localStorage.getItem('token');
+                
+                // Make API call to reject the invite
+                const response = await fetch(`${apiUrl}/invites/${inviteId}/reject`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('[messages.js] Reject invite response:', data);
+                
+                if (response.ok && data.success) {
+                    // Remove the invite from UI with animation
+                    if (inviteItem) {
+                        inviteItem.classList.add('fade-out');
+                        setTimeout(() => {
+                            inviteItem.remove();
+                            // Check if there are no more invites
+                            if (document.querySelectorAll('.invite-item').length === 0) {
+                                const container = document.getElementById('invites-container');
+                                if (container) {
+                                    container.innerHTML = `
+                                        <div class="empty-state">
+                                            <i class="fas fa-envelope-open"></i>
+                                            <p>No invites</p>
+                                        </div>`;
+                                }
+                            }
+                        }, 500);
+                    }
+                    
+                    // Show success notification
+                    showNotification('Success', 'Invite declined', 'info');
+                    
+                    // Update badge count
+                    const remainingCount = document.querySelectorAll('.invite-item').length - 1;
+                    updateInviteBadge(Math.max(0, remainingCount));
+                } else {
+                    // Reset button
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    
+                    // Show error
+                    const errorMessage = data?.message || 'Failed to decline invite';
+                    console.error('[messages.js] Reject invite failed:', errorMessage);
+                    showNotification('Error', errorMessage, 'error');
+                }
+            } catch (error) {
+                console.error('[messages.js] Error rejecting invite:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showNotification('Error', 'Could not process invite', 'error');
+            }
+        });
+    });
+}
+
+// Function to add event listeners to friend request buttons
 function addFriendRequestButtonListeners() {
     console.log('[messages.js] Adding friend request button listeners');
     
@@ -1168,6 +935,7 @@ function addFriendRequestButtonListeners() {
             const senderId = btn.dataset.id;
             const requestId = btn.dataset.requestId;
             const senderName = btn.dataset.senderName || 'User';
+            const requestItem = btn.closest('.friend-request-item');
             
             if (!senderId || !requestId) {
                 console.error('Missing sender ID or request ID:', { senderId, requestId });
@@ -1183,32 +951,13 @@ function addFriendRequestButtonListeners() {
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
                 btn.disabled = true;
                 
-                // Get the API URL
+                // Get API URL and token
                 const apiUrl = window.APP_CONFIG?.API_URL || '/api';
                 const token = localStorage.getItem('token');
+                
+                // Define the API endpoint URL
                 const url = `${apiUrl}/friends/accept/${requestId}`;
-                
-                // Get the request item for UI updates
-                const requestItem = btn.closest('.friend-request-item');
-                
-                console.log(`[messages.js] Making API call to: ${url} with senderId: ${senderId}, senderName: ${senderName}`);
-                
-                // First try to sync the request with the server
-                if (window.SocketHandler && typeof window.SocketHandler.syncFriendRequestWithServer === 'function') {
-                    try {
-                        console.log('[messages.js] Syncing friend request with server before accepting');
-                        await window.SocketHandler.syncFriendRequestWithServer({
-                            requestId: requestId,
-                            senderId: senderId,
-                            senderName: senderName,
-                            message: `${senderName} would like to be your friend!`
-                        });
-                        console.log('[messages.js] Friend request synced with server');
-                    } catch (syncError) {
-                        console.warn('[messages.js] Error syncing friend request:', syncError);
-                        // Continue anyway, as the accept attempt might still work
-                    }
-                }
+                console.log(`[messages.js] Making API call to: ${url}`);
                 
                 // Make API call to accept the request
                 const response = await fetch(url, {
@@ -1237,11 +986,6 @@ function addFriendRequestButtonListeners() {
                 }
                 
                 if (response.ok && data.success) {
-                    // Update localStorage
-                    if (data.userInfo) {
-                        localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
-                    }
-                    
                     // Remove the request from UI
                     if (requestItem) {
                         requestItem.classList.add('fade-out');
@@ -1271,58 +1015,8 @@ function addFriendRequestButtonListeners() {
                     // Emit socket event if available
                     if (window.SocketHandler && window.SocketHandler.socket) {
                         window.SocketHandler.socket.emit('friend-request-accepted', {
-                            senderId: senderId,
-                            acceptorName: JSON.parse(localStorage.getItem('userInfo'))?.username || 'User'
+                            senderId: senderId
                         });
-                    }
-                } else if (response.status === 404) {
-                    console.log('[messages.js] Friend request not found on server, attempting to create virtual request');
-                    
-                    // Try to make a virtual request directly
-                    const virtualRequestUrl = `${apiUrl}/users/friends/accept/${requestId}`;
-                    console.log(`[messages.js] Making virtual request to: ${virtualRequestUrl}`);
-                    
-                    const virtualResponse = await fetch(virtualRequestUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            senderId: senderId,
-                            senderName: senderName,
-                            requestId: requestId
-                        })
-                    });
-                    
-                    console.log(`[messages.js] Virtual request response status: ${virtualResponse.status}`);
-                    const virtualData = await virtualResponse.json();
-                    console.log('[messages.js] Virtual request response data:', virtualData);
-                    
-                    if (virtualResponse.ok && virtualData.success) {
-                        // Update localStorage
-                        if (virtualData.userInfo) {
-                            localStorage.setItem('userInfo', JSON.stringify(virtualData.userInfo));
-                        }
-                        
-                        // Remove the request from UI
-                        if (requestItem) {
-                            requestItem.classList.add('fade-out');
-                            setTimeout(() => requestItem.remove(), 500);
-                        }
-                        
-                        // Show success notification
-                        showNotification('Success', `Friend request from ${senderName} accepted!`, 'success');
-                        
-                        // Update friends list
-                        displayFriends();
-                    } else {
-                        // Reset button
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                        
-                        // Show error
-                        showNotification('Error', virtualData?.message || 'Failed to accept friend request', 'error');
                     }
                 } else {
                     // Reset button
@@ -1339,22 +1033,6 @@ function addFriendRequestButtonListeners() {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
                 showNotification('Error', error.message || 'Could not process friend request', 'error');
-                
-                // If error, try to sync the request with the server and retry
-                if (window.SocketHandler) {
-                    console.log('[messages.js] Error occurred, attempting to sync with server...');
-                    
-                    // Use SocketHandler to sync the request
-                    window.SocketHandler.syncFriendRequestWithServer({
-                        requestId: requestId,
-                        senderId: senderId,
-                        senderName: senderName,
-                        message: `${senderName} would like to be your friend!`
-                    });
-                    
-                    // Show a notification
-                    showNotification('Info', 'Trying to sync your friend requests. Please try again in a moment.', 'info');
-                }
             }
         });
     });
@@ -1366,6 +1044,7 @@ function addFriendRequestButtonListeners() {
             const senderId = btn.dataset.id;
             const requestId = btn.dataset.requestId;
             const senderName = btn.dataset.senderName || 'User';
+            const requestItem = btn.closest('.friend-request-item');
             
             if (!senderId || !requestId) {
                 console.error('Missing sender ID or request ID:', { senderId, requestId });
@@ -1381,29 +1060,15 @@ function addFriendRequestButtonListeners() {
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
                 btn.disabled = true;
                 
-                // Get the API URL
+                // Get API URL and token
                 const apiUrl = window.APP_CONFIG?.API_URL || '/api';
                 const token = localStorage.getItem('token');
                 
-                // First try to sync the request with the server
-                if (window.SocketHandler && typeof window.SocketHandler.syncFriendRequestWithServer === 'function') {
-                    try {
-                        console.log('[messages.js] Syncing friend request with server before rejecting');
-                        await window.SocketHandler.syncFriendRequestWithServer({
-                            requestId: requestId,
-                            senderId: senderId,
-                            senderName: senderName,
-                            message: `${senderName} would like to be your friend!`
-                        });
-                        console.log('[messages.js] Friend request synced with server');
-                    } catch (syncError) {
-                        console.warn('[messages.js] Error syncing friend request:', syncError);
-                        // Continue anyway, as the reject attempt might still work
-                    }
-                }
-                
                 // Make API call to reject the request
-                const response = await fetch(`${apiUrl}/friends/reject/${requestId}`, {
+                const url = `${apiUrl}/friends/reject/${requestId}`;
+                console.log(`[messages.js] Making API call to: ${url}`);
+                
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1417,29 +1082,19 @@ function addFriendRequestButtonListeners() {
                 });
                 
                 console.log(`[messages.js] Response status: ${response.status}`);
-                const data = await response.json();
-                console.log('[messages.js] Response data:', data);
+                
+                // Parse the response
+                let data;
+                try {
+                    data = await response.json();
+                    console.log('[messages.js] Response data:', data);
+                } catch (jsonError) {
+                    console.error('[messages.js] Error parsing JSON response:', jsonError);
+                    throw new Error('Invalid server response');
+                }
                 
                 if (response.ok && data.success) {
-                    // Update localStorage
-                    if (data.userInfo) {
-                        localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
-                    } else {
-                        // If no userInfo in response, manually update the local request status
-                        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-                        if (userInfo.friendRequests && userInfo.friendRequests.received) {
-                            const requestIndex = userInfo.friendRequests.received.findIndex(
-                                req => req._id === requestId
-                            );
-                            if (requestIndex !== -1) {
-                                userInfo.friendRequests.received[requestIndex].status = 'rejected';
-                                localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                            }
-                        }
-                    }
-                    
                     // Remove the request from UI
-                    const requestItem = btn.closest('.friend-request-item');
                     if (requestItem) {
                         requestItem.classList.add('fade-out');
                         setTimeout(() => {
@@ -1460,77 +1115,29 @@ function addFriendRequestButtonListeners() {
                     }
                     
                     // Show success notification
-                    showNotification('Friend Request', `Friend request from ${senderName} declined`, 'info');
-                } else if (response.status === 404) {
-                    console.log('[messages.js] Friend request not found on server, attempting to handle locally');
+                    showNotification('Success', `Friend request from ${senderName} declined`, 'info');
                     
-                    // Update locally even if server request failed
-                    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-                    if (userInfo.friendRequests && userInfo.friendRequests.received) {
-                        const requestIndex = userInfo.friendRequests.received.findIndex(
-                            req => req._id === requestId
-                        );
-                        if (requestIndex !== -1) {
-                            userInfo.friendRequests.received[requestIndex].status = 'rejected';
-                            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                            
-                            // Remove the request from UI
-                            const requestItem = btn.closest('.friend-request-item');
-                            if (requestItem) {
-                                requestItem.classList.add('fade-out');
-                                setTimeout(() => requestItem.remove(), 500);
-                            }
-                            
-                            // Show success notification
-                            showNotification('Friend Request', `Friend request declined locally`, 'info');
+                    // Emit socket event if available
+                    if (window.SocketHandler && window.SocketHandler.socket) {
+                        window.SocketHandler.socket.emit('friend-request-rejected', {
+                            senderId: senderId
+                        });
+                    }
                         } else {
                             // Reset button
                             btn.innerHTML = originalText;
                             btn.disabled = false;
                             
                             // Show error
-                            showNotification('Error', 'Friend request not found locally or on server', 'error');
-                        }
-                    }
-                } else {
-                    // Reset button
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                    
-                    // Show error
-                    showNotification('Error', data?.message || 'Failed to decline friend request', 'error');
+                    const errorMessage = data?.message || 'Failed to decline friend request';
+                    console.error('[messages.js] Friend request rejection failed:', errorMessage);
+                    showNotification('Error', errorMessage, 'error');
                 }
             } catch (error) {
                 console.error('[messages.js] Error rejecting friend request:', error);
                 btn.innerHTML = originalText;
                 btn.disabled = false;
                 showNotification('Error', error.message || 'Could not process friend request', 'error');
-                
-                // If error, update locally as a fallback
-                try {
-                    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-                    if (userInfo.friendRequests && userInfo.friendRequests.received) {
-                        const requestIndex = userInfo.friendRequests.received.findIndex(
-                            req => req._id === requestId
-                        );
-                        if (requestIndex !== -1) {
-                            userInfo.friendRequests.received[requestIndex].status = 'rejected';
-                            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                            
-                            // Show notification
-                            showNotification('Info', 'Request was declined locally', 'info');
-                            
-                            // Remove from UI
-                            const requestItem = btn.closest('.friend-request-item');
-                            if (requestItem) {
-                                requestItem.classList.add('fade-out');
-                                setTimeout(() => requestItem.remove(), 500);
-                            }
-                        }
-                    }
-                } catch (localUpdateError) {
-                    console.error('[messages.js] Error updating local friend request:', localUpdateError);
-                }
             }
         });
     });
@@ -1541,7 +1148,7 @@ function addFriendActionListeners() {
     console.log('[messages.js] Adding friend action listeners');
     
     // View profile buttons
-    document.querySelectorAll('.view-profile').forEach(btn => {
+    document.querySelectorAll('.view-friend-profile').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             const friendId = btn.dataset.id;
@@ -1618,11 +1225,6 @@ function addFriendActionListeners() {
                 const data = await response.json();
                 
                 if (response.ok) {
-                    // Update localStorage if new user info is returned
-                    if (data.userInfo) {
-                        localStorage.setItem('userInfo', JSON.stringify(data.userInfo));
-                    }
-                    
                     // Remove the friend item from UI with animation
                     friendItem.classList.add('fade-out');
                     setTimeout(() => {
@@ -1669,4 +1271,10 @@ function addFriendActionListeners() {
             }
         });
     });
-} 
+}
+
+// Make key functions globally available
+window.displayFriendRequests = displayFriendRequests;
+window.displayFriends = displayFriends;
+window.loadAndDisplayInvites = loadAndDisplayInvites;
+window.showNotification = showNotification; 
