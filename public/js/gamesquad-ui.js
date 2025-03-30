@@ -1010,9 +1010,6 @@ function displayFriendsInSidebar(friends) {
                 </div>
             </div>
             <div class="friend-actions">
-                <button class="friend-action-btn invite-friend" title="Invite to lobby">
-                    <i class="fas fa-envelope"></i>
-                </button>
                 <button class="friend-action-btn chat-with-friend" title="Chat">
                     <i class="fas fa-comment"></i>
                 </button>
@@ -1021,15 +1018,7 @@ function displayFriendsInSidebar(friends) {
         
         friendsList.appendChild(friendItem);
         
-        // Add event listeners
-        const inviteBtn = friendItem.querySelector('.invite-friend');
-        if (inviteBtn) {
-            inviteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                window.location.href = `pages/create-lobby.html?inviteFriend=${friend._id || friend.id}`;
-            });
-        }
-        
+        // Add chat button click handler
         const chatBtn = friendItem.querySelector('.chat-with-friend');
         if (chatBtn) {
             chatBtn.addEventListener('click', (e) => {
