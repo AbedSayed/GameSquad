@@ -305,26 +305,11 @@
                         <input type="checkbox" id="termsAgree" name="termsAgree" required>
                         <label for="termsAgree">I agree to the <a href="terms.html" target="_blank">Terms of Service</a> and <a href="privacy.html" target="_blank">Privacy Policy</a></label>
                     </div>
-                    <div class="form-check">
-                        <input type="checkbox" id="newsletter" name="newsletter">
-                        <label for="newsletter">Send me gaming news and updates (optional)</label>
-                    </div>
                     <button type="submit" class="btn btn-primary btn-hover-fx">
                         <i class="fas fa-arrow-right"></i> <span>Next</span>
                     </button>
                     <div id="registerError" class="form-error"></div>
                 </form>
-                <div class="auth-divider">
-                    <span>OR</span>
-                </div>
-                <div class="social-auth">
-                    <button class="btn social-btn discord btn-hover-fx">
-                        <i class="fab fa-discord"></i> <span>Continue with Discord</span>
-                    </button>
-                    <button class="btn social-btn google btn-hover-fx">
-                        <i class="fab fa-google"></i> <span>Continue with Google</span>
-                    </button>
-                </div>
                 <div class="auth-footer">
                     <p>Already have an account? <a href="login.html" class="login-link neon-text-secondary">Login now</a></p>
                 </div>
@@ -438,7 +423,6 @@
                     const password = document.getElementById('password').value;
                     const confirmPassword = document.getElementById('confirmPassword').value;
                     const termsAgree = document.getElementById('termsAgree').checked;
-                    const newsletter = document.getElementById('newsletter').checked;
                     
                     // Basic validation
                     if (password !== confirmPassword) {
@@ -496,7 +480,6 @@
                             username,
                             email,
                             password,
-                            newsletter
                         };
                         
                         // Store data in localStorage for the next step
@@ -527,18 +510,6 @@
                             registerBtn.innerHTML = '<i class="fas fa-arrow-right"></i> <span>Next</span>';
                         }
                     }
-                });
-            }
-            
-            // Social login buttons
-            const socialButtons = document.querySelectorAll('.social-btn');
-            
-            if (socialButtons) {
-                socialButtons.forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        // Show notification that this is just a demo
-                        showNotification('Social registration is not implemented in this demo version.', 'info');
-                    });
                 });
             }
             

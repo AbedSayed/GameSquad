@@ -152,24 +152,12 @@
                             <input type="checkbox" id="rememberMe" name="rememberMe">
                             <label for="rememberMe">Remember me</label>
                         </div>
-                        <a href="forgot-password.html" class="forgot-password">Forgot password?</a>
                     </div>
                     <button type="submit" class="btn btn-primary btn-hover-fx">
                         <i class="fas fa-sign-in-alt"></i> <span>Login</span>
                     </button>
                     <div id="loginError" class="form-error"></div>
                 </form>
-                <div class="auth-divider">
-                    <span>OR</span>
-                </div>
-                <div class="social-auth">
-                    <button class="btn social-btn discord btn-hover-fx">
-                        <i class="fab fa-discord"></i> <span>Continue with Discord</span>
-                    </button>
-                    <button class="btn social-btn google btn-hover-fx">
-                        <i class="fab fa-google"></i> <span>Continue with Google</span>
-                    </button>
-                </div>
                 <div class="auth-footer">
                     <p>Don't have an account? <a href="register.html" class="register-link neon-text-secondary">Register now</a></p>
                 </div>
@@ -342,35 +330,6 @@
                     notification.classList.add('fade-out');
                     setTimeout(() => notification.remove(), 300);
                 }, 5000);
-            }
-            
-            // Social login buttons
-            const socialButtons = document.querySelectorAll('.social-btn');
-            
-            if (socialButtons) {
-                socialButtons.forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        // Show notification that this is just a demo
-                        showNotification('Social login is not implemented in this demo version.', 'info');
-                    });
-                });
-            }
-            
-            // Add demo login button with credentials that match your backend
-            const socialAuth = document.querySelector('.social-auth');
-            if (socialAuth) {
-                const demoButton = document.createElement('button');
-                demoButton.type = 'button';
-                demoButton.className = 'btn social-btn demo btn-hover-fx';
-                demoButton.innerHTML = '<i class="fas fa-user-check"></i> <span>Demo Login (Use real credentials)</span>';
-                demoButton.addEventListener('click', function() {
-                    // Set known demo credentials - modify these to match credentials your backend accepts
-                    document.getElementById('email').value = 'demo@example.com';
-                    document.getElementById('password').value = 'demo1234';
-                    showNotification('Using demo credentials. For real access, use your actual account.', 'info');
-                    // Don't auto-submit - let user click the login button
-                });
-                socialAuth.appendChild(demoButton);
             }
         });
     </script>
