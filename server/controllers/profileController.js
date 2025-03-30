@@ -129,11 +129,28 @@ const addGameRank = asyncHandler(async (req, res) => {
     throw new Error('Please provide both game and rank');
   }
 
-  const profile = await Profile.findOne({ user: req.user._id });
+  let profile = await Profile.findOne({ user: req.user._id });
   if (!profile) {
     res.status(404);
     throw new Error('Profile not found');
   }
+
+  // Check if the game rank already exists
+  const existingRankIndex = profile.gameRanks.findIndex(
+    rankItem => rankItem.game.toLowerCase() === game.toLowerCase()
+  );
+
+  if (existingRankIndex >= 0) {
+    // Update existing rank
+    profile.gameRanks[existingRankIndex].rank = rank;
+  } else {
+    // Add new game rank
+    profile.gameRanks.push({ game, rank });
+  }
+
+  // Save the updated profile
+  await profile.save();
+  console.log('Updated game ranks:', profile.gameRanks);
 
   res.json(profile);
 });
@@ -142,26 +159,111 @@ const addGameRank = asyncHandler(async (req, res) => {
 // @route   DELETE /api/profiles/gameranks/:game
 // @access  Private
 const removeGameRank = asyncHandler(async (req, res) => {
-  const profile = await Profile.findOne({ user: req.user._id });
+  const gameToRemove = req.params.game;
+  
+  if (!gameToRemove) {
+    res.status(400);
+    throw new Error('Please provide a game name to remove');
+  }
+
+  let profile = await Profile.findOne({ user: req.user._id });
   if (!profile) {
     res.status(404);
     throw new Error('Profile not found');
   }
+
+  // Filter out the game rank to remove
+  profile.gameRanks = profile.gameRanks.filter(
+    rankItem => rankItem.game.toLowerCase() !== gameToRemove.toLowerCase()
+  );
+
+  // Save the updated profile
+  await profile.save();
+  console.log('Removed game rank for:', gameToRemove);
+  console.log('Remaining game ranks:', profile.gameRanks);
 
   res.json(profile);
 });
 
 // Basic implementations for remaining functions
 const updateLanguages = asyncHandler(async (req, res) => {
-  res.json({ message: 'Languages updated' });
+  const { languages } = req.body;
+  
+  if (!languages || !Array.isArray(languages)) {
+    res.status(400);
+    throw new Error('Please provide languages as an array');
+  }
+
+  let profile = await Profile.findOne({ user: req.user._id });
+  if (!profile) {
+    res.status(404);
+    throw new Error('Profile not found');
+  }
+
+  // Update languages
+  profile.languages = languages;
+
+  // Save the updated profile
+  await profile.save();
+  console.log('Updated languages:', profile.languages);
+
+  res.json(profile);
 });
 
 const updateInterests = asyncHandler(async (req, res) => {
-  res.json({ message: 'Interests updated' });
+  const { interests } = req.body;
+  
+  if (!interests || !Array.isArray(interests)) {
+    res.status(400);
+    throw new Error('Please provide interests as an array');
+  }
+
+  let profile = await Profile.findOne({ user: req.user._id });
+  if (!profile) {
+    res.status(404);
+    throw new Error('Profile not found');
+  }
+
+  // Update interests
+  profile.interests = interests;
+
+  // Save the updated profile
+  await profile.save();
+  console.log('Updated interests:', profile.interests);
+
+  res.json(profile);
 });
 
 const updatePreferences = asyncHandler(async (req, res) => {
-  res.json({ message: 'Preferences updated' });
+  const { playStyle, communication, playTime, region } = req.body;
+  
+  if (!playStyle && !communication && !playTime && !region) {
+    res.status(400);
+    throw new Error('Please provide at least one preference to update');
+  }
+
+  let profile = await Profile.findOne({ user: req.user._id });
+  if (!profile) {
+    res.status(404);
+    throw new Error('Profile not found');
+  }
+
+  // Initialize preferences object if it doesn't exist
+  if (!profile.preferences) {
+    profile.preferences = {};
+  }
+
+  // Update only the provided preferences
+  if (playStyle) profile.preferences.playStyle = playStyle;
+  if (communication) profile.preferences.communication = communication;
+  if (playTime) profile.preferences.playTime = playTime;
+  if (region) profile.preferences.region = region;
+
+  // Save the updated profile
+  await profile.save();
+  console.log('Updated preferences:', profile.preferences);
+
+  res.json(profile);
 });
 
 const updateSocialLinks = asyncHandler(async (req, res) => {
