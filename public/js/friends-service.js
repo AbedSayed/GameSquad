@@ -620,8 +620,8 @@ const FriendsService = {
                     </div>
                     <div class="friend-info">
                         <div class="friend-name">${friendName}</div>
-                        <div class="friend-status ${friend.isOnline ? 'online' : 'offline'}">
-                            ${friend.isOnline ? 'Online' : 'Offline'}
+                        <div class="friend-status ${friend.isOnline ? 'online' : ''}">
+                            ${friend.isOnline ? 'Online' : ''}
                         </div>
                     </div>
                     <div class="friend-actions">

@@ -1081,11 +1081,15 @@ const SocketHandler = {
                 // Remove old status classes
                 statusEl.classList.remove('online', 'offline');
                 
-                // Add new status class
-                statusEl.classList.add(status);
-                
-                // Update text
-                statusEl.innerHTML = `<i class="fas fa-circle"></i> ${status === 'online' ? 'Online' : 'Offline'}`;
+                // Add new status class if online
+                if (status === 'online') {
+                    statusEl.classList.add(status);
+                    // Update text only if online
+                    statusEl.innerHTML = `<i class="fas fa-circle"></i> Online`;
+                } else {
+                    // Clear the text if not online
+                    statusEl.innerHTML = '';
+                }
             }
         });
         

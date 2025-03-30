@@ -1041,8 +1041,8 @@ function displayFriendsInSidebar(friends) {
             <div class="friend-avatar">${friend.avatar ? `<img src="${friend.avatar}" alt="${username}">` : initials}</div>
             <div class="friend-info">
                 <div class="friend-name">${username}</div>
-                <div class="friend-status ${status === 'online' ? 'online' : 'offline'}">
-                    <i class="fas fa-circle"></i> ${status === 'online' ? 'Online' : 'Offline'}
+                <div class="friend-status ${status === 'online' ? 'online' : ''}">
+                    ${status === 'online' ? '<i class="fas fa-circle"></i> Online' : ''}
                 </div>
             </div>
             <div class="friend-actions">

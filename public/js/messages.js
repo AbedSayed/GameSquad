@@ -614,8 +614,8 @@ function displayFriends() {
                     
                     // Determine if the friend is online (if status info exists)
                     const isOnline = friend.onlineStatus === 'online';
-                    const statusClass = isOnline ? 'online' : 'offline';
-                    const statusText = isOnline ? 'Online' : 'Offline';
+                    const statusClass = isOnline ? 'online' : '';
+                    const statusText = isOnline ? 'Online' : '';
                     
                     // Create friend avatar (first letter of username)
                     const avatarText = (username && username.charAt(0)) || '?';

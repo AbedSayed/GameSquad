@@ -702,7 +702,7 @@ function updateFriendsUI(friends) {
     const isOnline = profile.isOnline || false;
     
     // Status indicator class
-    const statusClass = isOnline ? 'status-online' : 'status-offline';
+    const statusClass = isOnline ? 'status-online' : '';
     
     friendCard.innerHTML = `
       <div class="friend-avatar-container">
@@ -711,7 +711,7 @@ function updateFriendsUI(friends) {
       </div>
       <div class="friend-info">
         <h3 class="friend-name">${displayName}</h3>
-        <p class="friend-status">${isOnline ? 'Online' : 'Offline'}</p>
+        <p class="friend-status">${isOnline ? 'Online' : ''}</p>
       </div>
       <div class="friend-actions">
         <button class="btn btn-primary message-friend-btn" title="Message">
