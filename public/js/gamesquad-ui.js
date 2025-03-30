@@ -2110,4 +2110,7 @@ function openFriendChat(friendId, friendName) {
         
         return messageEl;
     }
-} 
+}
+
+// Make key functions globally available
+window.openFriendChat = openFriendChat; 

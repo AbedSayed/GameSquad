@@ -1393,10 +1393,18 @@ function addFriendActionListeners() {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             const friendId = btn.dataset.id;
+            const friendName = btn.dataset.name;
             
-            if (friendId) {
-                // This would open a chat with the friend
-                showNotification('Coming Soon', 'Direct messaging coming soon!', 'info');
+            if (friendId && friendName) {
+                // Use the openFriendChat function to open a private chat with the friend
+                if (typeof window.openFriendChat === 'function') {
+                    window.openFriendChat(friendId, friendName);
+                } else if (typeof openFriendChat === 'function') {
+                    openFriendChat(friendId, friendName);
+                } else {
+                    console.error('openFriendChat function not found');
+                    showNotification('Error', 'Chat functionality not available', 'error');
+                }
             }
         });
     });
