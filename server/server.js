@@ -325,6 +325,68 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Handle private messages
+    socket.on('privateMessage', async (data, callback) => {
+        console.log('New private message received:', data);
+        
+        // Validate message data
+        if (!data || !data.recipientId || !data.message) {
+            console.error('Invalid private message data:', data);
+            if (callback) callback({ success: false, error: 'Invalid message data' });
+            return;
+        }
+        
+        try {
+            // Ensure we have a user ID for this socket
+            if (!currentUserId) {
+                console.error('Cannot send private message: Socket not authenticated');
+                if (callback) callback({ success: false, error: 'Not authenticated' });
+                return;
+            }
+            
+            // Get recipient's socket ID from the map
+            const recipientSocketId = userSocketMap[data.recipientId];
+            
+            // Create message object
+            const messageObj = {
+                senderId: currentUserId,
+                recipientId: data.recipientId,
+                text: data.message,
+                timestamp: data.timestamp || new Date().toISOString(),
+                messageId: data.messageId
+            };
+            
+            // Emit to recipient if they're online
+            if (recipientSocketId) {
+                io.to(recipientSocketId).emit('newPrivateMessage', messageObj);
+            }
+            
+            // Emit back to sender (different event for sender's UI updates)
+            socket.emit('privateMsgDelivered', {
+                success: true,
+                messageId: data.messageId,
+                status: 'delivered',
+                timestamp: new Date().toISOString()
+            });
+            
+            // Acknowledge message receipt to update sender's UI
+            if (callback) {
+                callback({ 
+                    success: true, 
+                    messageId: data.messageId,
+                    delivered: !!recipientSocketId 
+                });
+            }
+            
+            // TODO: Save private messages to database if needed
+        } catch (error) {
+            console.error('Error handling private message:', error);
+            if (callback) {
+                callback({ success: false, error: 'Server error processing message' });
+            }
+        }
+    });
+
     // Handle disconnection
     socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);

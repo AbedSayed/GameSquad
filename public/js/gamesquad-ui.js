@@ -1034,7 +1034,13 @@ function displayFriendsInSidebar(friends) {
         if (chatBtn) {
             chatBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                alert(`Chat with ${username} coming soon!`);
+                
+                // Get friend ID and username
+                const friendId = friendItem.dataset.id;
+                const friendName = friendItem.querySelector('.friend-name').textContent;
+                
+                // Open chat window
+                openFriendChat(friendId, friendName);
             });
         }
     });
@@ -1436,5 +1442,542 @@ function formatRequestDate(dateString) {
         return `${diffDays} days ago`;
     } else {
         return date.toLocaleDateString();
+    }
+}
+
+// New function to handle opening friend chat
+function openFriendChat(friendId, friendName) {
+    // Check if chat container already exists
+    let chatContainer = document.querySelector(`.friend-chat-container[data-friend-id="${friendId}"]`);
+    
+    if (!chatContainer) {
+        // Create chat container
+        chatContainer = document.createElement('div');
+        chatContainer.className = 'friend-chat-container';
+        chatContainer.dataset.friendId = friendId;
+        document.body.appendChild(chatContainer);
+        
+        // Add style for chat container if not already added
+        if (!document.querySelector('#friend-chat-style')) {
+            const style = document.createElement('style');
+            style.id = 'friend-chat-style';
+            style.textContent = `
+                .friend-chat-container {
+                    position: fixed;
+                    bottom: 0;
+                    right: 400px; /* Position next to friends sidebar */
+                    width: 320px;
+                    background-color: rgba(13, 13, 25, 0.95);
+                    border-radius: 8px 8px 0 0;
+                    box-shadow: 0 0 15px rgba(126, 34, 206, 0.5);
+                    border: 1px solid rgba(126, 34, 206, 0.5);
+                    border-bottom: none;
+                    z-index: 9998;
+                    display: flex;
+                    flex-direction: column;
+                    max-height: 400px;
+                    transition: transform 0.3s ease;
+                }
+                
+                .friend-chat-container.minimized {
+                    transform: translateY(calc(100% - 40px));
+                }
+                
+                .chat-header {
+                    padding: 10px 15px;
+                    background-color: rgba(126, 34, 206, 0.4);
+                    border-radius: 8px 8px 0 0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    cursor: pointer;
+                }
+                
+                .chat-header h3 {
+                    margin: 0;
+                    color: #fff;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                
+                .chat-status {
+                    margin-left: 8px;
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background-color: #ef4444;
+                    display: inline-block;
+                }
+                
+                .chat-status.connected {
+                    background-color: #4cd137;
+                }
+                
+                .chat-header-actions {
+                    display: flex;
+                    gap: 10px;
+                }
+                
+                .chat-toggle, .chat-close {
+                    background: none;
+                    border: none;
+                    color: #fff;
+                    cursor: pointer;
+                    padding: 0;
+                    font-size: 0.9rem;
+                }
+                
+                .chat-messages {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 10px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    max-height: 280px;
+                }
+                
+                .no-messages {
+                    text-align: center;
+                    color: rgba(255, 255, 255, 0.5);
+                    font-style: italic;
+                    padding: 20px 0;
+                }
+                
+                .message {
+                    max-width: 80%;
+                    padding: 8px 12px;
+                    border-radius: 16px;
+                    margin-bottom: 5px;
+                    word-break: break-word;
+                    position: relative;
+                }
+                
+                .message.outgoing {
+                    align-self: flex-end;
+                    background-color: rgba(126, 34, 206, 0.6);
+                    color: #fff;
+                    border-bottom-right-radius: 4px;
+                }
+                
+                .message.incoming {
+                    align-self: flex-start;
+                    background-color: rgba(30, 30, 40, 0.8);
+                    color: #fff;
+                    border-bottom-left-radius: 4px;
+                }
+                
+                .message-time {
+                    font-size: 0.65rem;
+                    opacity: 0.7;
+                    margin-top: 4px;
+                    text-align: right;
+                }
+                
+                .message-status {
+                    font-size: 0.65rem;
+                    opacity: 0.7;
+                    margin-top: 2px;
+                    text-align: right;
+                }
+                
+                .chat-input-area {
+                    display: flex;
+                    padding: 10px;
+                    border-top: 1px solid rgba(126, 34, 206, 0.3);
+                    background-color: rgba(13, 13, 25, 0.8);
+                }
+                
+                .chat-input {
+                    flex: 1;
+                    padding: 8px 10px;
+                    border-radius: 4px;
+                    border: 1px solid rgba(126, 34, 206, 0.3);
+                    background-color: rgba(20, 20, 35, 0.8);
+                    color: #fff;
+                    outline: none;
+                }
+                
+                .chat-input:focus {
+                    border-color: rgba(126, 34, 206, 0.6);
+                }
+                
+                .send-btn {
+                    background-color: rgba(126, 34, 206, 0.6);
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    margin-left: 8px;
+                    padding: 6px 12px;
+                    cursor: pointer;
+                    transition: background-color 0.2s;
+                }
+                
+                .send-btn:hover {
+                    background-color: rgba(126, 34, 206, 0.8);
+                }
+                
+                .send-btn i {
+                    margin-right: 4px;
+                }
+                
+                .system-message {
+                    align-self: center;
+                    background-color: rgba(52, 152, 219, 0.2);
+                    color: rgba(255, 255, 255, 0.7);
+                    padding: 5px 10px;
+                    border-radius: 12px;
+                    font-size: 0.8rem;
+                    font-style: italic;
+                    margin: 5px 0;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    } else {
+        // If the chat window already exists, just focus it and return
+        chatContainer.classList.remove('minimized');
+        chatContainer.querySelector('.chat-input').focus();
+        return;
+    }
+    
+    // Clear any existing chat window content
+    chatContainer.innerHTML = '';
+    
+    // Check if socket connection is available
+    const isSocketConnected = window.SocketHandler && window.SocketHandler.socket && window.SocketHandler.socket.connected;
+    
+    // Create chat window structure
+    chatContainer.innerHTML = `
+        <div class="chat-header">
+            <h3>${friendName} <span class="chat-status ${isSocketConnected ? 'connected' : ''}"></span></h3>
+            <div class="chat-header-actions">
+                <button class="chat-toggle"><i class="fas fa-minus"></i></button>
+                <button class="chat-close"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="chat-messages">
+            <div class="system-message">
+                ${isSocketConnected ? 'Chat connection established' : 'Connecting to chat server...'}
+            </div>
+            <div class="no-messages">No previous messages. Say hello!</div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" class="chat-input" placeholder="Type a message..." aria-label="Type a message">
+            <button class="send-btn"><i class="fas fa-paper-plane"></i>Send</button>
+        </div>
+    `;
+    
+    // Initialize chat functionality
+    const chatHeader = chatContainer.querySelector('.chat-header');
+    const chatToggle = chatContainer.querySelector('.chat-toggle');
+    const chatClose = chatContainer.querySelector('.chat-close');
+    const chatInput = chatContainer.querySelector('.chat-input');
+    const sendBtn = chatContainer.querySelector('.send-btn');
+    const chatStatusIndicator = chatContainer.querySelector('.chat-status');
+    
+    // Check socket connection and update UI
+    function updateConnectionStatus() {
+        const isConnected = window.SocketHandler && window.SocketHandler.socket && window.SocketHandler.socket.connected;
+        chatStatusIndicator.classList.toggle('connected', isConnected);
+        
+        // Show connection status message if it changed
+        if (isConnected !== chatStatusIndicator.classList.contains('connected')) {
+            const statusMessage = isConnected ? 'Connected to chat server' : 'Disconnected from chat server';
+            addSystemMessage(statusMessage);
+        }
+        
+        // Disable/enable input based on connection
+        chatInput.disabled = !isConnected;
+        sendBtn.disabled = !isConnected;
+        
+        if (!isConnected) {
+            chatInput.placeholder = "Connecting to server...";
+        } else {
+            chatInput.placeholder = "Type a message...";
+        }
+    }
+    
+    // Initialize connection status
+    updateConnectionStatus();
+    
+    // Set up connection status check interval
+    const connectionCheckInterval = setInterval(updateConnectionStatus, 5000);
+    
+    // Toggle chat window
+    chatHeader.addEventListener('click', (e) => {
+        if (e.target === chatHeader || e.target.tagName === 'H3') {
+            chatContainer.classList.toggle('minimized');
+            chatToggle.innerHTML = chatContainer.classList.contains('minimized') ? 
+                '<i class="fas fa-plus"></i>' : '<i class="fas fa-minus"></i>';
+        }
+    });
+    
+    // Toggle button functionality
+    chatToggle.addEventListener('click', () => {
+        chatContainer.classList.toggle('minimized');
+        chatToggle.innerHTML = chatContainer.classList.contains('minimized') ? 
+            '<i class="fas fa-plus"></i>' : '<i class="fas fa-minus"></i>';
+    });
+    
+    // Close button functionality
+    chatClose.addEventListener('click', () => {
+        clearInterval(connectionCheckInterval); // Clear the interval when closing
+        
+        // Remove event listeners
+        if (window.SocketHandler && window.SocketHandler.socket) {
+            window.SocketHandler.socket.off('newPrivateMessage', handleNewMessage);
+            window.SocketHandler.socket.off('connect', handleConnect);
+            window.SocketHandler.socket.off('disconnect', handleDisconnect);
+        }
+        
+        chatContainer.remove();
+    });
+    
+    // Send message functionality
+    const sendMessage = () => {
+        const message = chatInput.value.trim();
+        if (!message) return;
+        
+        // Check if socket is connected
+        if (!(window.SocketHandler && window.SocketHandler.socket && window.SocketHandler.socket.connected)) {
+            addSystemMessage('Cannot send message: Not connected to server');
+            return;
+        }
+        
+        // Get current timestamp for the message
+        const timestamp = new Date().toISOString();
+        
+        // Create a message ID for tracking
+        const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        
+        // Add message to chat window with "sending" status
+        addMessageToChat(message, 'outgoing', timestamp, messageId, 'sending');
+        
+        // Clear input
+        chatInput.value = '';
+        
+        // Send message through socket
+        window.SocketHandler.socket.emit('privateMessage', {
+            recipientId: friendId,
+            message: message,
+            messageId: messageId,
+            timestamp: timestamp
+        }, (response) => {
+            // This is the acknowledgement callback
+            if (response && response.success) {
+                // Update message status to sent
+                updateMessageStatus(messageId, 'sent');
+                console.log('Message sent successfully:', response);
+            } else {
+                // Update message status to failed
+                updateMessageStatus(messageId, 'failed');
+                console.error('Failed to send message:', response ? response.error : 'No response');
+            }
+        });
+        
+        // Set a timeout for message delivery confirmation
+        setTimeout(() => {
+            const msgElement = document.querySelector(`[data-message-id="${messageId}"]`);
+            if (msgElement && msgElement.querySelector('.message-status').textContent.includes('sending')) {
+                updateMessageStatus(messageId, 'pending');
+            }
+        }, 5000); // Wait 5 seconds for delivery confirmation
+    };
+    
+    // Function to update message status
+    function updateMessageStatus(messageId, status) {
+        const msgElement = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (!msgElement) return;
+        
+        const statusElement = msgElement.querySelector('.message-status');
+        if (!statusElement) return;
+        
+        switch (status) {
+            case 'sending':
+                statusElement.textContent = 'Sending...';
+                statusElement.style.color = '#718093';
+                break;
+            case 'sent':
+                statusElement.textContent = 'Sent';
+                statusElement.style.color = '#4cd137';
+                break;
+            case 'delivered':
+                statusElement.textContent = 'Delivered';
+                statusElement.style.color = '#4cd137';
+                break;
+            case 'read':
+                statusElement.textContent = 'Read';
+                statusElement.style.color = '#4cd137';
+                break;
+            case 'pending':
+                statusElement.textContent = 'Pending...';
+                statusElement.style.color = '#f39c12';
+                break;
+            case 'failed':
+                statusElement.textContent = 'Failed to send';
+                statusElement.style.color = '#e74c3c';
+                break;
+        }
+    }
+    
+    // Function to add a system message
+    function addSystemMessage(text) {
+        const chatMessages = chatContainer.querySelector('.chat-messages');
+        
+        const messageEl = document.createElement('div');
+        messageEl.className = 'system-message';
+        messageEl.textContent = text;
+        
+        chatMessages.appendChild(messageEl);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    // Send button click event
+    sendBtn.addEventListener('click', sendMessage);
+    
+    // Input keypress event (Enter key)
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+    
+    // Focus on input
+    chatInput.focus();
+    
+    // Handler for new private messages
+    const handleNewMessage = (data) => {
+        console.log('Received private message:', data);
+        
+        // Check if this message is relevant to this chat
+        if (data.senderId === friendId || data.recipientId === friendId) {
+            // If message is from the friend, add as incoming message
+            if (data.senderId === friendId) {
+                // Hide "no messages" notice if present
+                const noMessages = chatContainer.querySelector('.no-messages');
+                if (noMessages) noMessages.remove();
+                
+                addMessageToChat(data.text || data.message, 'incoming', data.timestamp || new Date().toISOString());
+                
+                // If window is minimized, show notification
+                if (chatContainer.classList.contains('minimized')) {
+                    showNotification(`${friendName}: ${data.text || data.message}`, 'info');
+                }
+            } 
+            // If this is a confirmation of our message
+            else if (data.messageId && data.status) {
+                updateMessageStatus(data.messageId, data.status);
+            }
+        }
+    };
+    
+    // Connection event handlers
+    const handleConnect = () => {
+        updateConnectionStatus();
+        addSystemMessage('Connected to chat server');
+    };
+    
+    const handleDisconnect = () => {
+        updateConnectionStatus();
+        addSystemMessage('Disconnected from chat server');
+    };
+    
+    // Set up socket event listeners
+    if (window.SocketHandler && window.SocketHandler.socket) {
+        // Remove any existing listeners to avoid duplicates
+        window.SocketHandler.socket.off('newPrivateMessage', handleNewMessage);
+        
+        // Add event listeners
+        window.SocketHandler.socket.on('newPrivateMessage', handleNewMessage);
+        window.SocketHandler.socket.on('connect', handleConnect);
+        window.SocketHandler.socket.on('disconnect', handleDisconnect);
+        
+        // Add event handler for delivered messages
+        window.SocketHandler.socket.on('privateMsgDelivered', (data) => {
+            console.log('Message delivery status update:', data);
+            if (data && data.messageId) {
+                updateMessageStatus(data.messageId, data.status || 'delivered');
+            }
+        });
+        
+        // If not connected, try to connect
+        if (!window.SocketHandler.socket.connected) {
+            window.SocketHandler.socket.connect();
+            addSystemMessage('Connecting to chat server...');
+        }
+        
+        // Subscribe to this friend's messages
+        window.SocketHandler.socket.emit('subscribeToUser', {
+            userId: friendId
+        });
+    } else {
+        addSystemMessage('Chat functionality is limited: Socket service not available');
+        
+        // Try to initialize socket if possible
+        if (typeof window.SocketHandler === 'object' && typeof window.SocketHandler.init === 'function') {
+            addSystemMessage('Attempting to initialize socket connection...');
+            window.SocketHandler.init();
+            
+            // Set a timeout to check if connection was successful
+            setTimeout(() => {
+                if (window.SocketHandler && window.SocketHandler.socket && window.SocketHandler.socket.connected) {
+                    addSystemMessage('Socket connection established!');
+                    updateConnectionStatus();
+                    
+                    // Add event listeners
+                    window.SocketHandler.socket.on('newPrivateMessage', handleNewMessage);
+                    
+                    // Subscribe to this friend's messages
+                    window.SocketHandler.socket.emit('subscribeToUser', {
+                        userId: friendId
+                    });
+                }
+            }, 2000);
+        }
+    }
+    
+    // Function to add a message to the chat window
+    function addMessageToChat(text, type, timestamp, messageId, status) {
+        const chatMessages = chatContainer.querySelector('.chat-messages');
+        const noMessages = chatContainer.querySelector('.no-messages');
+        
+        // Remove "no messages" notice if present
+        if (noMessages) {
+            noMessages.remove();
+        }
+        
+        // Create message element
+        const messageEl = document.createElement('div');
+        messageEl.className = `message ${type}`;
+        
+        // Add message ID if provided
+        if (messageId) {
+            messageEl.dataset.messageId = messageId;
+        }
+        
+        // Format time
+        const msgDate = timestamp ? new Date(timestamp) : new Date();
+        const hours = msgDate.getHours().toString().padStart(2, '0');
+        const minutes = msgDate.getMinutes().toString().padStart(2, '0');
+        const timeString = `${hours}:${minutes}`;
+        
+        // Add message content
+        messageEl.innerHTML = `
+            <div class="message-text">${text}</div>
+            <div class="message-time">${timeString}</div>
+            ${status ? `<div class="message-status">${status === 'sending' ? 'Sending...' : status}</div>` : ''}
+        `;
+        
+        // Add to chat window
+        chatMessages.appendChild(messageEl);
+        
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        return messageEl;
     }
 } 

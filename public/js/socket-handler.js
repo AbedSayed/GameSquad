@@ -3,6 +3,7 @@ const SocketHandler = {
     socket: null,
     isConnected: false,
     processedAcceptanceEvents: new Set(),
+    isInitialized: false,
     
     // Initialize global deduplication tracking
     initDeduplication: function() {
@@ -16,69 +17,88 @@ const SocketHandler = {
     
     // Initialize socket connection
     init: function() {
-        // Initialize deduplication
-        this.initDeduplication();
-        
-        // Initialize notification deduplication
-        if (!window.recentNotifications) {
-            window.recentNotifications = new Set();
-            console.log('🔔 Initialized global recentNotifications set for notification deduplication');
-        }
-        
-        // Check if we already have a socket connection
-        if (this.socket) {
-            console.log('Socket connection already exists, reusing existing connection');
-            return this.socket;
-        }
-        
-        if (!window.io) {
-            console.error('Socket.io not loaded');
+        if (this.isInitialized) {
+            console.log('[socket-handler.js] Socket already initialized');
             return;
         }
         
-        // Get the API URL from config
-        const apiUrl = window.API_URL || 'http://localhost:8080';
-        console.log('Initializing socket with API URL:', apiUrl);
-        
-        // Create socket connection with proper options
-        this.socket = io(apiUrl, {
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            transports: ['websocket', 'polling'],
-            autoConnect: true
-        });
-        
-        // Connection events
-        this.socket.on('connect', () => {
-            console.log('Socket connected successfully:', this.socket.id);
-            this.isConnected = true;
-            
-            // Authenticate after connection
-            const userInfo = this.getUserInfo();
-            if (userInfo && userInfo._id) {
-                this.authenticate(userInfo._id);
+        console.log('[socket-handler.js] Initializing socket connection...');
+        this.setupSocket();
+        this.isInitialized = true;
+    },
+    
+    // Set up socket connection
+    setupSocket: function() {
+        try {
+            console.log('[socket-handler.js] Setting up socket connection...');
+            if (typeof io === 'undefined') {
+                console.error('[socket-handler.js] Socket.io not loaded! Chat functionality will be limited.');
+                return;
             }
-        });
-        
-        this.socket.on('connect_error', (error) => {
-            console.error('Socket connection error:', error.message);
-            this.isConnected = false;
-        });
-        
-        this.socket.on('disconnect', (reason) => {
-            console.log('Socket disconnected:', reason);
-            this.isConnected = false;
-        });
-        
-        this.socket.on('error', (error) => {
-            console.error('Socket general error:', error);
-        });
-        
-        // Set up event listeners
-        this.setupListeners();
-        
-        return this.socket;
+            
+            // Connect to socket server
+            this.socket = io(window.location.origin, {
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                timeout: 5000
+            });
+            
+            // Set up connection events
+            this.socket.on('connect', () => {
+                console.log('[socket-handler.js] Socket connected successfully:', this.socket.id);
+                this.isConnected = true;
+                
+                // Authenticate socket with user ID
+                const userInfo = this.getUserInfo();
+                if (userInfo && userInfo._id) {
+                    this.authenticate(userInfo._id);
+                } else {
+                    console.warn('[socket-handler.js] No user info available, cannot authenticate socket');
+                }
+                
+                // Set up event listeners
+                this.setupListeners();
+                
+                // Notify any listeners that socket is connected
+                if (typeof window !== 'undefined' && window.dispatchEvent) {
+                    window.dispatchEvent(new CustomEvent('socket:connected'));
+                }
+            });
+            
+            this.socket.on('connect_error', (error) => {
+                console.error('[socket-handler.js] Socket connection error:', error);
+                this.isConnected = false;
+                
+                // Notify any listeners that socket failed to connect
+                if (typeof window !== 'undefined' && window.dispatchEvent) {
+                    window.dispatchEvent(new CustomEvent('socket:connect_error', { detail: error }));
+                }
+            });
+            
+            this.socket.on('disconnect', (reason) => {
+                console.log('[socket-handler.js] Socket disconnected:', reason);
+                this.isConnected = false;
+                
+                // Notify any listeners that socket disconnected
+                if (typeof window !== 'undefined' && window.dispatchEvent) {
+                    window.dispatchEvent(new CustomEvent('socket:disconnected', { detail: reason }));
+                }
+            });
+            
+            this.socket.on('error', (error) => {
+                console.error('[socket-handler.js] Socket error:', error);
+                
+                // Notify any listeners of the error
+                if (typeof window !== 'undefined' && window.dispatchEvent) {
+                    window.dispatchEvent(new CustomEvent('socket:error', { detail: error }));
+                }
+            });
+            
+            console.log('[socket-handler.js] Socket connection setup complete, waiting for connect event');
+        } catch (error) {
+            console.error('[socket-handler.js] Error setting up socket:', error);
+        }
     },
     
     // Get user info from localStorage
@@ -312,6 +332,57 @@ const SocketHandler = {
             console.log('[SocketHandler] Friend request rejected:', data);
             // Handle rejection if needed
         });
+        
+        // Listen for private messages
+        this.socket.on('newPrivateMessage', (data) => {
+            console.log('[socket-handler.js] Received private message:', data);
+            
+            // Broadcast to all handlers of this event
+            if (window.dispatchEvent) {
+                // Create a custom event with the data
+                const event = new CustomEvent('privateMessage', { detail: data });
+                window.dispatchEvent(event);
+            }
+            
+            // Show notification if not on messages page and message is incoming
+            const currentUserId = this.getUserId();
+            if (data.senderId !== currentUserId) {
+                // Get sender name
+                let senderName = data.senderName || 'Someone';
+                
+                // Try to get the name from friends cache if available
+                if (window.FriendsService && window.FriendsService.getFriendById) {
+                    const friend = window.FriendsService.getFriendById(data.senderId);
+                    if (friend && friend.username) {
+                        senderName = friend.username;
+                    }
+                }
+                
+                // Check if there's already a chat window open
+                const chatOpen = document.querySelector(`.friend-chat-container[data-friend-id="${data.senderId}"]`);
+                const chatIsMinimized = chatOpen && chatOpen.classList.contains('minimized');
+                
+                // If chat is not open or is minimized, show a notification
+                if (!chatOpen || chatIsMinimized) {
+                    this.showNotification(
+                        `Message from ${senderName}`, 
+                        data.text || data.message,
+                        'message'
+                    );
+                }
+            }
+        });
+        
+        // Handle message delivery status
+        this.socket.on('messageStatus', (data) => {
+            console.log('[socket-handler.js] Message status update:', data);
+            
+            // Broadcast the status update
+            if (window.dispatchEvent) {
+                const event = new CustomEvent('messageStatus', { detail: data });
+                window.dispatchEvent(event);
+            }
+        });
     },
     
     // Handle new invite
@@ -397,6 +468,37 @@ const SocketHandler = {
     showNotification: function(title, message, type = 'info') {
         console.log(`[socket-handler.js] Showing notification: ${title} - ${message}`);
         
+        // Add specific handling for message type notifications
+        if (type === 'message') {
+            // Check if the user allows notifications
+            if ('Notification' in window && Notification.permission === 'granted') {
+                // Create a system notification
+                try {
+                    const notificationOptions = {
+                        body: message,
+                        icon: '/resources/logo-icon.png'
+                    };
+                    
+                    const notification = new Notification(title, notificationOptions);
+                    
+                    notification.onclick = function() {
+                        window.focus();
+                        // If the message contains the senderId, we can open the chat
+                        if (this.tag && this.tag.includes('senderId:')) {
+                            const senderId = this.tag.split('senderId:')[1];
+                            if (senderId && typeof openFriendChat === 'function') {
+                                openFriendChat(senderId, title.replace('Message from ', ''));
+                            }
+                        }
+                    };
+                } catch (e) {
+                    console.error('Error creating notification:', e);
+                    // Fall back to UI notification
+                }
+            }
+        }
+        
+        // Continue with regular UI notification
         // Global notification deduplication
         if (!window.recentNotifications) {
             window.recentNotifications = new Set();
@@ -1551,6 +1653,69 @@ const SocketHandler = {
                 console.log('Could not play notification sound', e);
             }
         }
+    },
+
+    // Send a private message to another user
+    sendPrivateMessage: function(recipientId, message, messageId) {
+        if (!this.socket || !this.isConnected) {
+            console.error('[socket-handler.js] Cannot send message - socket not connected');
+            return Promise.reject(new Error('Socket not connected'));
+        }
+        
+        if (!recipientId || !message) {
+            console.error('[socket-handler.js] Cannot send message - missing recipient ID or message content');
+            return Promise.reject(new Error('Missing recipient ID or message content'));
+        }
+        
+        return new Promise((resolve, reject) => {
+            const messageData = {
+                recipientId: recipientId,
+                message: message,
+                messageId: messageId || `msg_${Date.now()}_${Math.random().toString(36).substring(2)}`
+            };
+            
+            console.log('[socket-handler.js] Sending private message:', messageData);
+            
+            this.socket.emit('privateMessage', messageData, (response) => {
+                if (response && response.success) {
+                    console.log('[socket-handler.js] Message sent successfully:', response);
+                    resolve(response);
+                } else {
+                    console.error('[socket-handler.js] Failed to send message:', response ? response.error : 'Unknown error');
+                    reject(new Error(response ? response.error : 'Failed to send message'));
+                }
+            });
+        });
+    },
+    
+    // Subscribe to messages from a specific user
+    subscribeToUser: function(userId) {
+        if (!this.socket || !this.isConnected) {
+            console.error('[socket-handler.js] Cannot subscribe - socket not connected');
+            return false;
+        }
+        
+        console.log('[socket-handler.js] Subscribing to messages from user:', userId);
+        this.socket.emit('subscribeToUser', { userId });
+        return true;
+    },
+    
+    // Unsubscribe from a user's messages
+    unsubscribeFromUser: function(userId) {
+        if (!this.socket || !this.isConnected) {
+            console.error('[socket-handler.js] Cannot unsubscribe - socket not connected');
+            return false;
+        }
+        
+        console.log('[socket-handler.js] Unsubscribing from user:', userId);
+        this.socket.emit('unsubscribeFromUser', { userId });
+        return true;
+    },
+
+    // Get user ID
+    getUserId: function() {
+        const userInfo = this.getUserInfo();
+        return userInfo && userInfo._id ? userInfo._id : null;
     }
 };
 
