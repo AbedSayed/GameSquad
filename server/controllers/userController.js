@@ -35,15 +35,11 @@ const registerUser = asyncHandler(async (req, res) => {
     );
   }
 
-  // Hash password
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
-
-  // Create user
+  // Create user with plain password - the model's pre-save hook will hash it
   const user = await User.create({
     username,
     email,
-    password: hashedPassword,
+    password, // Let the model's pre-save hook handle hashing
     friends: [],
     friendRequests: { sent: [], received: [] }
   });
@@ -97,6 +93,8 @@ const registerUser = asyncHandler(async (req, res) => {
     user.profile = profile._id;
     await user.save();
 
+    console.log('User registered successfully:', user.username, user.email);
+
     res.status(201).json({
       _id: user._id,
       username: user.username,
@@ -117,9 +115,12 @@ const registerUser = asyncHandler(async (req, res) => {
 // @access  Public
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  
+  console.log('Login attempt for email:', email);
 
   // Validate email and password are provided
   if (!email || !password) {
+    console.log('Login failed: Missing email or password');
     res.status(400);
     throw new Error('Please provide both email and password');
   }
@@ -127,6 +128,7 @@ const loginUser = asyncHandler(async (req, res) => {
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
+    console.log('Login failed: Invalid email format');
     res.status(400);
     throw new Error('Please provide a valid email address');
   }
@@ -135,13 +137,21 @@ const loginUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email }).populate('friends', 'username email');
 
   if (!user) {
+    console.log('Login failed: User with email not found:', email);
     res.status(401);
     throw new Error('Invalid email or password');
   }
 
+  console.log('User found:', user.username, 'id:', user._id);
+  console.log('Stored password hash:', user.password.substring(0, 10) + '...');
+  
   // Check if password matches
   const isPasswordMatch = await bcrypt.compare(password, user.password);
+  
+  console.log('Password match result:', isPasswordMatch);
+  
   if (!isPasswordMatch) {
+    console.log('Login failed: Password does not match for user:', user.username);
     res.status(401);
     throw new Error('Invalid email or password');
   }
