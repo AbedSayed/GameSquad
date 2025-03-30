@@ -124,6 +124,9 @@
                             <i class="fas fa-check"></i> <span>Mark as Ready</span>
                         </button>
                         <div class="current-status">Your status: <span id="yourStatus" class="status-badge not-ready">Not Ready</span></div>
+                        <div class="button-status" style="font-size: 12px; margin-top: 5px; color: #666;">
+                            <span id="buttonStatusIndicator">Initializing...</span>
+                        </div>
                     </div>
                 </div>
 
@@ -183,8 +186,28 @@
                 playersList.appendChild(emptyState);
             }
             
-            // Note: Ready toggle button functionality is now handled in lobby.js
-            // Do not add event listeners here to avoid conflicts
+            // Setup status indicator for ready button
+            const readyBtn = document.getElementById('readyToggleBtn');
+            const statusIndicator = document.getElementById('buttonStatusIndicator');
+            
+            if (readyBtn && statusIndicator) {
+                // Update indicator when button is clicked to show it's working
+                readyBtn.addEventListener('click', function() {
+                    statusIndicator.textContent = 'Button clicked! Updating status...';
+                    statusIndicator.style.color = '#4CAF50';
+                    
+                    // Reset after 2 seconds
+                    setTimeout(() => {
+                        statusIndicator.textContent = 'Ready button active';
+                        statusIndicator.style.color = '#666';
+                    }, 2000);
+                });
+                
+                // Mark as ready to use after a delay
+                setTimeout(() => {
+                    statusIndicator.textContent = 'Ready button active';
+                }, 3000);
+            }
         });
     </script>
 </body>

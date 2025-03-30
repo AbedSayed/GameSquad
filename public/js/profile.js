@@ -670,20 +670,39 @@ async function inviteFriendToLobby(friendId, lobbyId) {
 }
 
 /**
- * Update the UI with friends data
- * @param {Array} friends - Array of friend objects
+ * Update friends UI with friend data
+ * @param {Object|Array} friendsData - Friends data from API
  */
-function updateFriendsUI(friends) {
+function updateFriendsUI(friendsData) {
   const friendsContainer = document.getElementById('friends-list');
   
+  // Check if the friends container exists
   if (!friendsContainer) {
-    console.error('Friends container not found');
+    console.log('No friends container found in the UI, skipping friends update');
     return;
   }
   
   // Clear loading state
   friendsContainer.innerHTML = '';
   
+  // Handle different data structures for friends
+  let friends = [];
+  if (Array.isArray(friendsData)) {
+    friends = friendsData;
+  } else if (friendsData && typeof friendsData === 'object') {
+    // Try to extract friends array from object
+    if (Array.isArray(friendsData.friends)) {
+      friends = friendsData.friends;
+    } else if (friendsData.data && Array.isArray(friendsData.data)) {
+      friends = friendsData.data;
+    } else {
+      console.warn('Friends data is not in expected format:', friendsData);
+    }
+  } else {
+    console.warn('Invalid friends data type:', typeof friendsData);
+  }
+  
+  // If no friends or empty array, show empty state
   if (!friends || friends.length === 0) {
     friendsContainer.innerHTML = '<p class="no-friends">You have not added any friends yet.</p>';
     return;
@@ -691,15 +710,18 @@ function updateFriendsUI(friends) {
   
   // Create a friend card for each friend
   friends.forEach(friend => {
+    // Handle different friend data structures
+    if (!friend) return;
+    
     const friendCard = document.createElement('div');
     friendCard.className = 'friend-card';
-    friendCard.setAttribute('data-friend-id', friend._id);
+    friendCard.setAttribute('data-friend-id', friend._id || friend.id || '');
     
-    // Get profile info
+    // Get profile info with safeguards for missing data
     const profile = friend.profile || {};
-    const displayName = profile.displayName || friend.username || 'Unknown User';
-    const avatar = profile.avatar || 'default-avatar.png';
-    const isOnline = profile.isOnline || false;
+    const displayName = profile.displayName || friend.username || friend.displayName || 'Unknown User';
+    const avatar = profile.avatar || friend.avatar || 'default-avatar.png';
+    const isOnline = profile.isOnline || friend.isOnline || false;
     
     // Status indicator class
     const statusClass = isOnline ? 'status-online' : '';
@@ -735,13 +757,13 @@ function updateFriendsUI(friends) {
     
     const inviteFriendBtn = friendCard.querySelector('.invite-friend-btn');
     inviteFriendBtn.addEventListener('click', () => {
-      showLobbyInviteModal(friend._id, displayName);
+      showLobbyInviteModal(friend._id || friend.id || '', displayName);
     });
     
     const removeFriendBtn = friendCard.querySelector('.remove-friend-btn');
     removeFriendBtn.addEventListener('click', async () => {
       try {
-        await removeFriend(friend._id);
+        await removeFriend(friend._id || friend.id || '');
         friendCard.classList.add('removing');
         setTimeout(() => {
           friendCard.remove();
@@ -907,21 +929,65 @@ function showNotification(message, type = 'info') {
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     // Load profile data
-    const profile = await getMyProfile();
+    let profile;
+    try {
+      profile = await getMyProfile();
+      console.log('Profile data loaded successfully:', profile);
+    } catch (profileError) {
+      console.error('Error loading profile data:', profileError);
+      // Fallback to minimal profile data from localStorage
+      const userInfoStr = localStorage.getItem('userInfo');
+      if (userInfoStr) {
+        const userInfo = JSON.parse(userInfoStr);
+        profile = userInfo.profile || {
+          user: {
+            _id: userInfo._id,
+            username: userInfo.username,
+            email: userInfo.email
+          }
+        };
+        console.log('Using fallback profile data from localStorage');
+      } else {
+        // If no data available, show error and redirect to login
+        showNotification('Unable to load profile data. Please login again.', 'error');
+        setTimeout(() => {
+          window.location.href = '/pages/login.html';
+        }, 2000);
+        return;
+      }
+    }
     
     // Update UI with profile data
     updateProfileUI(profile);
     
-    // Load friends list
-    const friends = await getFriends();
-    updateFriendsUI(friends);
+    // Load friends list with error handling
+    try {
+      // First check if the friends-list container exists before trying to fetch friends
+      const friendsContainer = document.getElementById('friends-list');
+      if (!friendsContainer) {
+        console.log('No friends list container found in the DOM, skipping friends fetch');
+      } else {
+        const friends = await getFriends();
+        console.log('Friends data loaded:', friends);
+        updateFriendsUI(friends);
+      }
+    } catch (friendsError) {
+      console.error('Error loading friends:', friendsError);
+      // Don't let friends error block the rest of the profile
+      showNotification('Could not load friends list', 'warning');
+      // Still update UI with empty array to show proper empty state
+      const friendsContainer = document.getElementById('friends-list');
+      if (friendsContainer) {
+        updateFriendsUI([]);
+      }
+    }
     
     // Set up tab switching
     setupTabs();
     
   } catch (error) {
-    console.error('Error loading profile:', error);
-    showNotification(`Failed to load profile: ${error.message}`, 'error');
+    console.error('Unhandled error in profile initialization:', error);
+    showNotification(`Error initializing profile page: ${error.message}`, 'error');
   }
 });
 
@@ -930,35 +996,76 @@ document.addEventListener('DOMContentLoaded', async () => {
  * @param {Object} profile - Profile data
  */
 function updateProfileUI(profile) {
-  // This function will be implemented based on the actual UI elements
-  // For now, it's a placeholder
-  console.log('Profile data loaded:', profile);
+  if (!profile) {
+    console.error('No profile data provided to updateProfileUI');
+    return;
+  }
   
-  // Example of updating UI elements
-  const displayNameElement = document.getElementById('display-name');
+  console.log('Updating UI with profile data:', profile);
+  
+  // Handle various profile data structures safely
+  const user = profile.user || profile || {};
+  const displayName = profile.displayName || (user.displayName || user.username || 'User');
+  const username = user.username || '';
+  const bio = profile.bio || '';
+  
+  // Update display name
+  const displayNameElement = document.getElementById('profile-display-name');
   if (displayNameElement) {
-    displayNameElement.textContent = profile.user.displayName || profile.user.username;
+    displayNameElement.textContent = displayName;
   }
   
-  const usernameElement = document.getElementById('username');
+  // Update username
+  const usernameElement = document.getElementById('profile-username');
   if (usernameElement) {
-    usernameElement.textContent = '@' + profile.user.username;
+    usernameElement.textContent = username ? `@${username}` : '';
   }
   
-  // Update game ranks
-  updateGameRanksUI(profile.gameRanks);
+  // Update bio
+  const bioElement = document.getElementById('profile-bio');
+  if (bioElement) {
+    bioElement.textContent = bio || 'No bio provided';
+  }
+  
+  // Update avatar
+  const profileAvatar = document.getElementById('profile-avatar');
+  if (profileAvatar) {
+    const avatarUrl = profile.avatar || '../resources/default-avatar.png';
+    profileAvatar.src = avatarUrl;
+    profileAvatar.onerror = () => {
+      profileAvatar.src = '../resources/default-avatar.png';
+    };
+  }
+  
+  // Update join date
+  const joinedElement = document.getElementById('profile-joined');
+  if (joinedElement) {
+    if (profile.createdAt || user.createdAt) {
+      const date = new Date(profile.createdAt || user.createdAt);
+      joinedElement.textContent = `Joined: ${date.toLocaleDateString()}`;
+    } else {
+      joinedElement.textContent = 'Joined: Recently';
+    }
+  }
+  
+  // Update games played
+  const gamesPlayedElement = document.getElementById('profile-games-played');
+  if (gamesPlayedElement) {
+    const gamesPlayed = profile.gamesPlayed || 0;
+    gamesPlayedElement.textContent = `Games: ${gamesPlayed}`;
+  }
+  
+  // Update game ranks - safely handle different structures
+  updateGameRanksUI(profile.gameRanks || []);
   
   // Update languages
-  updateLanguagesUI(profile.languages);
+  updateLanguagesUI(profile.languages || []);
   
   // Update interests
-  updateInterestsUI(profile.interests);
+  updateInterestsUI(profile.interests || []);
   
   // Update preferences
-  updatePreferencesUI(profile.preferences);
-  
-  // Update recent activity
-  updateActivityUI(profile.recentActivity);
+  updatePreferencesUI(profile.preferences || {});
 }
 
 /**
@@ -966,8 +1073,34 @@ function updateProfileUI(profile) {
  * @param {Array} gameRanks - Array of game ranks
  */
 function updateGameRanksUI(gameRanks) {
-  // Placeholder function
-  console.log('Updating game ranks UI:', gameRanks);
+  const gameRanksContainer = document.getElementById('game-ranks-container');
+  if (!gameRanksContainer) return;
+  
+  if (!gameRanks || !Array.isArray(gameRanks) || gameRanks.length === 0) {
+    gameRanksContainer.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-gamepad"></i>
+        <p>No game ranks added yet</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Clear container
+  gameRanksContainer.innerHTML = '';
+  
+  // Add game ranks
+  gameRanks.forEach(gameRank => {
+    if (!gameRank || !gameRank.game) return;
+    
+    const gameRankCard = document.createElement('div');
+    gameRankCard.className = 'game-rank-card';
+    gameRankCard.innerHTML = `
+      <h4>${gameRank.game}</h4>
+      <div class="rank-badge">${gameRank.rank || 'Unranked'}</div>
+    `;
+    gameRanksContainer.appendChild(gameRankCard);
+  });
 }
 
 /**
@@ -975,8 +1108,31 @@ function updateGameRanksUI(gameRanks) {
  * @param {Array} languages - Array of languages
  */
 function updateLanguagesUI(languages) {
-  // Placeholder function
-  console.log('Updating languages UI:', languages);
+  const languagesContainer = document.getElementById('languages-container');
+  if (!languagesContainer) return;
+  
+  if (!languages || !Array.isArray(languages) || languages.length === 0) {
+    languagesContainer.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-comment-slash"></i>
+        <p>No languages added</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Clear container
+  languagesContainer.innerHTML = '';
+  
+  // Add languages
+  languages.forEach(language => {
+    if (!language) return;
+    
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = language;
+    languagesContainer.appendChild(tag);
+  });
 }
 
 /**
@@ -984,8 +1140,31 @@ function updateLanguagesUI(languages) {
  * @param {Array} interests - Array of interests
  */
 function updateInterestsUI(interests) {
-  // Placeholder function
-  console.log('Updating interests UI:', interests);
+  const interestsContainer = document.getElementById('interests-container');
+  if (!interestsContainer) return;
+  
+  if (!interests || !Array.isArray(interests) || interests.length === 0) {
+    interestsContainer.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-heart-broken"></i>
+        <p>No interests added</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Clear container
+  interestsContainer.innerHTML = '';
+  
+  // Add interests
+  interests.forEach(interest => {
+    if (!interest) return;
+    
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = interest;
+    interestsContainer.appendChild(tag);
+  });
 }
 
 /**
@@ -993,17 +1172,33 @@ function updateInterestsUI(interests) {
  * @param {Object} preferences - Preferences object
  */
 function updatePreferencesUI(preferences) {
-  // Placeholder function
-  console.log('Updating preferences UI:', preferences);
-}
-
-/**
- * Update activity UI
- * @param {Array} activities - Array of activities
- */
-function updateActivityUI(activities) {
-  // Placeholder function
-  console.log('Updating activity UI:', activities);
+  if (!preferences || typeof preferences !== 'object') {
+    preferences = {};
+  }
+  
+  // Play style
+  const playStyleElement = document.getElementById('pref-play-style');
+  if (playStyleElement) {
+    playStyleElement.textContent = preferences.playStyle || 'Casual';
+  }
+  
+  // Communication
+  const communicationElement = document.getElementById('pref-communication');
+  if (communicationElement) {
+    communicationElement.textContent = preferences.communication || 'Text Chat';
+  }
+  
+  // Play time
+  const playTimeElement = document.getElementById('pref-play-time');
+  if (playTimeElement) {
+    playTimeElement.textContent = preferences.playTime || 'Evening';
+  }
+  
+  // Region
+  const regionElement = document.getElementById('pref-region');
+  if (regionElement) {
+    regionElement.textContent = preferences.region || 'North America';
+  }
 }
 
 /**
