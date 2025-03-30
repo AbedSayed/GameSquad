@@ -200,6 +200,7 @@
     <div class="notifications-container"></div>
 
     <!-- Scripts -->
+    <script src="js/friends-service.js"></script>
     <script src="js/gamesquad-ui.js"></script>
     <script>
         // Global configuration
@@ -228,6 +229,17 @@
             
             // Update auth UI (this will show/hide elements based on auth state)
             updateAuthUI();
+            
+            // Initialize the friends sidebar
+            if (window.FriendsService) {
+                console.log('FriendsService is available, initializing friends sidebar');
+                // If FriendsService was not initialized, initialize it now
+                if (!window.FriendsService.initialized) {
+                    window.FriendsService.init();
+                }
+            } else {
+                console.error('FriendsService is not available');
+            }
         });
     </script>
 </body>

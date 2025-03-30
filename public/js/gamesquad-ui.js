@@ -442,9 +442,9 @@ function initGlobalFriendsSidebar() {
             <div class="friends-list-wrapper">
                 <div id="friends-list" class="tab-content active">
                     <!-- Friends will be populated here -->
-                    <div class="empty-friends-message">
-                        <i class="fas fa-user-friends"></i>
-                        <p>No friends added yet</p>
+                    <div class="loading-message">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading friends...</p>
                     </div>
                 </div>
                 <div id="requests-list" class="tab-content">
@@ -596,19 +596,48 @@ function initGlobalFriendsSidebar() {
                 padding: 10px;
             }
             
+            .loading-message {
+                text-align: center;
+                color: rgba(255, 255, 255, 0.7);
+                padding: 30px 0;
+                font-size: 0.9rem;
+            }
+            
+            .loading-message i {
+                color: rgba(126, 34, 206, 0.7);
+                font-size: 1.5rem;
+                margin-bottom: 10px;
+            }
+            
+            .empty-friends-message {
+                text-align: center;
+                color: rgba(255, 255, 255, 0.7);
+                padding: 30px 0;
+                font-size: 0.9rem;
+            }
+            
+            .empty-friends-message i {
+                color: rgba(126, 34, 206, 0.7);
+                font-size: 1.5rem;
+                margin-bottom: 10px;
+            }
+            
             .friend-item {
                 display: flex;
                 align-items: center;
-                padding: 8px 10px;
-                margin-bottom: 5px;
+                padding: 10px;
                 border-radius: 4px;
+                margin-bottom: 5px;
+                background-color: rgba(15, 15, 25, 0.7);
+                transition: background-color 0.2s, transform 0.2s;
                 cursor: pointer;
-                transition: background-color 0.2s;
-                border: 1px solid rgba(126, 34, 206, 0.2);
+                border: 1px solid transparent;
             }
             
             .friend-item:hover {
-                background-color: rgba(126, 34, 206, 0.2);
+                background-color: rgba(126, 34, 206, 0.1);
+                border-color: rgba(126, 34, 206, 0.3);
+                transform: translateY(-2px);
             }
             
             .friend-avatar {
@@ -620,8 +649,16 @@ function initGlobalFriendsSidebar() {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                color: white;
+                font-size: 0.7rem;
                 font-weight: bold;
+                color: white;
+                overflow: hidden;
+            }
+            
+            .friend-avatar img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
             }
             
             .friend-info {
@@ -629,21 +666,22 @@ function initGlobalFriendsSidebar() {
             }
             
             .friend-name {
-                font-weight: 600;
-                margin-bottom: 2px;
+                color: #fff;
+                font-size: 0.9rem;
+                margin-bottom: 3px;
             }
             
             .friend-status {
-                font-size: 0.8rem;
-                opacity: 0.7;
+                font-size: 0.7rem;
+                color: #718093;
             }
             
             .friend-status.online {
-                color: #10b981;
+                color: #4cd137;
             }
             
             .friend-status.offline {
-                color: #ef4444;
+                color: #718093;
             }
             
             .friend-actions {
@@ -651,93 +689,24 @@ function initGlobalFriendsSidebar() {
                 gap: 5px;
             }
             
+            .friend-actions .btn {
+                padding: 5px 10px;
+                font-size: 0.8rem;
+                white-space: nowrap;
+            }
+            
             .friend-action-btn {
-                border: none;
                 background: none;
-                color: white;
+                border: none;
+                color: rgba(255, 255, 255, 0.5);
                 cursor: pointer;
-                opacity: 0.7;
-                transition: opacity 0.2s;
+                padding: 5px;
+                font-size: 0.8rem;
+                transition: color 0.2s;
             }
             
             .friend-action-btn:hover {
-                opacity: 1;
-            }
-            
-            .empty-friends-message {
-                text-align: center;
-                padding: 20px;
-                color: rgba(255, 255, 255, 0.6);
-                font-style: italic;
-            }
-            
-            .empty-friends-message i {
-                font-size: 2em;
-                margin-bottom: 10px;
-                display: block;
-            }
-            
-            .request-item {
-                display: flex;
-                flex-direction: column;
-                padding: 10px;
-                margin-bottom: 8px;
-                border-radius: 4px;
-                border: 1px solid rgba(126, 34, 206, 0.3);
-                background-color: rgba(126, 34, 206, 0.1);
-            }
-            
-            .request-header {
-                display: flex;
-                align-items: center;
-                margin-bottom: 8px;
-            }
-            
-            .request-message {
-                font-size: 0.9rem;
-                opacity: 0.9;
-                margin-bottom: 10px;
-            }
-            
-            .request-actions {
-                display: flex;
-                gap: 8px;
-            }
-            
-            .request-btn {
-                flex: 1;
-                padding: 5px;
-                border-radius: 4px;
-                border: none;
-                font-size: 0.8rem;
-                cursor: pointer;
-                text-align: center;
-            }
-            
-            .accept-btn {
-                background-color: rgba(16, 185, 129, 0.7);
-                color: white;
-            }
-            
-            .accept-btn:hover {
-                background-color: rgba(16, 185, 129, 0.9);
-            }
-            
-            .reject-btn {
-                background-color: rgba(239, 68, 68, 0.7);
-                color: white;
-            }
-            
-            .reject-btn:hover {
-                background-color: rgba(239, 68, 68, 0.9);
-            }
-            
-            @media (max-width: 768px) {
-                .friends-sidebar {
-                    width: 100%;
-                    right: 0;
-                    border-radius: 0;
-                }
+                color: rgba(255, 255, 255, 0.9);
             }
         `;
         document.head.appendChild(style);
@@ -760,8 +729,9 @@ function initGlobalFriendsSidebar() {
                 }
             }
             
-            // If expanding, check for new friend requests
+            // If expanding, refresh the data
             if (!friendsSidebar.classList.contains('collapsed')) {
+                refreshFriendsList();
                 refreshFriendRequests();
             }
         });
@@ -792,6 +762,8 @@ function initGlobalFriendsSidebar() {
                 // If requests tab is selected, refresh the requests
                 if (targetTab === 'requests-list') {
                     refreshFriendRequests();
+                } else if (targetTab === 'friends-list') {
+                    refreshFriendsList();
                 }
             });
         });
@@ -807,21 +779,31 @@ function initGlobalFriendsSidebar() {
     
     // Initialize friends list if FriendsService is available
     if (window.FriendsService) {
-        window.FriendsService.loadFriends()
-            .then(friends => {
-                displayFriendsInSidebar(friends);
-            })
-            .catch(error => {
-                console.error('Error loading friends:', error);
-            });
+        // Initial load of friends
+        refreshFriendsList();
         
         // Load friend requests
         refreshFriendRequests();
         
         // Set up periodic check for new friend requests
         setInterval(async () => {
-            await checkForNewFriendRequests();
+            if (!friendsSidebar.classList.contains('collapsed')) {
+                await refreshFriendsList();
+                await checkForNewFriendRequests();
+            }
         }, 30000); // Check every 30 seconds
+    } else {
+        console.error('FriendsService not available');
+        // Display error in friends list
+        const friendsList = document.getElementById('friends-list');
+        if (friendsList) {
+            friendsList.innerHTML = `
+                <div class="empty-friends-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Could not load friends service</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -845,7 +827,9 @@ function displayFriendsInSidebar(friends) {
     const friendsList = document.getElementById('friends-list');
     if (!friendsList) return;
     
-    if (!friends || friends.length === 0) {
+    console.log('Displaying friends in sidebar:', friends);
+    
+    if (!friends || !Array.isArray(friends) || friends.length === 0) {
         friendsList.innerHTML = `
             <div class="empty-friends-message">
                 <i class="fas fa-user-friends"></i>
@@ -987,22 +971,39 @@ function displayFriendsInSidebar(friends) {
             refreshBtn.disabled = true;
             
             try {
-                if (window.FriendsService) {
-                    // Force reload from the API
-                    await window.FriendsService.fetchFriendRequestsFromAPI();
-                    const freshFriends = await window.FriendsService.fetchFriendsFromAPI();
-                    displayFriendsInSidebar(freshFriends);
-                    showNotification('Friends list updated', 'success', 2000);
-                }
+                await refreshFriendsList();
+                showNotification('Friends list updated', 'success', 2000);
             } catch (error) {
                 console.error('Error refreshing friends:', error);
                 showNotification('Could not refresh friends list', 'error', 3000);
-                
+            } finally {
                 // Remove spinning class and re-enable button
                 iconElement.classList.remove('spinning');
                 refreshBtn.disabled = false;
             }
         });
+    }
+}
+
+// New function to refresh the friends list
+async function refreshFriendsList() {
+    if (!window.FriendsService) {
+        console.error('FriendsService not initialized');
+        return;
+    }
+    
+    try {
+        // Force reload from the API
+        await window.FriendsService.fetchFriendRequestsFromAPI();
+        const freshFriends = await window.FriendsService.fetchFriendsFromAPI();
+        console.log('Fresh friends loaded:', freshFriends);
+        
+        // Display the updated friends
+        displayFriendsInSidebar(freshFriends);
+        return freshFriends;
+    } catch (error) {
+        console.error('Error refreshing friends list:', error);
+        throw error;
     }
 }
 

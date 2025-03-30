@@ -2,6 +2,9 @@
 // Manages friends data, storage, and UI updates
 
 const FriendsService = {
+    // Track if service has been initialized
+    initialized: false,
+    
     // Initialize the service
     init: function() {
         console.log('Initializing FriendsService');
@@ -19,6 +22,10 @@ const FriendsService = {
         
         // Set up socket listeners
         this.setupSocketListeners();
+        
+        // Mark as initialized
+        this.initialized = true;
+        console.log('FriendsService initialized successfully');
         
         return this;
     },
@@ -209,6 +216,7 @@ const FriendsService = {
         }
         
         try {
+            console.log('Fetching friends from API...');
             const response = await fetch('/api/friends', {
                 method: 'GET',
                 headers: {
@@ -218,6 +226,8 @@ const FriendsService = {
             });
             
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Failed to fetch friends: ${response.status}`, errorText);
                 throw new Error(`Failed to fetch friends: ${response.status}`);
             }
             
@@ -228,14 +238,52 @@ const FriendsService = {
                 throw new Error(result.message || 'Error fetching friends');
             }
             
-            const friends = result.data || [];
+            // Ensure we have a valid array of friends
+            let friends = result.data || [];
+            if (!Array.isArray(friends)) {
+                console.warn('API returned non-array friends data, converting to array');
+                friends = Array.isArray(result.data) ? result.data : [];
+            }
+            
+            // Process friends data to ensure each item has necessary properties
+            const processedFriends = friends.map(friend => {
+                if (typeof friend === 'string') {
+                    // If friend is just an ID, convert to object
+                    return { _id: friend, username: `User ${friend.substring(0, 5)}` };
+                }
+                
+                // Ensure the friend object has _id and username
+                const processedFriend = { ...friend };
+                if (!processedFriend.username && processedFriend._id) {
+                    processedFriend.username = `User ${processedFriend._id.substring(0, 5)}`;
+                }
+                
+                return processedFriend;
+            });
             
             // Store to localStorage
-            localStorage.setItem('friends', JSON.stringify(friends));
+            localStorage.setItem('friends', JSON.stringify(processedFriends));
             
-            return friends;
+            // Update the instance property
+            this.friends = processedFriends;
+            
+            return processedFriends;
         } catch (error) {
             console.error('Error fetching friends from API:', error);
+            // Try to get from localStorage as fallback
+            try {
+                const friendsStr = localStorage.getItem('friends');
+                if (friendsStr) {
+                    const storedFriends = JSON.parse(friendsStr);
+                    if (Array.isArray(storedFriends) && storedFriends.length > 0) {
+                        console.log('Using cached friends from localStorage');
+                        return storedFriends;
+                    }
+                }
+            } catch (e) {
+                console.error('Error reading friends from localStorage:', e);
+            }
+            
             return [];
         }
     },
