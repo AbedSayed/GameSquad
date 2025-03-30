@@ -18,6 +18,12 @@
         window.recentNotifications = new Set();
         console.log('🔔 Created global recentNotifications set for notification deduplication');
     }
+    
+    // Use the global showNotification if available from utils.js
+    if (typeof showNotification === 'function' && !window.showNotification) {
+        window.showNotification = showNotification;
+        console.log('Registered showNotification as global function');
+    }
 })();
 
 // Add a function to make sure we're using a single socket instance
@@ -398,6 +404,26 @@ function fixDuplicateFriendEntries() {
 
 // Call this function on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Set up periodic friend status refresh to ensure all sessions stay in sync
+    const FRIEND_STATUS_REFRESH_INTERVAL = 30000; // 30 seconds
+    console.log(`⏱️ Setting up automatic friend status refresh every ${FRIEND_STATUS_REFRESH_INTERVAL/1000} seconds`);
+    
+    // Do an initial refresh after 5 seconds (let the page load completely first)
+    setTimeout(() => {
+        console.log('🔄 Running initial friend status refresh...');
+        fetchLatestFriendData()
+            .then(() => updateAllPlayerCards())
+            .catch(console.error);
+    }, 5000);
+    
+    // Set up periodic refresh
+    setInterval(() => {
+        console.log('🔄 Running periodic friend status refresh...');
+        fetchLatestFriendData()
+            .then(() => updateAllPlayerCards())
+            .catch(console.error);
+    }, FRIEND_STATUS_REFRESH_INTERVAL);
+    
     // Clean up Unknown User friend requests before checking for them
     cleanupUnknownUserRequests();
     
@@ -685,64 +711,53 @@ function hideLoadingIndicator() {
 function showErrorMessage(message) {
     console.error(message);
     
-    // Create error notification
-    if (typeof showNotification === 'function') {
-        // Use existing showNotification if available
+    // Use the standard notification system
+    if (typeof window.showNotification === 'function') {
+        // Use global showNotification if available
+        window.showNotification('Error', message, 'error');
+    } else if (typeof showNotification === 'function') {
+        // Use local showNotification if available
         showNotification('Error', message, 'error');
     } else {
-        // Create a simple error message if showNotification isn't available
-        let errorMessage = document.getElementById('errorMessage');
-        
-        if (!errorMessage) {
-            errorMessage = document.createElement('div');
-            errorMessage.id = 'errorMessage';
-            errorMessage.className = 'error-message';
-            
-            // Style the error message
-            errorMessage.style.backgroundColor = 'rgba(220, 53, 69, 0.9)';
-            errorMessage.style.color = 'white';
-            errorMessage.style.padding = '15px';
-            errorMessage.style.borderRadius = '5px';
-            errorMessage.style.margin = '15px 0';
-            errorMessage.style.boxShadow = '0 0 15px rgba(220, 53, 69, 0.3)';
-            errorMessage.style.position = 'relative';
-            errorMessage.style.animation = 'fadeIn 0.3s';
-            
-            // Add a close button
-            const closeButton = document.createElement('button');
-            closeButton.innerHTML = '&times;';
-            closeButton.style.position = 'absolute';
-            closeButton.style.right = '10px';
-            closeButton.style.top = '10px';
-            closeButton.style.background = 'none';
-            closeButton.style.border = 'none';
-            closeButton.style.color = 'white';
-            closeButton.style.fontSize = '20px';
-            closeButton.style.cursor = 'pointer';
-            closeButton.onclick = () => errorMessage.style.display = 'none';
-            
-            errorMessage.appendChild(closeButton);
-            
-            // Add the error icon and message
-            const content = document.createElement('div');
-            content.innerHTML = `<i class="fas fa-exclamation-circle" style="margin-right: 10px;"></i>${message}`;
-            errorMessage.appendChild(content);
-            
-            // Add to the page
-            const playersContainer = document.getElementById('playersContainer');
-            if (playersContainer) {
-                playersContainer.prepend(errorMessage);
-            } else {
-                document.body.appendChild(errorMessage);
-            }
-        } else {
-            // Update existing error message
-            const content = errorMessage.querySelector('div');
-            if (content) {
-                content.innerHTML = `<i class="fas fa-exclamation-circle" style="margin-right: 10px;"></i>${message}`;
-            }
-            errorMessage.style.display = 'block';
+        // If no proper notification function exists, create a notification using the utils.js format
+        const notificationsContainer = document.querySelector('.notifications-container');
+        if (!notificationsContainer) {
+            console.error('No notifications container found');
+            alert(message); // Fallback to alert
+            return;
         }
+            
+        const notification = document.createElement('div');
+        notification.className = 'notification notification-error';
+        
+        notification.innerHTML = `
+            <div class="notification-content">
+                <div class="notification-title">Error</div>
+                <div class="notification-message">${message}</div>
+            </div>
+            <button class="notification-close">&times;</button>
+        `;
+        
+        notificationsContainer.appendChild(notification);
+        
+        // Add close button functionality
+        const closeBtn = notification.querySelector('.notification-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                notification.classList.add('fade-out');
+                setTimeout(() => {
+                    notification.remove();
+                }, 500);
+            });
+        }
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            notification.classList.add('fade-out');
+            setTimeout(() => {
+                notification.remove();
+            }, 500);
+        }, 5000);
     }
 }
 
@@ -1353,33 +1368,132 @@ function checkIfFriend(playerId) {
 
 // Function to refresh friend status for all player cards
 function refreshFriendStatus() {
-    console.log('[players.js] Refreshing friend status for all player cards');
+    console.log('⚡ [players.js] Running FULL friend status refresh for all player cards');
     
+    // First, fetch the latest friend data from server
+    fetchLatestFriendData()
+        .then(() => {
+            console.log('✅ Successfully refreshed friend data from server');
+            
+            // Now update all player cards with the latest data
+            updateAllPlayerCards();
+        })
+        .catch(error => {
+            console.error('❌ Error fetching latest friend data:', error);
+            // Still try to update UI with local data
+            updateAllPlayerCards();
+        });
+}
+
+// Function to fetch the latest friend data from server
+async function fetchLatestFriendData() {
+    console.log('🔄 Fetching latest friend data from server...');
+    
+    // Get token for authentication
+    const token = localStorage.getItem('token');
+    if (!token) {
+        console.warn('⚠️ Cannot fetch friends - not authenticated');
+        return false;
+    }
+    
+    try {
+        // First fetch friends list
+        const friendsResponse = await fetch('/api/friends', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!friendsResponse.ok) {
+            throw new Error(`Failed to fetch friends: ${friendsResponse.status}`);
+        }
+        
+        const friendsResult = await friendsResponse.json();
+        console.log('📥 Fetched friends from API:', friendsResult);
+        
+        if (friendsResult.success) {
+            const friends = friendsResult.data || [];
+            
+            // Store to localStorage
+            localStorage.setItem('friends', JSON.stringify(friends));
+            
+            // Now fetch friend requests
+            const requestsResponse = await fetch('/api/friends/requests', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!requestsResponse.ok) {
+                throw new Error(`Failed to fetch friend requests: ${requestsResponse.status}`);
+            }
+            
+            const requestsResult = await requestsResponse.json();
+            console.log('📥 Fetched friend requests from API:', requestsResult);
+            
+            if (requestsResult.success) {
+                // Get existing user info
+                const userInfoStr = localStorage.getItem('userInfo');
+                if (userInfoStr) {
+                    const userInfo = JSON.parse(userInfoStr);
+                    
+                    // Update friend data in userInfo
+                    userInfo.friends = friends.map(friend => friend._id);
+                    userInfo.friendsData = friends;
+                    userInfo.friendRequests = requestsResult.data || { sent: [], received: [] };
+                    
+                    // Save updated userInfo back to localStorage
+                    localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                    console.log('💾 Updated userInfo in localStorage with latest friend data');
+                }
+                
+                // Also update FriendsService if available
+                if (window.FriendsService) {
+                    window.FriendsService.friends = friends;
+                    window.FriendsService.friendRequests = requestsResult.data || { sent: [], received: [] };
+                }
+                
+                return true;
+            }
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('❌ Error fetching friend data from API:', error);
+        return false;
+    }
+}
+
+// Function to update all player cards with latest friend status
+function updateAllPlayerCards() {
     // Find all player cards
     const playerCards = document.querySelectorAll('.player-card');
+    console.log(`🔍 Updating ${playerCards.length} player cards with latest friend status`);
+    
     playerCards.forEach(card => {
-        // Changed from data-id to data-player-id to match what's set in createPlayerCard
+        // Get player ID and name from card
         const playerId = card.getAttribute('data-player-id');
-        // Try to get player name from card
         const playerNameEl = card.querySelector('.player-name');
         const playerName = playerNameEl ? playerNameEl.textContent : 'Unknown';
         
-        if (!playerId) return;
+        if (!playerId) {
+            console.warn('⚠️ Player card without player ID, skipping');
+            return;
+        }
         
-        console.log(`Refreshing friend status for player: ${playerId} (${playerName})`);
+        console.log(`👤 Refreshing friend status for player: ${playerId} (${playerName})`);
         
-        // Get current friend status
+        // Force fresh check of friend status
         const friendStatus = checkIfFriend(playerId);
-        console.log(`Friend status for ${playerId}: ${friendStatus.status}`);
+        console.log(`🔄 Current friend status for ${playerId}: ${friendStatus.status}`);
         
         // Update the UI based on the status
         updateFriendButtonUI(playerId, playerName, friendStatus.status);
     });
-    
-    // Fetch the latest friend data
-    if (window.FriendsService && typeof window.FriendsService.loadFriendRequests === 'function') {
-        window.FriendsService.loadFriendRequests();
-    }
     
     // Set up event listeners for friend-related events
     setupFriendEventListeners();
@@ -1391,30 +1505,30 @@ let isProcessingRequestQueue = false;
 
 // Check for friend requests and display them in the banner
 function checkForFriendRequests() {
-    console.log('Checking for friend requests...');
+    console.log('🔍 Checking for friend requests in localStorage...');
     
     try {
         // Get user info from localStorage
         const userInfoStr = localStorage.getItem('userInfo');
         if (!userInfoStr) {
-            console.log('No user info found in localStorage');
+            console.log('⚠️ No user info found in localStorage');
             return [];
         }
         
         const userInfo = JSON.parse(userInfoStr);
         if (!userInfo.friendRequests || !userInfo.friendRequests.received || !userInfo.friendRequests.received.length) {
-            console.log('No friend requests found in user info');
+            console.log('✓ No friend requests found in user info');
             return [];
         }
         
-        console.log(`Found ${userInfo.friendRequests.received.length} friend requests in localStorage`);
+        console.log(`📬 Found ${userInfo.friendRequests.received.length} friend requests in localStorage`);
         
         // Filter to only show pending requests
         const pendingRequests = userInfo.friendRequests.received.filter(request => 
             !request.status || request.status === 'pending'
         );
         
-        console.log(`Found ${pendingRequests.length} pending friend requests`);
+        console.log(`⏳ Found ${pendingRequests.length} pending friend requests`);
         
         if (pendingRequests.length > 0) {
             // Clear the previous queue
@@ -1427,20 +1541,24 @@ function checkForFriendRequests() {
                     requestId: request._id,
                     senderId: request.sender && request.sender._id ? request.sender._id : request.sender,
                     senderName: request.senderName || (request.sender && request.sender.username) || 'User',
-                    message: request.message || null
+                    message: request.message || null,
+                    timestamp: request.createdAt || new Date().toISOString()
                 };
+                
+                console.log(`👤 Adding request from ${requestData.senderName} to processing queue`, requestData);
                 
                 // Add to our processing queue
                 pendingFriendRequestsQueue.push(requestData);
             });
             
             // Process the first request in the queue
+            console.log(`🔄 Starting to process ${pendingFriendRequestsQueue.length} friend requests`);
             processNextFriendRequest();
         }
         
         return pendingRequests;
     } catch (error) {
-        console.error('Error checking for friend requests:', error);
+        console.error('❌ Error checking for friend requests:', error);
         return [];
     }
 }
@@ -1448,6 +1566,7 @@ function checkForFriendRequests() {
 // Process the next friend request in the queue
 function processNextFriendRequest() {
     if (isProcessingRequestQueue || pendingFriendRequestsQueue.length === 0) {
+        console.log('🔄 No friend requests to process or already processing');
         return;
     }
     
@@ -1456,13 +1575,16 @@ function processNextFriendRequest() {
     // Get the next request
     const nextRequest = pendingFriendRequestsQueue.shift();
     
-    console.log('Processing next friend request in queue:', nextRequest);
+    console.log('📨 Processing next friend request in queue:', nextRequest);
     
+    // Short delay to ensure DOM is ready
+    setTimeout(() => {
     // Display the request in the banner
     displayFriendRequestInBanner(nextRequest);
     
     // Set up listeners for this request's completion
     setupFriendRequestCompletion();
+    }, 300);
 }
 
 // Set up listener for friend request completion
@@ -1470,14 +1592,23 @@ function setupFriendRequestCompletion() {
     // Get the banner element
     const banner = document.getElementById('friendRequestBanner');
     if (!banner) {
-        console.error('Friend request banner not found for completion setup');
+        console.error('❌ Friend request banner not found for completion setup');
+        // Reset the processing flag to allow next request
+        setTimeout(() => {
         isProcessingRequestQueue = false;
+            // Try to process next request even if this one failed
+            if (pendingFriendRequestsQueue.length > 0) {
+                processNextFriendRequest();
+            }
+        }, 500);
         return;
     }
     
+    console.log('✅ Friend request banner found, setting up completion handlers');
+    
     // Create a completion function for when this request is handled
     const completionHandler = () => {
-        console.log('Friend request handled, processing next in queue');
+        console.log('✓ Friend request handled, processing next in queue');
         
         // Small delay before processing the next request
         setTimeout(() => {
@@ -1486,6 +1617,8 @@ function setupFriendRequestCompletion() {
             // Process the next request if any
             if (pendingFriendRequestsQueue.length > 0) {
                 processNextFriendRequest();
+            } else {
+                console.log('📭 No more friend requests in queue');
             }
         }, 2000);
     };
@@ -1498,6 +1631,7 @@ function setupFriendRequestCompletion() {
     if (acceptBtn) {
         const originalClick = acceptBtn.onclick;
         acceptBtn.onclick = function(e) {
+            console.log('🟢 Accept button clicked');
             if (originalClick) originalClick.call(this, e);
             completionHandler();
         };
@@ -1506,6 +1640,7 @@ function setupFriendRequestCompletion() {
     if (rejectBtn) {
         const originalClick = rejectBtn.onclick;
         rejectBtn.onclick = function(e) {
+            console.log('🔴 Reject button clicked');
             if (originalClick) originalClick.call(this, e);
             completionHandler();
         };
@@ -1514,6 +1649,7 @@ function setupFriendRequestCompletion() {
     if (closeBtn) {
         const originalClick = closeBtn.onclick;
         closeBtn.onclick = function(e) {
+            console.log('❌ Close button clicked');
             if (originalClick) originalClick.call(this, e);
             completionHandler();
         };
@@ -2041,17 +2177,20 @@ function addFriendRequestToFrame(data) {
 
 // Display friend request in the banner at the top of the page
 function displayFriendRequestInBanner(data) {
-    console.log('Displaying friend request in top banner:', data);
+    console.log('📣 Displaying friend request in top banner:', data);
     
     const senderId = data.senderId;
     const senderName = data.senderName || 'Unknown User';
     const message = data.message || `${senderName} would like to be your friend!`;
     const requestId = data.requestId || `local_${Date.now()}`;
     
+    // Ensure we have CSS for the friend request banner
+    ensureFriendRequestStyles();
+    
     // Get or create the friend request banner
     let banner = document.getElementById('friendRequestBanner');
     if (!banner) {
-        console.log('Friend request banner not found, creating it');
+        console.log('🆕 Friend request banner not found, creating it');
         banner = document.createElement('div');
         banner.id = 'friendRequestBanner';
         banner.className = 'friend-request-banner';
@@ -2059,11 +2198,15 @@ function displayFriendRequestInBanner(data) {
         // Add it to the top of the page, before the main content
         const playersContainer = document.querySelector('.players-container');
         if (playersContainer) {
+            console.log('📌 Adding banner before players container');
             playersContainer.parentNode.insertBefore(banner, playersContainer);
         } else {
             // If no players container, add it to the body
+            console.log('📌 Adding banner to body');
             document.body.prepend(banner);
         }
+    } else {
+        console.log('✅ Found existing friend request banner');
     }
     
     // Create or update the content of the banner
@@ -2114,16 +2257,26 @@ function displayFriendRequestInBanner(data) {
     const rejectBtn = banner.querySelector('.reject-request-btn');
     const closeBtn = banner.querySelector('.close-banner-btn');
     
-    acceptBtn.addEventListener('click', () => {
+    // Remove previous event listeners if any
+    const newAcceptBtn = acceptBtn.cloneNode(true);
+    const newRejectBtn = rejectBtn.cloneNode(true);
+    const newCloseBtn = closeBtn.cloneNode(true);
+    
+    acceptBtn.replaceWith(newAcceptBtn);
+    rejectBtn.replaceWith(newRejectBtn);
+    closeBtn.replaceWith(newCloseBtn);
+    
+    // Add new event listeners
+    newAcceptBtn.addEventListener('click', () => {
         console.log('Accept button clicked in banner');
-        const senderId = acceptBtn.dataset.senderId;
-        const requestId = acceptBtn.dataset.requestId;
-        const senderName = acceptBtn.dataset.senderName;
+        const senderId = newAcceptBtn.dataset.senderId;
+        const requestId = newAcceptBtn.dataset.requestId;
+        const senderName = newAcceptBtn.dataset.senderName;
         
         // Show loading state
-        acceptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ACCEPTING...';
-        acceptBtn.disabled = true;
-        rejectBtn.disabled = true;
+        newAcceptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ACCEPTING...';
+        newAcceptBtn.disabled = true;
+        newRejectBtn.disabled = true;
         
         if (window.SocketHandler && typeof window.SocketHandler.acceptFriendRequest === 'function') {
             // Use SocketHandler if available
@@ -2142,15 +2295,15 @@ function displayFriendRequestInBanner(data) {
         }, 1500);
     });
     
-    rejectBtn.addEventListener('click', () => {
+    newRejectBtn.addEventListener('click', () => {
         console.log('Reject button clicked in banner');
-        const senderId = rejectBtn.dataset.senderId;
-        const requestId = rejectBtn.dataset.requestId;
+        const senderId = newRejectBtn.dataset.senderId;
+        const requestId = newRejectBtn.dataset.requestId;
         
         // Show loading state
-        rejectBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> DECLINING...';
-        rejectBtn.disabled = true;
-        acceptBtn.disabled = true;
+        newRejectBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> DECLINING...';
+        newRejectBtn.disabled = true;
+        newAcceptBtn.disabled = true;
         
         if (window.SocketHandler && typeof window.SocketHandler.rejectFriendRequest === 'function') {
             // Use SocketHandler if available
@@ -2169,7 +2322,7 @@ function displayFriendRequestInBanner(data) {
         }, 1500);
     });
     
-    closeBtn.addEventListener('click', () => {
+    newCloseBtn.addEventListener('click', () => {
         console.log('Close button clicked in banner');
         banner.style.animation = 'fadeOut 0.5s ease-out forwards';
         setTimeout(() => {
@@ -2179,31 +2332,174 @@ function displayFriendRequestInBanner(data) {
     
     // Add fadeOut animation to CSS if it doesn't exist
     ensureFadeoutAnimation();
+    
+    // Log the banner creation
+    console.log('✅ Friend request banner created and displayed successfully');
+}
+
+// Ensure we have the necessary styles for friend request banner
+function ensureFriendRequestStyles() {
+    if (document.getElementById('friend-request-banner-styles')) {
+        return; // Styles already exist
+    }
+    
+    const css = `
+        .friend-request-banner {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            background-color: #2c3e50;
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 80%;
+            max-width: 600px;
+            animation: slideInDown 0.5s ease-out;
+        }
+        
+        .friend-request-banner .request-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .friend-request-banner .request-avatar {
+            width: 44px;
+            height: 44px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-right: 16px;
+        }
+        
+        .friend-request-banner .request-info {
+            flex: 1;
+        }
+        
+        .friend-request-banner .request-title {
+            margin: 0 0 4px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .friend-request-banner .request-message {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .friend-request-banner .request-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: 16px;
+        }
+        
+        .friend-request-banner .btn {
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        
+        .friend-request-banner .btn-success {
+            background-color: #2ecc71;
+            color: white;
+        }
+        
+        .friend-request-banner .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .friend-request-banner .btn-success:hover {
+            background-color: #27ae60;
+        }
+        
+        .friend-request-banner .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        
+        .friend-request-banner .close-banner-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            opacity: 0.7;
+            margin-left: 8px;
+            position: absolute;
+            top: 8px;
+            right: 8px;
+        }
+        
+        .friend-request-banner .close-banner-btn:hover {
+            opacity: 1;
+        }
+        
+        @keyframes slideInDown {
+            from {
+                transform: translate(-50%, -100%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+    `;
+    
+    const styleElem = document.createElement('style');
+    styleElem.id = 'friend-request-banner-styles';
+    styleElem.textContent = css;
+    document.head.appendChild(styleElem);
+    
+    console.log('💅 Added CSS styles for friend request banner');
 }
 
 /**
  * Accept friend request fallback function if SocketHandler is not available
  */
 function acceptFriendRequest(requestId, senderId) {
-    console.log(`[players.js] Accepting friend request ${requestId} from ${senderId}`);
+    console.log(`🤝 [players.js] Accepting friend request ${requestId} from ${senderId}`);
     
-    // Convert sender ID to string for consistent comparison
-    const senderIdStr = String(senderId);
-    
-    // Get current user info from localStorage
-    const userInfoStr = localStorage.getItem('userInfo');
-    if (!userInfoStr) {
-        showNotification('Error: User information not found', 'error');
-        return;
+    // First, mark this request in our global deduplication set if it exists
+    if (window.processedFriendRequests) {
+        window.processedFriendRequests.add(requestId);
+        console.log(`✅ [players.js] Added request ${requestId} to global deduplication set`);
     }
-    
-    const userInfo = JSON.parse(userInfoStr);
     
     // Get auth token
     const token = localStorage.getItem('token');
     if (!token) {
-        showNotification('Error: Authentication token not found', 'error');
+        showNotification('Error', 'Authentication token not found', 'error');
         return;
+    }
+    
+    // Show processing UI
+    if (typeof window.showNotification === 'function') {
+        window.showNotification('Processing', 'Accepting friend request...', 'info');
     }
     
     // Send accept request to server API
@@ -2225,66 +2521,59 @@ function acceptFriendRequest(requestId, senderId) {
         return response.json();
     })
     .then(data => {
-        console.log('[players.js] Accept friend request response:', data);
+        console.log('✅ [players.js] Accept friend request response:', data);
         
         if (data.success) {
             // Show success notification
-            showNotification('Friend request accepted!', 'success');
-            
-            // Add sender to friends list in localStorage if not already there
-            if (!userInfo.friends) {
-                userInfo.friends = [];
-            }
-            
-            if (!userInfo.friends.includes(senderIdStr) && !userInfo.friends.some(id => String(id) === senderIdStr)) {
-                userInfo.friends.push(senderIdStr);
-            }
-            
-            // Store sender details in friendsData if available
-            if (data.data && data.data.senderDetails) {
-                if (!userInfo.friendsData) {
-                    userInfo.friendsData = [];
-                }
-                
-                // Ensure we don't duplicate entries in friendsData
-                const existingIndex = userInfo.friendsData.findIndex(f => String(f._id) === senderIdStr);
-                
-                if (existingIndex >= 0) {
-                    // Update existing entry
-                    console.log(`[players.js] Updating existing friend data for ${senderId}`);
-                    userInfo.friendsData[existingIndex] = data.data.senderDetails;
-                } else {
-                    // Add new entry
-                    console.log(`[players.js] Adding new friend data for ${senderId}`);
-                    userInfo.friendsData.push(data.data.senderDetails);
-                }
-            }
-            
-            // Remove from received friend requests
-            if (userInfo.friendRequests && userInfo.friendRequests.received) {
-                userInfo.friendRequests.received = userInfo.friendRequests.received.filter(
-                    req => req._id !== requestId
-                );
-            }
-            
-            // Update localStorage with the new data from the server
-            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-            
-            // Refresh the page or update the UI
-            if (refreshFriendsList && typeof refreshFriendsList === 'function') {
-                console.log('[players.js] Refreshing friends list after accepting request');
-                refreshFriendsList();
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('Success', 'Friend request accepted!', 'success');
             } else {
-                console.log('[players.js] No refresh function available, reloading page');
-                location.reload();
+            showNotification('Friend request accepted!', 'success');
             }
+            
+            // Fetch latest data from server to ensure all views are updated
+            fetchLatestFriendData()
+                .then(() => {
+                    console.log('✅ Friend data refreshed after accepting request');
+                    
+                    // Update all player cards UI with new friend status
+                    updateAllPlayerCards();
+                    
+                    // Refresh friends list if the function exists
+                    if (typeof loadFriendsList === 'function') {
+                        console.log('🔄 Refreshing friends list after accepting request');
+                        loadFriendsList();
+                    }
+                    
+                    // Hide banner if it exists
+                    const banner = document.getElementById('friendRequestBanner');
+                    if (banner) {
+                        banner.style.animation = 'fadeOut 0.5s ease-out forwards';
+                        setTimeout(() => {
+                            banner.remove();
+                        }, 500);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error refreshing friend data after accepting request:', error);
+                    // Still try to update UI with local data
+                    updateAllPlayerCards();
+                });
+            } else {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('Error', data.message || 'Error accepting friend request', 'error');
         } else {
             showNotification(data.message || 'Error accepting friend request', 'error');
+            }
         }
     })
     .catch(error => {
-        console.error('[players.js] Error accepting friend request:', error);
+        console.error('❌ [players.js] Error accepting friend request:', error);
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('Error', 'Failed to accept friend request: ' + error.message, 'error');
+        } else {
         showNotification('Error accepting friend request: ' + error.message, 'error');
+        }
     });
 }
 
@@ -2359,9 +2648,12 @@ function rejectFriendRequest(requestId, senderId) {
 function setupFriendEventListeners() {
     // If SocketHandler is available, set up listeners
     if (window.SocketHandler && window.SocketHandler.socket) {
+        // First remove any existing listeners to prevent duplicates
+        window.SocketHandler.socket.off('friend-request-accepted');
+        
         // Listen for friend request accepted events
         window.SocketHandler.socket.on('friend-request-accepted', (data) => {
-            console.log('Friend request accepted:', data);
+            console.log('👍 Friend request accepted event received:', data);
             
             // Use just the requestId for deduplication
             const requestId = data.requestId || '';
@@ -2378,21 +2670,25 @@ function setupFriendEventListeners() {
                 console.log('✅ Added to global processed set:', requestId);
             }
             
-            // Refresh local user data
-            const userInfoStr = localStorage.getItem('userInfo');
-            if (userInfoStr) {
-                try {
-                    const userInfo = JSON.parse(userInfoStr);
+            // Immediately perform a full friend data refresh from server
+            fetchLatestFriendData()
+                .then(() => {
+                    console.log('✅ Friend data refreshed after friend request acceptance');
                     
                     // Update the UI to show friend status instead of pending
-                    refreshFriendStatus();
+                    updateAllPlayerCards();
                     
-                    // Show notification
-                    showNotification(`${data.acceptorName || 'User'} accepted your friend request!`, 'success');
-                } catch (e) {
-                    console.error('Error updating friend status after acceptance:', e);
-                }
-            }
+                    // Show notification using the global function if available
+                    const notificationMessage = `${data.acceptorName || 'User'} accepted your friend request!`;
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('Friend Request Accepted', notificationMessage, 'success');
+                    } else if (typeof showNotification === 'function') {
+                        showNotification('Friend Request Accepted', notificationMessage, 'success');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error refreshing friend data after acceptance:', error);
+                });
         });
     }
 }
@@ -2581,3 +2877,12 @@ function deduplicateFriends(friends) {
     console.log(`Deduplication: ${friends.length} friends reduced to ${uniqueFriends.length} unique friends`);
     return uniqueFriends;
 }
+
+// Run friend request check when window is fully loaded
+window.addEventListener('load', function() {
+    console.log('Window fully loaded - checking for friend requests');
+    // Delay the check slightly to ensure all resources are loaded
+    setTimeout(() => {
+        checkForFriendRequests();
+    }, 500);
+});
