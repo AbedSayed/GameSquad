@@ -1425,8 +1425,27 @@ function addFriendActionListeners() {
             
             if (!friendId) return;
             
-            // Ask for confirmation
-            if (!confirm(`Are you sure you want to remove ${friendName} from your friends list?`)) {
+            let isConfirmed = false;
+            
+            // Check if customConfirm exists
+            if (typeof window.customConfirm === 'function') {
+                console.log('[messages.js] Using custom confirmation dialog');
+                // Use custom confirmation instead of browser confirm
+                isConfirmed = await window.customConfirm({
+                    title: 'Remove Friend',
+                    message: `Are you sure you want to remove ${friendName} from your friends list?`,
+                    highlight: friendName,
+                    confirmText: 'Remove',
+                    cancelText: 'Cancel',
+                    icon: 'fa-user-times'
+                });
+            } else {
+                console.warn('[messages.js] Custom confirmation dialog not found, using browser confirm');
+                // Fall back to browser confirm
+                isConfirmed = confirm(`Are you sure you want to remove ${friendName} from your friends list?`);
+            }
+            
+            if (!isConfirmed) {
                 return;
             }
             

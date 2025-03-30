@@ -1293,8 +1293,27 @@ async function removeFriend(friendId, friendName) {
         return;
     }
     
-    // Ask for confirmation
-    if (!confirm(`Are you sure you want to remove ${friendName || 'this friend'} from your friends list?`)) {
+    let isConfirmed = false;
+    
+    // Check if customConfirm exists
+    if (typeof window.customConfirm === 'function') {
+        console.log('[players.js] Using custom confirmation dialog');
+        // Use custom confirmation dialog instead of browser confirm
+        isConfirmed = await window.customConfirm({
+            title: 'Remove Friend',
+            message: `Are you sure you want to remove ${friendName || 'this friend'} from your friends list?`,
+            highlight: friendName || 'this friend',
+            confirmText: 'Remove',
+            cancelText: 'Cancel',
+            icon: 'fa-user-times'
+        });
+    } else {
+        console.warn('[players.js] Custom confirmation dialog not found, using browser confirm');
+        // Fall back to browser confirm
+        isConfirmed = confirm(`Are you sure you want to remove ${friendName || 'this friend'} from your friends list?`);
+    }
+    
+    if (!isConfirmed) {
         return;
     }
     

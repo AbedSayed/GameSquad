@@ -188,6 +188,121 @@ function redirectIfLoggedIn() {
     }
 }
 
+/**
+ * Custom confirmation dialog function that replaces the browser's default confirm
+ * @param {Object} options - Configuration options
+ * @param {string} options.title - The dialog title
+ * @param {string} options.message - The message to display
+ * @param {string} options.highlight - Optional text to highlight within the message
+ * @param {string} options.confirmText - Text for the confirm button (default: "Confirm")
+ * @param {string} options.cancelText - Text for the cancel button (default: "Cancel")
+ * @param {string} options.icon - FontAwesome icon class (default: "fa-exclamation-triangle")
+ * @returns {Promise} A promise that resolves to true if confirmed, false if canceled
+ */
+function customConfirm(options) {
+    // Set default options
+    const settings = {
+        title: 'Confirmation',
+        message: 'Are you sure you want to proceed?',
+        highlight: null,
+        confirmText: 'Confirm',
+        cancelText: 'Cancel',
+        icon: 'fa-exclamation-triangle',
+        ...options
+    };
+
+    return new Promise((resolve) => {
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'custom-confirm-overlay';
+        
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'custom-confirm-modal';
+        
+        // Format message with highlight if provided
+        let formattedMessage = settings.message;
+        if (settings.highlight) {
+            formattedMessage = settings.message.replace(settings.highlight, `<span class="highlight">${settings.highlight}</span>`);
+        }
+        
+        // Create modal content
+        modal.innerHTML = `
+            <div class="custom-confirm-header">
+                <i class="fas ${settings.icon}"></i>
+                <h3>${settings.title}</h3>
+            </div>
+            <div class="custom-confirm-content">
+                ${formattedMessage}
+            </div>
+            <div class="custom-confirm-buttons">
+                <button class="cancel-button">
+                    <i class="fas fa-times"></i> ${settings.cancelText}
+                </button>
+                <button class="confirm-button">
+                    <i class="fas fa-check"></i> ${settings.confirmText}
+                </button>
+            </div>
+        `;
+        
+        // Add modal to overlay
+        overlay.appendChild(modal);
+        
+        // Add overlay to body
+        document.body.appendChild(overlay);
+        
+        // Prevent scrolling on body
+        document.body.style.overflow = 'hidden';
+        
+        // Function to close the modal
+        const closeModal = (result) => {
+            // Add closing animations
+            overlay.classList.add('closing');
+            modal.classList.add('closing');
+            
+            // Wait for animation to complete
+            setTimeout(() => {
+                document.body.removeChild(overlay);
+                document.body.style.overflow = '';
+                resolve(result);
+            }, 300);
+        };
+        
+        // Add event listeners
+        const confirmBtn = modal.querySelector('.confirm-button');
+        const cancelBtn = modal.querySelector('.cancel-button');
+        
+        confirmBtn.addEventListener('click', () => closeModal(true));
+        cancelBtn.addEventListener('click', () => closeModal(false));
+        
+        // Add escape key support
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') {
+                document.removeEventListener('keydown', escHandler);
+                closeModal(false);
+            }
+        });
+        
+        // Focus on cancel button by default for safety
+        setTimeout(() => cancelBtn.focus(), 100);
+    });
+}
+
+// Function to ensure notifications container exists
+function ensureNotificationsContainer() {
+    if (!document.querySelector('.notifications-container')) {
+        const container = document.createElement('div');
+        container.className = 'notifications-container';
+        document.body.appendChild(container);
+        console.log('[utils.js] Created notifications container');
+    }
+}
+
+// Ensure the notifications container exists when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    ensureNotificationsContainer();
+});
+
 // Export functions if using modules
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -198,6 +313,12 @@ if (typeof module !== 'undefined' && module.exports) {
         getUserInfo,
         isLoggedIn,
         requireLogin,
-        redirectIfLoggedIn
+        redirectIfLoggedIn,
+        customConfirm,
+        ensureNotificationsContainer
     };
-} 
+}
+
+// Make customConfirm globally available
+window.customConfirm = customConfirm;
+window.ensureNotificationsContainer = ensureNotificationsContainer; 
