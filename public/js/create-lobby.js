@@ -488,7 +488,8 @@ async function handleLobbyCreation(e) {
         game: lobbyData.game,
         region: lobbyData.region,  // Should be the code like "na", "eu", "asia"
         rank: lobbyData.rank,
-        skillLevel: lobbyData.skillLevel
+        skillLevel: lobbyData.skillLevel,
+        description: lobbyData.description  // Log the description specifically
     });
     
     // Add host ID if available

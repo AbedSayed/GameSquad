@@ -385,6 +385,13 @@ class LobbiesModule {
         // Debug - log entire lobby object to see what's available
         console.log(`Creating lobby card for: ${lobby.name}`, lobby);
         
+        // Log the description specifically
+        console.log(`Lobby description for ${lobby.name}:`, {
+            description: lobby.description,
+            hasDescription: !!lobby.description,
+            descriptionLength: lobby.description ? lobby.description.length : 0
+        });
+        
         // Format the creation date
         let createdDate = 'Recently';
         if (lobby.createdAt) {

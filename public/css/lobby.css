@@ -1427,6 +1427,44 @@ div[style*="background:#fff"] {
     color: rgba(255, 255, 255, 0.7);
 }
 
+/* Make game descriptions visible */
+.game-description {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 10px 0;
+    line-height: 1.4;
+    min-height: 40px;
+    max-height: 80px;
+    overflow-y: auto;
+    padding-right: 5px;
+    /* Allow display of up to 3 lines of text */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    /* Add a subtle scrollbar for longer descriptions */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(120, 100, 255, 0.5) rgba(30, 30, 40, 0.5);
+}
+
+/* Customize scrollbar appearance for descriptions */
+.game-description::-webkit-scrollbar {
+    width: 4px;
+}
+
+.game-description::-webkit-scrollbar-track {
+    background: rgba(30, 30, 40, 0.5);
+    border-radius: 10px;
+}
+
+.game-description::-webkit-scrollbar-thumb {
+    background: rgba(120, 100, 255, 0.5);
+    border-radius: 10px;
+}
+
+.game-description::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 100, 255, 0.7);
+}
+
 /* Game type badges */
 .game-badge {
     font-size: 0.7rem;

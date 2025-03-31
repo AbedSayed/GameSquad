@@ -42,6 +42,11 @@ const lobbySchema = new mongoose.Schema({
     type: String,
     default: 'any'
   },
+  description: {
+    type: String,
+    default: '',
+    trim: true
+  },
   password: {
     type: String,
     select: false // Don't include password in queries by default

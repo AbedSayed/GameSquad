@@ -6,10 +6,10 @@ const Message = require('../models/Message');
 // @route   POST /api/lobbies
 // @access  Private
 const createLobby = asyncHandler(async (req, res) => {
-  const { name, maxPlayers, gameType, password, rank, language, region } = req.body;
+  const { name, maxPlayers, gameType, password, rank, language, region, description } = req.body;
   const userId = req.user._id;
 
-  console.log('Creating lobby with data:', { name, maxPlayers, gameType, rank, language, region });
+  console.log('Creating lobby with data:', { name, maxPlayers, gameType, rank, language, region, description });
   
   const lobby = await Lobby.create({
     name,
@@ -17,6 +17,7 @@ const createLobby = asyncHandler(async (req, res) => {
     maxPlayers: parseInt(maxPlayers),
     gameType,
     password,
+    description: description || '',
     rank: rank === undefined || rank === '' ? 'any' : rank,
     language: language === undefined || language === '' ? 'any' : language, 
     region: region === undefined || region === '' ? 'any' : region,
