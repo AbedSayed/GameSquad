@@ -380,30 +380,132 @@ async function addActivity(activity) {
 }
 
 /**
- * Get user profile by ID
+ * Get profile by user ID
  * @param {string} userId - User ID
  * @returns {Promise} - Promise resolving to profile data
  */
 async function getProfileByUserId(userId) {
-  try {
-    const response = await fetch(`${window.APP_CONFIG.API_URL}/profiles/user/${userId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to get profile');
+    console.log(`getProfileByUserId: Fetching profile for user ID: ${userId}`);
+    
+    try {
+        // Log available configuration 
+        console.log('Configuration debug:');
+        console.log('- window.APP_CONFIG:', window.APP_CONFIG);
+        console.log('- window.config:', window.config);
+        console.log('- Available API_URL:', window.APP_CONFIG?.API_URL || window.config?.API_URL || '/api');
+        
+        // Ensure we have the API URL - try multiple possible locations
+        let apiUrl = '/api'; // Default fallback
+        
+        if (window.APP_CONFIG && window.APP_CONFIG.API_URL) {
+            apiUrl = window.APP_CONFIG.API_URL;
+            console.log('Using API URL from window.APP_CONFIG:', apiUrl);
+        } else if (window.config && window.config.API_URL) {
+            apiUrl = window.config.API_URL;
+            console.log('Using API URL from window.config:', apiUrl);
+        } else {
+            console.log('No configuration found, using default API URL:', apiUrl);
+        }
+        
+        // Add timestamp to prevent caching
+        const timestamp = new Date().getTime();
+        const url = `${apiUrl}/users/${userId}?t=${timestamp}`;
+        
+        console.log(`getProfileByUserId: Fetching from URL: ${url}`);
+        
+        // Get the authentication token
+        let token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        if (!token) {
+            console.error('getProfileByUserId: No auth token found in localStorage');
+            console.log('Checking for token in different storage locations');
+            console.log('- localStorage.token:', localStorage.getItem('token'));
+            console.log('- localStorage.authToken:', localStorage.getItem('authToken'));
+            
+            // Try to get token from Auth module if available
+            if (window.Auth && typeof window.Auth.getToken === 'function') {
+                token = window.Auth.getToken();
+                console.log('- Token from Auth module:', token ? 'Found' : 'Not found');
+            }
+            
+            // If still no token, we can't proceed
+            if (!token) {
+                console.error('No authentication token available. User may need to log in again.');
+                return null;
+            }
+            
+            console.log('Using token from Auth module');
+        }
+        
+        // Make the API request
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            // Ensure we don't use cached responses
+            cache: 'no-store'
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`getProfileByUserId: API error (${response.status}):`, errorText);
+            throw new Error(`Failed to get user profile: ${response.status} ${response.statusText}`);
+        }
+        
+        const userData = await response.json();
+        console.log('getProfileByUserId: User data received:', userData);
+        
+        // If the userData includes a profile, return the combined data
+        if (userData.profile) {
+            console.log('User data includes profile, returning combined data');
+            // Ensure the user data is attached to the profile
+            const profileData = {
+                ...userData.profile,
+                user: {
+                    _id: userData._id,
+                    username: userData.username,
+                    email: userData.email
+                }
+            };
+            
+            // Make sure we have a displayName
+            if (!profileData.displayName) {
+                profileData.displayName = userData.username;
+            }
+            
+            return profileData;
+        }
+        
+        // If we don't have a profile, create a minimal one from user data
+        const minimalProfile = {
+            _id: userData._id,
+            user: {
+                _id: userData._id,
+                username: userData.username,
+                email: userData.email
+            },
+            displayName: userData.username,
+            bio: userData.bio || 'No bio available',
+            createdAt: userData.createdAt,
+            avatar: userData.avatar || '../resources/default-avatar.png',
+            gameRanks: userData.gameRanks || [],
+            languages: userData.languages || [],
+            interests: userData.interests || [],
+            preferences: userData.preferences || {
+                playStyle: 'Not specified',
+                communication: 'Not specified',
+                playTime: 'Not specified',
+                region: 'Not specified'
+            }
+        };
+        
+        console.log('Created minimal profile from user data:', minimalProfile);
+        return minimalProfile;
+    } catch (error) {
+        console.error('Error in getProfileByUserId:', error);
+        return null;
     }
-
-    return data;
-  } catch (error) {
-    console.error('Get profile error:', error);
-    throw error;
-  }
 }
 
 /**
@@ -928,57 +1030,215 @@ function showNotification(message, type = 'info') {
 // Initialize the profile page when DOM content is loaded
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    // Load profile data
-    let profile;
-    try {
-      profile = await getMyProfile();
-      console.log('Profile data loaded successfully:', profile);
-    } catch (profileError) {
-      console.error('Error loading profile data:', profileError);
-      // Fallback to minimal profile data from localStorage
-      const userInfoStr = localStorage.getItem('userInfo');
-      if (userInfoStr) {
-        const userInfo = JSON.parse(userInfoStr);
-        profile = userInfo.profile || {
-          user: {
-            _id: userInfo._id,
-            username: userInfo.username,
-            email: userInfo.email
+    // Check if we have a user ID in the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('id');
+    
+    // Create a global flag that can be checked by other scripts
+    window.VIEWING_OTHER_PROFILE = !!userId;
+    window.PROFILE_USER_ID = userId || null;
+    
+    // For testing purposes - allow using a 'test_id' parameter
+    const testId = urlParams.get('test_id');
+    if (testId) {
+      console.log('Using test ID override:', testId);
+      
+      // Also set global flags for test mode
+      window.VIEWING_OTHER_PROFILE = true;
+      window.PROFILE_USER_ID = testId;
+      
+      // Create a debug button to show request details
+      const debugButton = document.createElement('button');
+      debugButton.textContent = 'Show Debug Info';
+      debugButton.className = 'btn btn-secondary';
+      debugButton.style.position = 'fixed';
+      debugButton.style.bottom = '10px';
+      debugButton.style.right = '10px';
+      debugButton.style.zIndex = '9999';
+      
+      debugButton.addEventListener('click', () => {
+        const debugInfo = document.createElement('div');
+        debugInfo.className = 'debug-info';
+        debugInfo.style.position = 'fixed';
+        debugInfo.style.bottom = '60px';
+        debugInfo.style.right = '10px';
+        debugInfo.style.backgroundColor = 'rgba(0,0,0,0.8)';
+        debugInfo.style.color = 'white';
+        debugInfo.style.padding = '15px';
+        debugInfo.style.borderRadius = '5px';
+        debugInfo.style.maxWidth = '80%';
+        debugInfo.style.zIndex = '9999';
+        debugInfo.style.overflowY = 'auto';
+        debugInfo.style.maxHeight = '80vh';
+        
+        debugInfo.innerHTML = `
+          <h3>Debug Information</h3>
+          <p><strong>Test ID:</strong> ${testId}</p>
+          <p><strong>API URL:</strong> ${window.APP_CONFIG.API_URL}/users/${testId}</p>
+          <button id="fetch-test-profile">Fetch Profile Data</button>
+          <pre id="api-response" style="margin-top: 10px; padding: 5px; background: #444; max-height: 300px; overflow: auto;"></pre>
+          <button id="close-debug" style="margin-top: 10px;">Close</button>
+        `;
+        
+        document.body.appendChild(debugInfo);
+        
+        document.getElementById('close-debug').addEventListener('click', () => {
+          document.body.removeChild(debugInfo);
+        });
+        
+        document.getElementById('fetch-test-profile').addEventListener('click', async () => {
+          try {
+            const response = await fetch(`${window.APP_CONFIG.API_URL}/users/${testId}`);
+            const data = await response.json();
+            document.getElementById('api-response').textContent = JSON.stringify(data, null, 2);
+          } catch (error) {
+            document.getElementById('api-response').textContent = `Error: ${error.message}`;
           }
-        };
-        console.log('Using fallback profile data from localStorage');
-      } else {
-        // If no data available, show error and redirect to login
-        showNotification('Unable to load profile data. Please login again.', 'error');
-        setTimeout(() => {
-          window.location.href = '/pages/login.html';
-        }, 2000);
-        return;
+        });
+      });
+      
+      document.body.appendChild(debugButton);
+      
+      // Try to load the test profile
+      try {
+        showNotification('Using test profile ID', 'info');
+        const testProfile = await getProfileByUserId(testId);
+        updateProfileUI(testProfile);
+        
+        // Hide edit button as this is a test profile
+        const editProfileBtn = document.getElementById('edit-profile-btn');
+        if (editProfileBtn) {
+          editProfileBtn.style.display = 'none';
+        }
+        
+        // Set up a mutation observer to protect against UI being changed back to current user profile
+        setupProfileProtection(testProfile);
+        
+        return; // Skip the regular profile loading
+      } catch (error) {
+        console.error('Error loading test profile:', error);
+        showNotification(`Test profile error: ${error.message}`, 'error');
+      }
+    }
+    
+    let profile;
+    let isOwnProfile = true;
+    
+    console.log('Profile page loaded. URL params:', urlParams.toString());
+    console.log('User ID from URL:', userId);
+    
+    // If we have a user ID, load that user's profile
+    if (userId) {
+      try {
+        console.log('Loading profile for user ID:', userId);
+        
+        // Use getProfileByUserId function to load the specified user's profile
+        profile = await getProfileByUserId(userId);
+        
+        if (!profile) {
+          throw new Error('Profile data not returned for ID: ' + userId);
+        }
+        
+        isOwnProfile = false;
+        console.log('Loaded other user profile:', profile);
+        
+        // Capture the profile data in a global variable to allow restoration if needed
+        window.LOADED_PROFILE_DATA = profile;
+        
+        // Hide the edit profile button for other users' profiles
+        const editProfileBtn = document.getElementById('edit-profile-btn');
+        if (editProfileBtn) {
+          editProfileBtn.style.display = 'none';
+        }
+        
+        // Change page title to show we're viewing someone else's profile
+        document.querySelector('.page-title h1').textContent = 'USER PROFILE';
+        document.title = `${profile.displayName || profile.user?.username || 'User'}'s Profile | GameSquad`;
+        
+        // Set up a mutation observer to protect against UI being changed back to current user profile
+        setupProfileProtection(profile);
+        
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+        showNotification(`Could not load user profile: ${error.message}`, 'error');
+        
+        // DON'T automatically fallback to loading own profile
+        // This might be confusing users by showing their own profile
+        // when they expect to see someone else's profile
+        
+        // Show error state instead
+        const displayNameElement = document.getElementById('profile-display-name');
+        if (displayNameElement) {
+          displayNameElement.textContent = 'Profile Not Found';
+        }
+        
+        const usernameElement = document.getElementById('profile-username');
+        if (usernameElement) {
+          usernameElement.textContent = 'The requested profile could not be loaded';
+        }
+        
+        const bioElement = document.getElementById('profile-bio');
+        if (bioElement) {
+          bioElement.textContent = 'Please check the profile ID and try again.';
+        }
+        
+        return; // Exit early instead of continuing with own profile
+      }
+    } else {
+      // Load own profile if no ID specified
+      try {
+        profile = await getMyProfile();
+        console.log('Profile data loaded successfully:', profile);
+      } catch (profileError) {
+        console.error('Error loading profile data:', profileError);
+        // Fallback to minimal profile data from localStorage
+        const userInfoStr = localStorage.getItem('userInfo');
+        if (userInfoStr) {
+          const userInfo = JSON.parse(userInfoStr);
+          profile = userInfo.profile || {
+            user: {
+              _id: userInfo._id,
+              username: userInfo.username,
+              email: userInfo.email
+            }
+          };
+          console.log('Using fallback profile data from localStorage');
+        } else {
+          // If no data available, show error and redirect to login
+          showNotification('Unable to load profile data. Please login again.', 'error');
+          setTimeout(() => {
+            window.location.href = '/pages/login.html';
+          }, 2000);
+          return;
+        }
       }
     }
     
     // Update UI with profile data
     updateProfileUI(profile);
     
-    // Load friends list with error handling
-    try {
-      // First check if the friends-list container exists before trying to fetch friends
-      const friendsContainer = document.getElementById('friends-list');
-      if (!friendsContainer) {
-        console.log('No friends list container found in the DOM, skipping friends fetch');
-      } else {
-        const friends = await getFriends();
-        console.log('Friends data loaded:', friends);
-        updateFriendsUI(friends);
-      }
-    } catch (friendsError) {
-      console.error('Error loading friends:', friendsError);
-      // Don't let friends error block the rest of the profile
-      showNotification('Could not load friends list', 'warning');
-      // Still update UI with empty array to show proper empty state
-      const friendsContainer = document.getElementById('friends-list');
-      if (friendsContainer) {
-        updateFriendsUI([]);
+    // Only load friends list for own profile
+    if (isOwnProfile) {
+      // Load friends list with error handling
+      try {
+        // First check if the friends-list container exists before trying to fetch friends
+        const friendsContainer = document.getElementById('friends-list');
+        if (!friendsContainer) {
+          console.log('No friends list container found in the DOM, skipping friends fetch');
+        } else {
+          const friends = await getFriends();
+          console.log('Friends data loaded:', friends);
+          updateFriendsUI(friends);
+        }
+      } catch (friendsError) {
+        console.error('Error loading friends:', friendsError);
+        // Don't let friends error block the rest of the profile
+        showNotification('Could not load friends list', 'warning');
+        // Still update UI with empty array to show proper empty state
+        const friendsContainer = document.getElementById('friends-list');
+        if (friendsContainer) {
+          updateFriendsUI([]);
+        }
       }
     }
     
@@ -1272,6 +1532,125 @@ function setupTabs() {
   }
 }
 
+/**
+ * Sets up protection to prevent profile UI from being overwritten by other scripts
+ * @param {Object} profileData - The profile data to protect
+ */
+function setupProfileProtection(profileData) {
+  if (!profileData) return;
+  
+  console.log('Setting up profile protection to prevent overwriting');
+  
+  // Create a warning banner that shows up if other scripts try to mess with the profile
+  const warningBanner = document.createElement('div');
+  warningBanner.className = 'profile-protection-warning';
+  warningBanner.style.display = 'none';
+  warningBanner.style.position = 'fixed';
+  warningBanner.style.top = '10px';
+  warningBanner.style.left = '50%';
+  warningBanner.style.transform = 'translateX(-50%)';
+  warningBanner.style.backgroundColor = 'rgba(255, 30, 30, 0.9)';
+  warningBanner.style.color = 'white';
+  warningBanner.style.padding = '10px 20px';
+  warningBanner.style.borderRadius = '5px';
+  warningBanner.style.zIndex = '10000';
+  warningBanner.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+  warningBanner.style.maxWidth = '80%';
+  warningBanner.style.textAlign = 'center';
+  
+  warningBanner.innerHTML = `
+    <p><strong>Profile Data Overwrite Detected!</strong></p>
+    <p>Another script is trying to change this profile back to your own profile.</p>
+    <button id="restore-profile" style="margin-top: 5px; padding: 5px 10px;">Restore Correct Profile</button>
+  `;
+  
+  document.body.appendChild(warningBanner);
+  
+  document.getElementById('restore-profile').addEventListener('click', () => {
+    updateProfileUI(profileData);
+    warningBanner.style.display = 'none';
+  });
+  
+  // Store the original profile values
+  const originalValues = {
+    displayName: profileData.displayName || (profileData.user?.displayName || profileData.user?.username || 'User'),
+    username: profileData.user?.username || '',
+    bio: profileData.bio || ''
+  };
+  
+  // Setup a mutation observer to monitor changes to the profile elements
+  // Get the key profile elements
+  const displayNameElement = document.getElementById('profile-display-name');
+  const usernameElement = document.getElementById('profile-username');
+  const bioElement = document.getElementById('profile-bio');
+  
+  // If any of these elements exist, monitor them for changes
+  if (displayNameElement || usernameElement || bioElement) {
+    const observer = new MutationObserver((mutations) => {
+      let needsRestore = false;
+      
+      for (const mutation of mutations) {
+        if (mutation.type === 'characterData' || mutation.type === 'childList') {
+          const target = mutation.target;
+          
+          // Check if displayName was changed
+          if (displayNameElement && 
+              (target === displayNameElement || displayNameElement.contains(target)) &&
+              displayNameElement.textContent !== originalValues.displayName) {
+            console.warn('Profile displayName was changed by another script!', {
+              from: originalValues.displayName,
+              to: displayNameElement.textContent
+            });
+            needsRestore = true;
+          }
+          
+          // Check if username was changed
+          if (usernameElement && 
+              (target === usernameElement || usernameElement.contains(target)) &&
+              usernameElement.textContent !== (originalValues.username ? `@${originalValues.username}` : '')) {
+            console.warn('Profile username was changed by another script!', {
+              from: originalValues.username ? `@${originalValues.username}` : '',
+              to: usernameElement.textContent
+            });
+            needsRestore = true;
+          }
+          
+          // Check if bio was changed
+          if (bioElement && 
+              (target === bioElement || bioElement.contains(target)) &&
+              bioElement.textContent !== (originalValues.bio || 'No bio provided')) {
+            console.warn('Profile bio was changed by another script!', {
+              from: originalValues.bio || 'No bio provided',
+              to: bioElement.textContent
+            });
+            needsRestore = true;
+          }
+        }
+      }
+      
+      if (needsRestore) {
+        console.warn('Profile data was overwritten, showing restoration banner');
+        warningBanner.style.display = 'block';
+      }
+    });
+    
+    // Start observing all profile elements that exist
+    const config = { characterData: true, childList: true, subtree: true };
+    
+    if (displayNameElement) observer.observe(displayNameElement, config);
+    if (usernameElement) observer.observe(usernameElement, config);
+    if (bioElement) observer.observe(bioElement, config);
+    
+    console.log('Profile protection observer set up for', {
+      displayName: !!displayNameElement,
+      username: !!usernameElement,
+      bio: !!bioElement
+    });
+  } else {
+    console.warn('Could not set up profile protection - no profile elements found');
+  }
+}
+
 // Export functions
 window.Profile = {
   getMyProfile,
@@ -1287,3 +1666,200 @@ window.Profile = {
   getAllProfiles,
   setupTabs
 };
+
+// Add this function at the end of the file
+document.addEventListener('DOMContentLoaded', function() {
+    // Parse URL parameters to check if we're viewing another profile
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('id');
+
+    if (userId) {
+        console.log(`Profile.js: Detected userId in URL: ${userId}`);
+        
+        // Make sure we can detect when the userId is invalid (not a valid MongoDB ObjectId)
+        const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(userId);
+        if (!isValidObjectId) {
+            console.warn(`Profile.js: Invalid user ID format: ${userId}`);
+            
+            // Show error message on the profile page
+            setTimeout(() => {
+                document.getElementById('profile-display-name').textContent = 'Invalid User ID';
+                document.getElementById('profile-bio').textContent = 'The requested user ID is not in a valid format.';
+                
+                // Add error message with explanation
+                const errorElement = document.createElement('div');
+                errorElement.className = 'error-message';
+                errorElement.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>The user ID "${userId}" is not in a valid format.</p>
+                    <p>Please return to the <a href="players.html">players list</a> and try again.</p>
+                `;
+                
+                // Add error message to the profile info section
+                const profileInfo = document.querySelector('.profile-info');
+                if (profileInfo) {
+                    const profileBio = document.getElementById('profile-bio');
+                    if (profileBio && profileBio.parentNode) {
+                        profileBio.parentNode.insertBefore(errorElement, profileBio.nextSibling);
+                    } else {
+                        profileInfo.appendChild(errorElement);
+                    }
+                }
+                
+                // Hide edit profile button since we're viewing an invalid profile
+                const editProfileBtn = document.getElementById('edit-profile-btn');
+                if (editProfileBtn) {
+                    editProfileBtn.style.display = 'none';
+                }
+                
+                // Update the page title and heading
+                document.title = 'Invalid Profile | GameSquad';
+                const pageTitle = document.querySelector('.page-title h1');
+                if (pageTitle) {
+                    pageTitle.textContent = 'INVALID PROFILE';
+                }
+            }, 100);
+            
+            return;
+        }
+        
+        // Override the loadUserProfile function to ensure it loads the correct profile
+        window.loadUserProfile = async function() {
+            console.log(`Profile.js: Using custom loadUserProfile for user ID: ${userId}`);
+            try {
+                // Show loading state
+                document.getElementById('profile-display-name').textContent = 'Loading...';
+                document.getElementById('profile-bio').textContent = 'Loading bio...';
+                
+                // Fetch the profile data for the specified user ID
+                const userData = await getProfileByUserId(userId);
+                
+                if (!userData) {
+                    console.error('Failed to load profile data for user ID:', userId);
+                    document.getElementById('profile-display-name').textContent = 'Profile Not Found';
+                    document.getElementById('profile-bio').textContent = 'Could not load profile data. Please try again later.';
+                    
+                    // Show more detailed error message
+                    const errorElement = document.createElement('div');
+                    errorElement.className = 'error-message';
+                    errorElement.innerHTML = `
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>There was a problem loading this profile. This may be due to:</p>
+                        <ul>
+                            <li>The user profile doesn't exist</li>
+                            <li>Network connection issues</li>
+                            <li>Server-side error</li>
+                        </ul>
+                        <p>You can <a href="players.html">return to the players list</a> or <button onclick="window.loadUserProfile()">try again</button>.</p>
+                    `;
+                    
+                    // Add error message below profile display name
+                    const profileInfo = document.querySelector('.profile-info');
+                    if (profileInfo) {
+                        // Insert after profile-bio
+                        const profileBio = document.getElementById('profile-bio');
+                        if (profileBio && profileBio.parentNode) {
+                            profileBio.parentNode.insertBefore(errorElement, profileBio.nextSibling);
+                        } else {
+                            profileInfo.appendChild(errorElement);
+                        }
+                    }
+                    
+                    return;
+                }
+                
+                console.log('Profile.js: Successfully loaded profile data for user ID:', userId);
+                
+                // Set global flag to prevent other scripts from overriding
+                window.VIEWING_OTHER_PROFILE = true;
+                window.PROFILE_USER_ID = userId;
+                
+                // Update UI with profile data
+                updateProfileUI(userData);
+                
+                // Hide edit profile button since we're viewing someone else's profile
+                const editProfileBtn = document.getElementById('edit-profile-btn');
+                if (editProfileBtn) {
+                    editProfileBtn.style.display = 'none';
+                }
+                
+                // Set page title to reflect we're viewing someone else's profile
+                document.title = `${userData.displayName || userData.username}'s Profile | GameSquad`;
+                
+                // Update the page heading
+                const pageTitle = document.querySelector('.page-title h1');
+                if (pageTitle) {
+                    pageTitle.textContent = 'USER PROFILE';
+                }
+                
+                // Setup profile protection to prevent other scripts from overriding our data
+                setupProfileProtection(userData);
+            } catch (error) {
+                console.error('Error in custom loadUserProfile:', error);
+                document.getElementById('profile-display-name').textContent = 'Error Loading Profile';
+                document.getElementById('profile-bio').textContent = `An error occurred: ${error.message}`;
+            }
+        };
+        
+        // Call it immediately in case DOMContentLoaded already fired
+        window.loadUserProfile();
+    }
+});
+
+// Function to protect profile data from being overwritten
+function setupProfileProtection(userData) {
+    // Create a MutationObserver to watch for changes to the profile elements
+    const profileDisplayName = document.getElementById('profile-display-name');
+    const profileUsername = document.getElementById('profile-username');
+    const profileBio = document.getElementById('profile-bio');
+    
+    if (!profileDisplayName || !profileUsername || !profileBio) {
+        console.error('Profile elements not found, cannot setup protection');
+        return;
+    }
+    
+    // Store the correct values
+    const correctName = userData.displayName || userData.username;
+    const correctUsername = userData.username ? `@${userData.username}` : '';
+    const correctBio = userData.bio || 'No bio available';
+    
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                // Check if the content was changed by another script
+                const currentElement = mutation.target;
+                
+                if (currentElement === profileDisplayName && 
+                    currentElement.textContent !== correctName &&
+                    currentElement.textContent !== 'Loading...') {
+                    console.log('Profile protection: Restoring display name');
+                    currentElement.textContent = correctName;
+                }
+                
+                if (currentElement === profileUsername && 
+                    currentElement.textContent !== correctUsername &&
+                    currentElement.textContent !== '@username') {
+                    console.log('Profile protection: Restoring username');
+                    currentElement.textContent = correctUsername;
+                }
+                
+                if (currentElement === profileBio && 
+                    currentElement.textContent !== correctBio &&
+                    currentElement.textContent !== 'Loading bio...') {
+                    console.log('Profile protection: Restoring bio');
+                    currentElement.textContent = correctBio;
+                }
+            }
+        });
+    });
+    
+    // Configure the observer to watch for changes to the text content
+    const config = { characterData: true, childList: true, subtree: true };
+    
+    // Start observing
+    observer.observe(profileDisplayName, config);
+    observer.observe(profileUsername, config);
+    observer.observe(profileBio, config);
+    
+    console.log('Profile protection set up for user ID:', userData._id);
+}

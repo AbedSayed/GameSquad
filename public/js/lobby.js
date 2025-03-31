@@ -694,6 +694,9 @@ function formatGameDetail(value, type) {
             return regionMap[value.toLowerCase()] || value;
         case 'language':
             return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+        case 'status':
+            // Properly capitalize the status value
+            return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
         default:
             return value;
     }
@@ -1202,9 +1205,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const statusDetailElement = document.getElementById('lobbyStatusDetail');
             if (statusDetailElement) {
                 const statusText = lobby.status || 'waiting';
+                // Capitalize the status text for better display
                 statusDetailElement.textContent = formatGameDetail(statusText, 'status');
-                // Add status-specific styling
-                statusDetailElement.className = `info-value status-${statusText.toLowerCase()}`;
+                // Use standard info-value class to match other detail fields
+                statusDetailElement.className = 'info-value';
             }
             
             // Update new fields: Region
@@ -1253,31 +1257,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (readyToggleBtn) {
                     const isReady = lobby.players?.find(p => p.user?._id === userInfo.id)?.ready;
-                    readyToggleBtn.innerHTML = isReady ? 
-                        '<i class="fas fa-times"></i> Mark as Not Ready' : 
-                        '<i class="fas fa-check"></i> Mark as Ready';
-                    
-                    // Update button classes to match state
-                    if (isReady) {
-                        readyToggleBtn.classList.remove('not-ready');
-                        readyToggleBtn.classList.add('ready');
-                    } else {
-                        readyToggleBtn.classList.remove('ready');
-                        readyToggleBtn.classList.add('not-ready');
-                    }
-                    
-                    // Also update status badge
-                    const yourStatusBadge = document.getElementById('yourStatus');
-                    if (yourStatusBadge) {
-                        yourStatusBadge.textContent = isReady ? 'Ready' : 'Not Ready';
-                        if (isReady) {
-                            yourStatusBadge.classList.remove('not-ready');
-                            yourStatusBadge.classList.add('ready');
-                        } else {
-                            yourStatusBadge.classList.remove('ready');
-                            yourStatusBadge.classList.add('not-ready');
-                        }
-                    }
+                    updateReadyUI(isReady);
                 }
             }
 
@@ -1459,44 +1439,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (ready) {
                     // Ready state
-                    readyToggleBtn.innerHTML = '<i class="fas fa-times"></i> Mark as Not Ready';
+                    readyToggleBtn.innerHTML = '<i class="fas fa-check"></i> Mark as Ready';
                     readyToggleBtn.classList.remove('not-ready');
                     readyToggleBtn.classList.add('ready');
-                    
-                    yourStatusBadge.textContent = 'Ready';
-                    yourStatusBadge.classList.remove('not-ready');
-                    yourStatusBadge.classList.add('ready');
-                    
-                    // Also update player list status if found
-                    const currentPlayerItem = document.querySelector(`.player-item .player-name.current-user`);
-                    if (currentPlayerItem) {
-                        const statusElement = currentPlayerItem.parentElement.querySelector('.player-status');
-                        if (statusElement) {
-                            statusElement.classList.remove('text-warning');
-                            statusElement.classList.add('text-success');
-                            statusElement.innerHTML = `<i class="fas fa-check"></i> Ready`;
-                        }
-                    }
-                } else {
-                    // Not ready state
-                    readyToggleBtn.innerHTML = '<i class="fas fa-check"></i> Mark as Ready';
-                    readyToggleBtn.classList.remove('ready');
-                    readyToggleBtn.classList.add('not-ready');
                     
                     yourStatusBadge.textContent = 'Not Ready';
                     yourStatusBadge.classList.remove('ready');
                     yourStatusBadge.classList.add('not-ready');
+                } else {
+                    // Not ready state
+                    readyToggleBtn.innerHTML = '<i class="fas fa-times"></i> Mark as Not Ready';
+                    readyToggleBtn.classList.remove('ready');
+                    readyToggleBtn.classList.add('not-ready');
                     
-                    // Also update player list status if found
-                    const currentPlayerItem = document.querySelector(`.player-item .player-name.current-user`);
-                    if (currentPlayerItem) {
-                        const statusElement = currentPlayerItem.parentElement.querySelector('.player-status');
-                        if (statusElement) {
-                            statusElement.classList.remove('text-success');
-                            statusElement.classList.add('text-warning');
-                            statusElement.innerHTML = `<i class="fas fa-clock"></i> Not Ready`;
-                        }
-                    }
+                    yourStatusBadge.textContent = 'Ready';
+                    yourStatusBadge.classList.remove('not-ready');
+                    yourStatusBadge.classList.add('ready');
                 }
             }
             
@@ -1517,11 +1475,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('1. Button clicked, current status:', isReady);
                     console.log('2. About to toggle to:', !isReady);
                     
-                    // Toggle the ready state
-                    updateReadyUI(!isReady);
+                    // Show loading indicator
+                    const statusIndicator = document.getElementById('buttonStatusIndicator');
+                    if (statusIndicator) {
+                        statusIndicator.textContent = 'Updating status...';
+                        statusIndicator.style.color = '#ffa500';
+                    }
                     
-                    console.log('3. UI updated to ready state:', isReady);
-                    console.log('4. Making API call to update server');
+                    // Don't update UI until we get server confirmation
+                    // updateReadyUI(!isReady);
+                    
+                    console.log('3. Making API call to update server before updating UI');
                     
                     // Make API call to update server-side status
                     const response = await fetch(`/api/lobbies/${lobbyId}/ready`, {
@@ -1533,14 +1497,46 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     
                     if (!response.ok) {
-                        console.log('5. API call FAILED:', await response.text());
+                        console.log('4. API call FAILED:', await response.text());
+                        if (statusIndicator) {
+                            statusIndicator.textContent = 'Failed to update status';
+                            statusIndicator.style.color = '#ff0000';
+                        }
                         throw new Error('Failed to update ready status');
                     }
                     
-                    console.log('5. API call successful');
+                    console.log('4. API call successful');
                     
-                    // Notify user
-                    addSystemMessage(`You are now ${isReady ? 'ready' : 'not ready'}`);
+                    // Now update UI based on the new server state
+                    const data = await response.json();
+                    const updatedLobby = data.data || data;
+                    
+                    // Find current player's ready status from server data
+                    const currentPlayer = updatedLobby.players.find(p => p.user?._id === userInfo.id);
+                    if (currentPlayer) {
+                        console.log('5. Updating UI based on server response:', currentPlayer.ready);
+                        updateReadyUI(currentPlayer.ready);
+                        
+                        if (statusIndicator) {
+                            statusIndicator.textContent = `Status updated: ${currentPlayer.ready ? 'Ready' : 'Not Ready'}`;
+                            statusIndicator.style.color = '#4CAF50';
+                            
+                            // Reset status indicator after 2 seconds
+                            setTimeout(() => {
+                                statusIndicator.textContent = 'Ready for next update';
+                                statusIndicator.style.color = '#666';
+                            }, 2000);
+                        }
+                        
+                        // Notify user
+                        addSystemMessage(`You are now ${currentPlayer.ready ? 'ready' : 'not ready'}`);
+                    } else {
+                        console.log('5. Could not find current player in updated lobby data');
+                        if (statusIndicator) {
+                            statusIndicator.textContent = 'Status unclear - refreshing';
+                            statusIndicator.style.color = '#ff9900';
+                        }
+                    }
                     
                     // Still fetch lobby details to ensure everything is in sync
                     console.log('6. Refreshing lobby details');
@@ -1763,8 +1759,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('Current ready state:', currentState);
                     
                     // Directly update UI
+                    let newStatus;
                     if (currentState) {
-                        // Going from ready to not ready
+                        // Going from ready to not ready - currentState is "ready"
                         readyToggleBtn.innerHTML = '<i class="fas fa-check"></i> Mark as Ready';
                         readyToggleBtn.classList.remove('ready');
                         readyToggleBtn.classList.add('not-ready');
@@ -1772,8 +1769,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         yourStatusBadge.textContent = 'Not Ready';
                         yourStatusBadge.classList.remove('ready');
                         yourStatusBadge.classList.add('not-ready');
+                        
+                        newStatus = 'not ready';
                     } else {
-                        // Going from not ready to ready
+                        // Going from not ready to ready - currentState is "not-ready"
                         readyToggleBtn.innerHTML = '<i class="fas fa-times"></i> Mark as Not Ready';
                         readyToggleBtn.classList.remove('not-ready');
                         readyToggleBtn.classList.add('ready');
@@ -1781,6 +1780,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         yourStatusBadge.textContent = 'Ready';
                         yourStatusBadge.classList.remove('not-ready');
                         yourStatusBadge.classList.add('ready');
+                        
+                        newStatus = 'ready';
                     }
                     
                     // Make API call
@@ -1798,7 +1799,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     // Notify user
-                    addSystemMessage(`You are now ${!currentState ? 'ready' : 'not ready'}`);
+                    addSystemMessage(`You are now ${newStatus}`);
                     
                     // Refresh lobby data
                     fetchLobbyDetails();
@@ -1896,4 +1897,111 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('window.lobbyHelpers.forceToggleReady() - Force toggle your ready status');
     console.log('window.lobbyHelpers.reinitializeReadyButton() - Refresh the ready button');
     console.log('window.lobbyHelpers.getStatus() - Get current status information');
+
+    // Add a debug utility function to the window object
+    window.debugLobbyStatus = async function(lobbyId) {
+        try {
+            console.log('=== LOBBY DEBUG TOOL ===');
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('No auth token found');
+                return { error: 'Not authenticated' };
+            }
+            
+            console.log('Fetching debug info for lobby:', lobbyId);
+            const response = await fetch(`/api/lobbies/${lobbyId}/debug`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Debug request failed:', errorText);
+                return { error: 'Request failed', details: errorText };
+            }
+            
+            const data = await response.json();
+            console.log('Lobby Debug Data:', data);
+            
+            // Log a specific focus on the ready status
+            if (data.success && data.debug) {
+                const { currentPlayer, host, allPlayers } = data.debug;
+                console.log('=== READY STATUS DEBUG ===');
+                console.log('Current player:', currentPlayer);
+                console.log('Is host:', host.isCurrentUser);
+                console.log('All players ready status:', allPlayers.map(p => 
+                    `${p.username}: ${p.ready ? 'READY' : 'NOT READY'}`
+                ));
+            }
+            
+            return data;
+        } catch (error) {
+            console.error('Debug function error:', error);
+            return { error: error.message };
+        }
+    };
+
+    // Run debug on page load for this specific lobby
+    if (typeof lobbyId !== 'undefined') {
+        setTimeout(() => {
+            window.debugLobbyStatus(lobbyId);
+        }, 2000);
+    }
+
+    // Add a fixLobbyStatus utility function to help with broken status
+    window.fixLobbyStatus = async function(lobbyId) {
+        try {
+            console.log('=== LOBBY FIX TOOL ===');
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('No auth token found');
+                return { error: 'Not authenticated' };
+            }
+            
+            console.log('Attempting to fix status for lobby:', lobbyId);
+            const response = await fetch(`/api/lobbies/${lobbyId}/fix-status`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Fix request failed:', errorText);
+                return { error: 'Request failed', details: errorText };
+            }
+            
+            const data = await response.json();
+            console.log('Lobby status fix result:', data);
+            
+            // If status was fixed, refresh the page to update UI
+            if (data.success && data.message.includes('Fixed lobby status')) {
+                console.log('Lobby status was fixed, refreshing page in 3 seconds...');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            }
+            
+            return data;
+        } catch (error) {
+            console.error('Status fix function error:', error);
+            return { error: error.message };
+        }
+    };
+
+    // Help text for console debugging
+    console.log('=== LOBBY STATUS FIX TOOL ===');
+    console.log('If ready button is not working due to status issues, run:');
+    console.log('window.fixLobbyStatus("' + (typeof lobbyId !== 'undefined' ? lobbyId : 'your-lobby-id') + '")');
+
+    // If this is a lobby page, check if we need to offer the status fix
+    if (typeof lobbyId !== 'undefined') {
+        // Check if there might be a status issue
+        window.addEventListener('error', function(event) {
+            if (event.message && event.message.includes('status')) {
+                console.warn('Detected possible lobby status issue. Try running window.fixLobbyStatus("' + lobbyId + '")');
+            }
+        });
+    }
 });

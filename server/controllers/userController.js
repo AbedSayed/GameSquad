@@ -1,26 +1,31 @@
 const { User, Profile } = require('../models');
 const Lobby = require('../models/Lobby');
-const jwt = require('jsonwebtoken');
-const asyncHandler = require('../middleware/asyncHandler');
-const bcrypt = require('bcrypt');
+const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
+const { 
+  generateToken, 
+  isValidEmail, 
+  comparePassword, 
+  formatUserResponse 
+} = require('../utils/authUtils');
 
-// Generate JWT
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'your-secret-key-here', {
-    expiresIn: '30d',
-  });
-};
-
-// @desc    Register new user
-// @route   POST /api/users/register
-// @access  Public
+/**
+ * @desc    Register new user
+ * @route   POST /api/users/register
+ * @access  Public
+ */
 const registerUser = asyncHandler(async (req, res) => {
   const { username, email, password, profile: profileData } = req.body;
 
   if (!username || !email || !password) {
     res.status(400);
     throw new Error('Please add all fields');
+  }
+
+  // Validate email format
+  if (!isValidEmail(email)) {
+    res.status(400);
+    throw new Error('Please provide a valid email address');
   }
 
   // Check if user exists
@@ -45,46 +50,35 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 
   if (user) {
-    // Create a minimal profile with only the required fields and user provided data
-    // Only include fields that are explicitly provided in the registration form
+    // Create profile with minimally required fields
     const profileFields = {
-      user: user._id, // This is required for the relationship
+      user: user._id,
+      displayName: profileData?.displayName || username,
     };
 
-    // Only add fields that were explicitly provided by the user
+    // Only add optional fields if provided
     if (profileData) {
-      // Only add displayName if provided, otherwise don't include it at all
-      // (MongoDB will use the schema default if needed)
-      if (profileData.displayName) {
-        profileFields.displayName = profileData.displayName;
-      } else {
-        // displayName is required by the schema, so we must provide it
-        profileFields.displayName = username;
-      }
-
-      // Only add fields that were explicitly provided
       if (profileData.bio) profileFields.bio = profileData.bio;
       if (profileData.avatar) profileFields.avatar = profileData.avatar;
-      if (profileData.gameRanks && profileData.gameRanks.length > 0) profileFields.gameRanks = profileData.gameRanks;
-      if (profileData.languages && profileData.languages.length > 0) profileFields.languages = profileData.languages;
-      if (profileData.interests && profileData.interests.length > 0) profileFields.interests = profileData.interests;
+      if (profileData.gameRanks?.length > 0) profileFields.gameRanks = profileData.gameRanks;
+      if (profileData.languages?.length > 0) profileFields.languages = profileData.languages;
+      if (profileData.interests?.length > 0) profileFields.interests = profileData.interests;
 
-      // Only add preferences if any were provided
-      const preferences = {};
+      // Add preferences if any provided
       if (profileData.preferences) {
-        if (profileData.preferences.playStyle) preferences.playStyle = profileData.preferences.playStyle;
-        if (profileData.preferences.communication) preferences.communication = profileData.preferences.communication;
-        if (profileData.preferences.playTime) preferences.playTime = profileData.preferences.playTime;
-        if (profileData.preferences.region) preferences.region = profileData.preferences.region;
+        const preferences = {};
+        const preferenceFields = ['playStyle', 'communication', 'playTime', 'region'];
         
-        // Only add preferences if any were actually provided
+        preferenceFields.forEach(field => {
+          if (profileData.preferences[field]) {
+            preferences[field] = profileData.preferences[field];
+          }
+        });
+        
         if (Object.keys(preferences).length > 0) {
           profileFields.preferences = preferences;
         }
       }
-    } else {
-      // If no profile data was provided, only include the minimum required fields
-      profileFields.displayName = username; // Required by the schema
     }
 
     const profile = await Profile.create(profileFields);
@@ -95,40 +89,31 @@ const registerUser = asyncHandler(async (req, res) => {
 
     console.log('User registered successfully:', user.username, user.email);
 
-    res.status(201).json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      friends: user.friends,
-      friendRequests: user.friendRequests,
-      token: generateToken(user._id),
-      isAdmin: user.isAdmin,
-    });
+    // Format response using the utility function
+    const token = generateToken(user._id);
+    res.status(201).json(formatUserResponse(user, profile, token));
   } else {
     res.status(400);
     throw new Error('Invalid user data');
   }
 });
 
-// @desc    Authenticate a user
-// @route   POST /api/users/login
-// @access  Public
+/**
+ * @desc    Authenticate a user
+ * @route   POST /api/users/login
+ * @access  Public
+ */
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   
-  console.log('Login attempt for email:', email);
-
   // Validate email and password are provided
   if (!email || !password) {
-    console.log('Login failed: Missing email or password');
     res.status(400);
     throw new Error('Please provide both email and password');
   }
 
   // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    console.log('Login failed: Invalid email format');
+  if (!isValidEmail(email)) {
     res.status(400);
     throw new Error('Please provide a valid email address');
   }
@@ -136,55 +121,30 @@ const loginUser = asyncHandler(async (req, res) => {
   // Check for user email
   const user = await User.findOne({ email }).populate('friends', 'username email');
 
-  if (!user) {
-    console.log('Login failed: User with email not found:', email);
+  if (!user || !(await comparePassword(password, user.password))) {
     res.status(401);
     throw new Error('Invalid email or password');
   }
 
-  console.log('User found:', user.username, 'id:', user._id);
-  console.log('Stored password hash:', user.password.substring(0, 10) + '...');
-  
-  // Check if password matches
-  const isPasswordMatch = await bcrypt.compare(password, user.password);
-  
-  console.log('Password match result:', isPasswordMatch);
-  
-  if (!isPasswordMatch) {
-    console.log('Login failed: Password does not match for user:', user.username);
-    res.status(401);
-    throw new Error('Invalid email or password');
-  }
-
-  console.log('Login successful for user:', user.username);
-  console.log('User friends:', user.friends);
-  
   // Get user profile
   const profile = await Profile.findOne({ user: user._id });
-  console.log('User profile found:', profile ? 'Yes' : 'No');
 
-  // Authentication successful
-  res.json({
-    _id: user._id,
-    username: user.username,
-    email: user.email,
-    friends: user.friends || [],
-    friendRequests: user.friendRequests || { sent: [], received: [] },
-    token: generateToken(user._id),
-    isAdmin: user.isAdmin,
-    profile: profile || {} // Include profile data in the response
-  });
+  // Generate token and format response
+  const token = generateToken(user._id);
+  res.json(formatUserResponse(user, profile, token));
 });
 
-// @desc    Get user data
-// @route   GET /api/users/me
-// @access  Private
+/**
+ * @desc    Get user data
+ * @route   GET /api/users/me
+ * @access  Private
+ */
 const getMe = asyncHandler(async (req, res) => {
   try {
-    console.log('Getting user data for ID:', req.user.id);
-    
-    // Get user without population to avoid schema errors
-    const user = await User.findById(req.user.id);
+    // Get user with populated friends data
+    const user = await User.findById(req.user.id)
+      .populate('friends', 'username email profile')
+      .populate('profile');
 
     if (!user) {
       return res.status(404).json({
@@ -192,37 +152,12 @@ const getMe = asyncHandler(async (req, res) => {
         message: 'User not found'
       });
     }
-    
-    // If user has friends, get basic info for them
-    let friendsData = [];
-    if (user.friends && user.friends.length > 0) {
-      console.log(`User has ${user.friends.length} friends, fetching basic info`);
-      const friendIds = user.friends.map(id => id.toString());
-      
-      // Fetch basic info for each friend
-      friendsData = await User.find({ 
-        _id: { $in: friendIds } 
-      }).select('username email');
-    }
-    
-    console.log('User found with friends:', friendsData.length);
-    
-    res.json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      friends: user.friends || [], // Keep the original IDs for reference
-      friendsData: friendsData, // Add the fetched friend data
-      friendRequests: user.friendRequests || { sent: [], received: [] },
-      isAdmin: user.isAdmin,
-    });
+
+    res.status(200).json(formatUserResponse(user, user.profile));
   } catch (error) {
     console.error('Error in getMe:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500);
+    throw new Error('Server error retrieving user data');
   }
 });
 
@@ -389,18 +324,38 @@ const getUsers = asyncHandler(async (req, res) => {
 // @access  Public
 const getUserById = asyncHandler(async (req, res) => {
   try {
+    console.log('getUserById called with ID:', req.params.id);
+    
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      console.error('Invalid ObjectId format:', req.params.id);
+      return res.status(400).json({ 
+        message: 'Invalid user ID format',
+        details: 'The provided ID is not in a valid MongoDB ObjectId format'
+      });
+    }
+    
     const user = await User.findById(req.params.id)
       .select('-password')
       .populate('profile');
     
     if (user) {
+      console.log('User found:', {
+        id: user._id,
+        username: user.username,
+        hasProfile: !!user.profile
+      });
+      
       res.json(user);
     } else {
+      console.log('User not found with ID:', req.params.id);
       res.status(404).json({ message: 'User not found' });
     }
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error in getUserById:', error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 });
 

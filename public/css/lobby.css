@@ -1652,3 +1652,13 @@ div[style*="background:#fff"] {
         font-size: 0.8rem;
     }
 }
+
+/* Ensure the status field matches other game details */
+#lobbyStatusDetail {
+    font-weight: normal;
+    color: inherit;
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    text-transform: capitalize;
+}

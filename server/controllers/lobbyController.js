@@ -454,26 +454,42 @@ const getMyInvitations = asyncHandler(async (req, res) => {
 // @route   POST /api/lobbies/:id/ready
 // @access  Private
 const toggleReady = asyncHandler(async (req, res) => {
+    console.log('Toggle ready request for lobby:', req.params.id, 'by user:', req.user._id);
+    
     const lobby = await Lobby.findById(req.params.id);
     const userId = req.user._id;
 
     if (!lobby) {
+        console.log('Lobby not found:', req.params.id);
         res.status(404);
         throw new Error('Lobby not found');
     }
 
+    console.log('Found lobby:', lobby.name, 'Host:', lobby.host);
+    console.log('Current user ID:', userId);
+    console.log('Is host?', lobby.host.toString() === userId.toString());
+    
     // Find the player in the lobby
     const playerIndex = lobby.players.findIndex(
         p => p.user.toString() === userId.toString()
     );
 
+    console.log('Player found at index:', playerIndex);
+    console.log('All players:', lobby.players.map(p => ({ 
+        id: p.user.toString(), 
+        ready: p.ready
+    })));
+
     if (playerIndex === -1) {
+        console.log('User not found in lobby players');
         res.status(400);
         throw new Error('You are not in this lobby');
     }
 
     // Toggle ready state
-    lobby.players[playerIndex].ready = !lobby.players[playerIndex].ready;
+    const previousState = lobby.players[playerIndex].ready;
+    lobby.players[playerIndex].ready = !previousState;
+    console.log(`Toggled player ready state from ${previousState} to ${lobby.players[playerIndex].ready}`);
 
     // Check if all players are ready and lobby is full
     const allReady = lobby.players.every(p => p.ready);
@@ -483,19 +499,27 @@ const toggleReady = asyncHandler(async (req, res) => {
         console.log('All players are ready and lobby is full, updating status to playing');
         lobby.status = 'playing';
     } else if (allReady && lobby.currentPlayers >= 2) {
-        console.log('All players are ready but lobby is not full, updating status to starting');
-        lobby.status = 'starting';
+        console.log('All players are ready but lobby is not full, keeping status as waiting');
+        lobby.status = 'waiting';
     } else {
         console.log('Not all players are ready, setting status to waiting');
         lobby.status = 'waiting';
     }
 
     await lobby.save();
+    console.log('Lobby saved with updated ready state');
 
     // Populate the updated lobby
     const updatedLobby = await Lobby.findById(lobby._id)
         .populate('host', 'username')
         .populate('players.user', 'username');
+
+    // Double-check that the update was persisted
+    console.log('Updated lobby player states:', updatedLobby.players.map(p => ({
+        id: p.user._id,
+        name: p.user.username,
+        ready: p.ready
+    })));
 
     // Emit socket event for real-time updates
     req.app.get('io').to(lobby._id.toString()).emit('playerReady', {

@@ -1,29 +1,34 @@
-// Error handling middleware
-const errorHandler = (err, req, res, next) => {
-  // Get status code from response or default to 500
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-  
-  // Log error for debugging with more details
-  console.error('=== SERVER ERROR ===');
-  console.error(`Message: ${err.message}`);
-  console.error(`Status: ${statusCode}`);
-  console.error(`Path: ${req.originalUrl}`);
-  console.error(`Method: ${req.method}`);
-  console.error(`Stack: ${err.stack}`);
-  
-  // Send response with standardized format
-  res.status(statusCode).json({
-    success: false,
-    error: err.message,
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack,
-  });
-};
+const { formatErrorResponse, ApiError } = require('../utils/errorUtils');
 
-// Middleware for handling 404 Not Found errors
+/**
+ * Not found middleware - handles requests to non-existent routes
+ */
 const notFound = (req, res, next) => {
-  const error = new Error(`API endpoint not found - ${req.originalUrl}`);
+  const error = new Error(`Not Found - ${req.originalUrl}`);
   res.status(404);
   next(error);
 };
 
-module.exports = { errorHandler, notFound };
+/**
+ * Global error handler middleware
+ */
+const errorHandler = (err, req, res, next) => {
+  // Log error for debugging
+  console.error('ERROR:', err.message);
+  if (process.env.NODE_ENV === 'development') {
+    console.error(err.stack);
+  }
+
+  // Determine status code (use 500 as default)
+  const statusCode = err instanceof ApiError 
+    ? err.statusCode 
+    : res.statusCode === 200 ? 500 : res.statusCode;
+
+  // Format the error response
+  const errorResponse = formatErrorResponse(err);
+
+  // Send the response
+  res.status(statusCode).json(errorResponse);
+};
+
+module.exports = { notFound, errorHandler };

@@ -204,46 +204,32 @@ window.logout = logout;
  */
 function updateUsernameDisplay() {
     try {
+        // Check if we're viewing another user's profile
+        if (window.VIEWING_OTHER_PROFILE === true) {
+            console.log('main.js: Skipping username update since we are viewing another profile');
+            return; // Skip updating if we're viewing someone else's profile
+        }
+
         // Get user info from localStorage
-        const userInfoString = localStorage.getItem('userInfo');
-        if (!userInfoString) {
+        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+        if (!userInfo) {
             console.log('No user info found in localStorage');
             return;
         }
-        
-        const userInfo = JSON.parse(userInfoString);
+
         console.log('User info loaded for display:', userInfo);
         
-        // Find all username elements and update them
+        // Update all username elements
         const usernameElements = document.querySelectorAll('.username');
-        if (usernameElements.length === 0) {
-            console.log('No username elements found');
-            return;
-        }
-        
-        // Update all username elements to ensure consistency across different parts of the UI
         usernameElements.forEach(element => {
-            // Determine the correct username to display with clear fallbacks
-            let displayName = 'User'; // Default fallback
-            
-            // Check username directly on userInfo
-            if (userInfo.username && userInfo.username.trim() !== '') {
-                displayName = userInfo.username;
-            } 
-            // Check in nested user object if present
-            else if (userInfo.user && userInfo.user.username && userInfo.user.username.trim() !== '') {
-                displayName = userInfo.user.username;
-            }
-            
-            // Update the element
-            element.textContent = displayName;
-            console.log('Updated username element with:', displayName);
+            element.textContent = userInfo.username || 'User';
+            console.log('Updated username element with:', userInfo.username || 'User');
         });
         
-        // Ensure the user profile container is visible
-        const userProfile = document.querySelector('.user-profile');
-        if (userProfile) {
-            userProfile.classList.remove('hidden');
+        // Make sure the user profile container is visible
+        const userProfileContainer = document.querySelector('.user-profile');
+        if (userProfileContainer) {
+            userProfileContainer.style.display = 'flex';
         }
     } catch (error) {
         console.error('Error updating username display:', error);

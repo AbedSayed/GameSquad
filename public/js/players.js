@@ -1145,7 +1145,7 @@ function createPlayerCard(player) {
             </div>
             <div class="player-actions">
                 <button class="btn btn-primary view-profile-btn" data-id="${player._id}">
-                    <i class="fas fa-user"></i> Profile
+                    <i class="fas fa-user"></i> View Profile
                 </button>
                 ${friendBtnHtml}
                 <button class="btn btn-primary invite-lobby-btn" data-id="${player._id}">
@@ -1158,7 +1158,11 @@ function createPlayerCard(player) {
     // Add event listeners
     const viewProfileBtn = card.querySelector('.view-profile-btn');
     viewProfileBtn.addEventListener('click', () => {
-        window.location.href = `/profile.html?id=${player._id}`;
+        console.log('View Profile button clicked for player:', player);
+        console.log('Player ID:', player._id);
+        const profileUrl = `profile.html?id=${player._id}`;
+        console.log('Navigating to:', profileUrl);
+        window.location.href = profileUrl;
     });
     
     const addFriendBtn = card.querySelector('.add-friend-btn');
