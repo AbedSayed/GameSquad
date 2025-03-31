@@ -69,6 +69,9 @@
                     <div class="profile-image-container">
                         <div class="avatar-wrapper">
                             <img id="profile-avatar" src="../resources/default-avatar.png" alt="Profile Avatar" class="profile-avatar">
+                            <div class="avatar-upload" id="avatar-upload-btn" onclick="showAvatarModal()">
+                                <i class="fas fa-camera"></i>
+                            </div>
                         </div>
                     </div>
                     <div class="profile-info">
@@ -450,7 +453,7 @@
                             return;
                         }
                         
-                        // Create rank item
+                        // Create new game rank item
                         const gameRankItem = document.createElement('div');
                         gameRankItem.className = 'game-rank-item';
                         gameRankItem.innerHTML = `
@@ -467,7 +470,11 @@
                             </div>
                         `;
                         
-                        // Add remove listener
+                        // Clear inputs
+                        gameNameField.value = '';
+                        gameRankField.value = '';
+                        
+                        // Add remove button functionality
                         const removeButton = gameRankItem.querySelector('.remove-game-rank');
                         if (removeButton) {
                             removeButton.addEventListener('click', function() {
@@ -475,21 +482,70 @@
                             });
                         }
                         
+                        // Add to game ranks editor
                         gameRanksEditor.appendChild(gameRankItem);
-                        
-                        // Clear fields
-                        gameNameField.value = '';
-                        gameRankField.value = '';
                     });
                 }
                 
-                // Close button handler
+                // Show modal function
+                window.showEditProfileModal = function() {
+                    if (!modal) return;
+                    
+                    // Get current profile data to populate the form
+                    let profileData;
+                    try {
+                        const userInfoStr = localStorage.getItem('userInfo');
+                        if (userInfoStr) {
+                            const userInfo = JSON.parse(userInfoStr);
+                            profileData = userInfo.profile || {
+                                displayName: userInfo.username
+                            };
+                        }
+                    } catch (e) {
+                        console.error('Error getting profile data from localStorage:', e);
+                    }
+                    
+                    // Populate form with current profile data
+                    window.populateEditForm(profileData);
+                    
+                    // Show modal
+                    modal.style.display = 'flex';
+                };
+                
+                // Function to show avatar modal with focus on the avatar field
+                window.showAvatarModal = function() {
+                    // First show the edit profile modal
+                    window.showEditProfileModal();
+                    
+                    // Then focus on the avatar field
+                    setTimeout(() => {
+                        const avatarField = document.getElementById('edit-avatar');
+                        if (avatarField) {
+                            avatarField.focus();
+                            // Scroll to the avatar field
+                            avatarField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            // Add a highlight effect
+                            avatarField.classList.add('highlight-field');
+                            setTimeout(() => {
+                                avatarField.classList.remove('highlight-field');
+                            }, 2000);
+                        }
+                    }, 300);
+                };
+                
+                // Close modal
                 if (closeButton) {
                     closeButton.addEventListener('click', function() {
                         modal.style.display = 'none';
-                        document.body.classList.remove('modal-open');
                     });
                 }
+                
+                // Close modal when clicking outside
+                window.addEventListener('click', function(event) {
+                    if (event.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
                 
                 // Form submission
                 if (form) {
@@ -530,69 +586,51 @@
                             }
                             
                             // Process game ranks
-                            formData.gameRanks = [];
-                            document.querySelectorAll('.game-rank-item').forEach(item => {
-                                const gameName = item.querySelector('.game-name').value.trim();
-                                const gameRank = item.querySelector('.game-rank').value.trim();
-                                
-                                if (gameName && gameRank) {
-                                    formData.gameRanks.push({
-                                        game: gameName,
-                                        rank: gameRank
-                                    });
-                                }
-                            });
+                            const gameRankItems = document.querySelectorAll('.game-rank-item');
+                            if (gameRankItems.length > 0) {
+                                formData.gameRanks = [];
+                                gameRankItems.forEach(item => {
+                                    const gameNameInput = item.querySelector('.game-name');
+                                    const gameRankInput = item.querySelector('.game-rank');
+                                    if (gameNameInput && gameRankInput) {
+                                        const game = gameNameInput.value.trim();
+                                        const rank = gameRankInput.value.trim();
+                                        if (game && rank) {
+                                            formData.gameRanks.push({ game, rank });
+                                        }
+                                    }
+                                });
+                            }
                             
                             console.log('Updating profile with data:', formData);
                             
-                            // Update profile
-                            if (window.Profile && typeof window.Profile.createOrUpdateProfile === 'function') {
+                            // Decide which update method to use
+                            if (window.createOrUpdateProfile) {
+                                await window.createOrUpdateProfile(formData);
+                            } else if (window.Profile && typeof window.Profile.createOrUpdateProfile === 'function') {
                                 await window.Profile.createOrUpdateProfile(formData);
-                                
-                                // Success
-                                showNotification('Profile updated successfully! Reloading page...', 'success');
-                                
-                                // Close modal
-                                modal.style.display = 'none';
-                                document.body.classList.remove('modal-open');
-                                
-                                // Reload
-                                setTimeout(() => {
-                                    window.location.reload();
-                                }, 1500);
+                            } else if (window.Auth && typeof window.Auth.updateUserProfile === 'function') {
+                                await window.Auth.updateUserProfile(formData);
                             } else {
-                                // Direct API call
-                                const token = localStorage.getItem('token');
-                                const response = await fetch(`${window.APP_CONFIG.API_URL}/users/profile`, {
-                                    method: 'PUT',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Bearer ${token}`
-                                    },
-                                    body: JSON.stringify(formData)
-                                });
-                                
-                                if (response.ok) {
-                                    // Success
-                                    showNotification('Profile updated successfully! Reloading page...', 'success');
-                                    
-                                    // Close modal
-                                    modal.style.display = 'none';
-                                    document.body.classList.remove('modal-open');
-                                    
-                                    // Reload
-                                    setTimeout(() => {
-                                        window.location.reload();
-                                    }, 1500);
-                                } else {
-                                    throw new Error('Failed to update profile');
-                                }
+                                throw new Error('No profile update method found');
                             }
+                            
+                            // Close modal
+                            modal.style.display = 'none';
+                            
+                            // Show success notification
+                            showNotification('Profile updated successfully', 'success');
+                            
+                            // Reload the page to reflect changes
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                            
                         } catch (error) {
                             console.error('Error updating profile:', error);
-                            showNotification('Failed to update profile: ' + error.message, 'error');
-                        } finally {
-                            // Restore button
+                            showNotification('Error updating profile: ' + error.message, 'error');
+                            
+                            // Reset button
                             submitButton.textContent = originalButtonText;
                             submitButton.disabled = false;
                         }
@@ -867,313 +905,6 @@
                     notification.remove();
                 }, 300);
             }, 5000);
-        }
-
-        // Global function to show edit profile modal when button is clicked directly
-        function showEditProfileModal() {
-            console.log('Direct edit profile button click function called');
-            
-            // Get current profile data
-            let currentProfile = null;
-            const userInfoStr = localStorage.getItem('userInfo');
-            if (userInfoStr) {
-                const userInfo = JSON.parse(userInfoStr);
-                currentProfile = userInfo.profile || {};
-            }
-            
-            // Get the modal element
-            const modal = document.getElementById('edit-profile-modal');
-            if (!modal) {
-                console.error('Edit profile modal not found');
-                return;
-            }
-            
-            // Try to load the populate function
-            let populateEditFormFn = window.populateEditForm;
-            
-            // If the function exists, call it
-            if (typeof populateEditFormFn === 'function') {
-                populateEditFormFn(currentProfile);
-            } else {
-                console.log('Populate edit form function not found globally');
-                
-                // Try to find it in the page
-                const scripts = document.querySelectorAll('script');
-                let foundPopulateFunction = false;
-                
-                scripts.forEach(script => {
-                    if (script.textContent.includes('function populateEditForm')) {
-                        foundPopulateFunction = true;
-                    }
-                });
-                
-                console.log('Function found in page scripts:', foundPopulateFunction);
-                
-                // Direct field population as fallback
-                try {
-                    if (currentProfile) {
-                        // Basic fields
-                        const fields = {
-                            'edit-display-name': currentProfile.displayName || '',
-                            'edit-bio': currentProfile.bio || '',
-                            'edit-avatar': currentProfile.avatar || ''
-                        };
-                        
-                        // Set field values
-                        Object.keys(fields).forEach(id => {
-                            const field = document.getElementById(id);
-                            if (field) {
-                                field.value = fields[id];
-                            }
-                        });
-                        
-                        // Preferences
-                        const prefs = currentProfile.preferences || {};
-                        
-                        const prefFields = {
-                            'edit-play-style': prefs.playStyle || 'Casual',
-                            'edit-communication': prefs.communication || 'Text',
-                            'edit-play-time': prefs.playTime || 'Evening',
-                            'edit-region': prefs.region || 'North America'
-                        };
-                        
-                        Object.keys(prefFields).forEach(id => {
-                            const field = document.getElementById(id);
-                            if (field) {
-                                field.value = prefFields[id];
-                            }
-                        });
-                        
-                        // Languages and interests
-                        const languagesField = document.getElementById('edit-languages');
-                        if (languagesField && currentProfile.languages && Array.isArray(currentProfile.languages)) {
-                            languagesField.value = currentProfile.languages.join(', ');
-                        }
-                        
-                        const interestsField = document.getElementById('edit-interests');
-                        if (interestsField && currentProfile.interests && Array.isArray(currentProfile.interests)) {
-                            interestsField.value = currentProfile.interests.join(', ');
-                        }
-                        
-                        // Game ranks
-                        const gameRanksEditor = document.getElementById('game-ranks-editor');
-                        if (gameRanksEditor && currentProfile.gameRanks && Array.isArray(currentProfile.gameRanks)) {
-                            // Clear existing ranks
-                            gameRanksEditor.innerHTML = '';
-                            
-                            // Add each rank
-                            currentProfile.gameRanks.forEach(rank => {
-                                if (rank.game && rank.rank) {
-                                    const html = `
-                                        <div class="game-rank-item">
-                                            <div class="form-row">
-                                                <div class="form-group half">
-                                                    <input type="text" class="game-name" value="${rank.game}" placeholder="Game name">
-                                                </div>
-                                                <div class="form-group half">
-                                                    <input type="text" class="game-rank" value="${rank.rank}" placeholder="Your rank">
-                                                </div>
-                                                <button type="button" class="remove-game-rank btn-icon">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    `;
-                                    
-                                    // Add to editor
-                                    gameRanksEditor.insertAdjacentHTML('beforeend', html);
-                                }
-                            });
-                            
-                            // Add event listeners to remove buttons
-                            const removeButtons = gameRanksEditor.querySelectorAll('.remove-game-rank');
-                            removeButtons.forEach(button => {
-                                button.addEventListener('click', function() {
-                                    this.closest('.game-rank-item').remove();
-                                });
-                            });
-                        }
-                    }
-                } catch (err) {
-                    console.error('Error directly populating form:', err);
-                }
-            }
-            
-            // Display modal
-            modal.style.display = 'block';
-            modal.style.opacity = '1';
-            modal.style.visibility = 'visible';
-            document.body.classList.add('modal-open');
-            
-            // Add event listener for clicking outside modal to close it
-            document.addEventListener('click', function closeModal(e) {
-                if (e.target === modal) {
-                    modal.style.display = 'none';
-                    document.body.classList.remove('modal-open');
-                    document.removeEventListener('click', closeModal);
-                }
-            });
-            
-            // Check if modal is visible
-            setTimeout(() => {
-                const isVisible = modal.offsetWidth > 0 && modal.offsetHeight > 0 && 
-                                 window.getComputedStyle(modal).display !== 'none';
-                
-                console.log('Direct modal visibility check:', isVisible);
-                
-                // If not visible, use fallback
-                if (!isVisible) {
-                    // Create fallback modal
-                    showFallbackEditModalDirect(currentProfile);
-                }
-            }, 300);
-        }
-        
-        // Direct fallback modal function
-        function showFallbackEditModalDirect(profileData) {
-            console.log('Creating direct fallback modal');
-            
-            // Create modal container
-            const fallbackModal = document.createElement('div');
-            fallbackModal.id = 'direct-fallback-modal';
-            fallbackModal.style.position = 'fixed';
-            fallbackModal.style.top = '0';
-            fallbackModal.style.left = '0';
-            fallbackModal.style.width = '100%';
-            fallbackModal.style.height = '100%';
-            fallbackModal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            fallbackModal.style.zIndex = '3000';
-            fallbackModal.style.display = 'flex';
-            fallbackModal.style.justifyContent = 'center';
-            fallbackModal.style.alignItems = 'center';
-            
-            // Get the original modal content to clone
-            const originalContent = document.getElementById('edit-profile-modal').querySelector('.modal-content');
-            
-            // Create content if original not found
-            let contentClone;
-            if (originalContent) {
-                contentClone = originalContent.cloneNode(true);
-            } else {
-                contentClone = document.createElement('div');
-                contentClone.className = 'modal-content';
-                contentClone.style.backgroundColor = '#1a1a2e';
-                contentClone.style.padding = '20px';
-                contentClone.style.borderRadius = '8px';
-                contentClone.style.maxWidth = '600px';
-                contentClone.style.width = '90%';
-                contentClone.style.maxHeight = '80vh';
-                contentClone.style.overflowY = 'auto';
-                
-                contentClone.innerHTML = `
-                    <div class="modal-header">
-                        <h2>Edit Profile</h2>
-                        <span class="close-modal">&times;</span>
-                    </div>
-                    <div class="modal-body">
-                        <form id="fallback-edit-form">
-                            <div class="form-group">
-                                <label>Display Name</label>
-                                <input type="text" id="fb-display-name" value="${profileData?.displayName || ''}">
-                            </div>
-                            <div class="form-group">
-                                <label>Bio</label>
-                                <textarea id="fb-bio">${profileData?.bio || ''}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <label>Avatar URL</label>
-                                <input type="text" id="fb-avatar" value="${profileData?.avatar || ''}">
-                            </div>
-                            <button type="submit" style="background-color: #4e54c8; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
-                                Save Changes
-                            </button>
-                        </form>
-                    </div>
-                `;
-            }
-            
-            // Add content to modal
-            fallbackModal.appendChild(contentClone);
-            
-            // Add to body
-            document.body.appendChild(fallbackModal);
-            
-            // Set up close button
-            const closeBtn = contentClone.querySelector('.close-modal');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => {
-                    document.body.removeChild(fallbackModal);
-                });
-            }
-            
-            // Set up click outside to close
-            fallbackModal.addEventListener('click', (e) => {
-                if (e.target === fallbackModal) {
-                    document.body.removeChild(fallbackModal);
-                }
-            });
-            
-            // Set up form submit
-            const form = contentClone.querySelector('form');
-            if (form) {
-                form.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    
-                    try {
-                        let formData;
-                        
-                        // Get data based on which form we have
-                        if (form.id === 'fallback-edit-form') {
-                            formData = {
-                                displayName: document.getElementById('fb-display-name').value,
-                                bio: document.getElementById('fb-bio').value,
-                                avatar: document.getElementById('fb-avatar').value
-                            };
-                        } else {
-                            // Get data from the cloned form
-                            const displayNameField = form.querySelector('#edit-display-name') || form.querySelector('[name="displayName"]');
-                            const bioField = form.querySelector('#edit-bio') || form.querySelector('[name="bio"]');
-                            const avatarField = form.querySelector('#edit-avatar') || form.querySelector('[name="avatar"]');
-                            
-                            formData = {
-                                displayName: displayNameField ? displayNameField.value : '',
-                                bio: bioField ? bioField.value : '',
-                                avatar: avatarField ? avatarField.value : ''
-                            };
-                        }
-                        
-                        console.log('Updating profile with fallback form data:', formData);
-                        
-                        // Update the profile
-                        if (window.Profile && typeof window.Profile.createOrUpdateProfile === 'function') {
-                            await window.Profile.createOrUpdateProfile(formData);
-                            alert('Profile updated successfully!');
-                            window.location.reload();
-                        } else {
-                            // Direct API call fallback
-                            const token = localStorage.getItem('token');
-                            const response = await fetch(`${window.APP_CONFIG.API_URL}/users/profile`, {
-                                method: 'PUT',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${token}`
-                                },
-                                body: JSON.stringify(formData)
-                            });
-                            
-                            if (response.ok) {
-                                alert('Profile updated successfully!');
-                                window.location.reload();
-                            } else {
-                                throw new Error('Failed to update profile');
-                            }
-                        }
-                    } catch (err) {
-                        console.error('Error updating profile:', err);
-                        alert('Failed to update profile: ' + err.message);
-                    }
-                });
-            }
         }
     </script>
 
