@@ -798,4 +798,123 @@ function initApp() {
             }
         };
     })();
+
+    // Ensure game tiles have proper links
+    setupGameTileLinks();
+
+    /**
+     * Ensure JOIN LOBBY buttons on game tiles link to the correct filtered page
+     */
+    function setupGameTileLinks() {
+        // Find all JOIN LOBBY buttons in the popular games section
+        const popularGamesSection = document.querySelector('.popular-games');
+        if (!popularGamesSection) return;
+        
+        console.log('Setting up game tile links in Popular Games section');
+        
+        const joinButtons = popularGamesSection.querySelectorAll('.join-lobby');
+        if (joinButtons.length === 0) {
+            // Try alternate class names
+            const altButtons = popularGamesSection.querySelectorAll('.join-btn, button:contains("JOIN LOBBY")');
+            if (altButtons.length > 0) {
+                altButtons.forEach(setupButton);
+            } else {
+                console.log('No JOIN LOBBY buttons found in Popular Games section');
+            }
+        } else {
+            joinButtons.forEach(setupButton);
+        }
+        
+        // Also find any direct game card elements that might need links
+        const gameCards = popularGamesSection.querySelectorAll('.game-card');
+        gameCards.forEach(card => {
+            // Get game name from the card
+            const gameTitle = card.querySelector('h3');
+            if (!gameTitle) return;
+            
+            const gameName = gameTitle.textContent.trim();
+            const gameCode = getGameCodeFromName(gameName);
+            
+            // Find existing join button or create one if needed
+            let joinBtn = card.querySelector('.join-btn, .join-lobby');
+            if (!joinBtn) {
+                // Check if there's a different button we can repurpose
+                joinBtn = card.querySelector('button, a.btn');
+            }
+            
+            if (joinBtn) {
+                setupButton(joinBtn, gameCode);
+            }
+        });
+    }
+    
+    /**
+     * Setup a JOIN LOBBY button with the correct href
+     * @param {HTMLElement} button - The button element
+     * @param {string} [gameCode] - Optional game code if already known
+     */
+    function setupButton(button, gameCode = null) {
+        // Try to determine the game from context if not provided
+        if (!gameCode) {
+            // Try to find the game name from the parent card
+            const card = button.closest('.game-card');
+            if (card) {
+                const gameTitle = card.querySelector('h3');
+                if (gameTitle) {
+                    gameCode = getGameCodeFromName(gameTitle.textContent.trim());
+                }
+            }
+        }
+        
+        if (!gameCode) {
+            console.log('Could not determine game for button:', button);
+            return;
+        }
+        
+        console.log(`Setting up button for game: ${gameCode}`);
+        
+        // Create or update href attribute
+        if (button.tagName === 'A') {
+            button.href = `pages/lobbies.html?game=${gameCode}`;
+        } else {
+            // Convert button to anchor if it's not already
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.location.href = `pages/lobbies.html?game=${gameCode}`;
+            });
+        }
+    }
+    
+    /**
+     * Get a game code from a display name
+     * @param {string} gameName - Game display name
+     * @returns {string} - Game code for URL
+     */
+    function getGameCodeFromName(gameName) {
+        const normalizedName = gameName.toLowerCase();
+        
+        if (normalizedName.includes('valorant')) return 'valorant';
+        if (normalizedName.includes('counter') || normalizedName.includes('cs2') || normalizedName.includes('csgo')) return 'csgo';
+        if (normalizedName.includes('league') || normalizedName.includes('lol')) return 'lol';
+        if (normalizedName.includes('apex')) return 'apex';
+        if (normalizedName.includes('fortnite')) return 'fortnite';
+        if (normalizedName.includes('dota')) return 'dota2';
+        if (normalizedName.includes('overwatch')) return 'overwatch';
+        if (normalizedName.includes('rocket')) return 'rocketleague';
+        
+        // Default case
+        return normalizedName.replace(/[^a-z0-9]/g, '');
+    }
+
+    // Expose utility functions
+    return {
+        validateForm,
+        validateEmail,
+        showInputError,
+        clearInputError,
+        showNotification,
+        formatDate,
+        fetchAPI,
+        setupGameTileLinks
+    };
 }

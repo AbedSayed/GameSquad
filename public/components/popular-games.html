@@ -1,0 +1,63 @@
+<!-- Popular Games Section -->
+<section class="section popular-games">
+    <div class="container">
+        <h2 class="section-title neon-text">POPULAR GAMES</h2>
+        <div class="games-grid fade-stagger">
+            <div class="game-card card hover-3d">
+                <img src="../resources/Valorant-Logo-PNG-Image.png" alt="Valorant">
+                <div class="game-info">
+                    <h3>VALORANT</h3>
+                    <p>5v5 character-based tactical FPS</p>
+                    <a href="../pages/lobbies.html?game=valorant" class="btn btn-primary join-btn">JOIN LOBBY</a>
+                </div>
+            </div>
+            
+            <div class="game-card card hover-3d">
+                <img src="../resources/counter-strike-png-.png" alt="CS:GO">
+                <div class="game-info">
+                    <h3>COUNTER-STRIKE 2</h3>
+                    <p>5v5 tactical shooter game</p>
+                    <a href="../pages/lobbies.html?game=csgo" class="btn btn-primary join-btn">JOIN LOBBY</a>
+                </div>
+            </div>
+            
+            <div class="game-card card hover-3d">
+                <img src="../resources/leageofLegend.png.png" alt="League of Legends">
+                <div class="game-info">
+                    <h3>LEAGUE OF LEGENDS</h3>
+                    <p>5v5 multiplayer online battle arena</p>
+                    <a href="../pages/lobbies.html?game=lol" class="btn btn-primary join-btn">JOIN LOBBY</a>
+                </div>
+            </div>
+            
+            <div class="game-card card hover-3d">
+                <img src="../resources/apex.png.png" alt="Apex Legends">
+                <div class="game-info">
+                    <h3>APEX LEGENDS</h3>
+                    <p>Battle royale hero shooter</p>
+                    <a href="../pages/lobbies.html?game=apex" class="btn btn-primary join-btn">JOIN LOBBY</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+// Make sure links are correct even when loaded as a component
+document.addEventListener('DOMContentLoaded', function() {
+    const section = document.currentScript.parentElement;
+    
+    // Fix the path in all join buttons in this component
+    section.querySelectorAll('.join-btn').forEach(btn => {
+        const href = btn.getAttribute('href');
+        if (href && href.startsWith('../pages/')) {
+            // If we're in a component, adjust path as needed
+            if (window.location.pathname.includes('/pages/')) {
+                btn.setAttribute('href', href.replace('../pages/', './'));
+            } else if (!window.location.pathname.includes('/components/')) {
+                btn.setAttribute('href', href.replace('../pages/', 'pages/'));
+            }
+        }
+    });
+});
+</script> 

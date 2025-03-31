@@ -278,6 +278,35 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => notification.remove(), 300);
         }, 5000);
     }
+
+    // Initialize the page with ranks
+    initializeRanks();
+    
+    // Set up form submission
+    initializeForm();
+    
+    // Set up preview functionality
+    initializePreview();
+    
+    // Check if there's a game parameter in the URL and pre-select it
+    const urlParams = new URLSearchParams(window.location.search);
+    const gameParam = urlParams.get('game');
+    
+    if (gameParam) {
+        console.log(`Game parameter detected in URL: ${gameParam}`);
+        const gameSelect = document.getElementById('game');
+        
+        // Find and select the matching option
+        for (const option of gameSelect.options) {
+            if (option.value.toLowerCase() === gameParam.toLowerCase()) {
+                gameSelect.value = option.value;
+                // Trigger change event to update ranks and preview
+                gameSelect.dispatchEvent(new Event('change'));
+                console.log(`Pre-selected game: ${option.value}`);
+                break;
+            }
+        }
+    }
 });
 
 /**

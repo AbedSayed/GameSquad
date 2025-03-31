@@ -299,6 +299,42 @@ class LobbiesModule {
         console.log('Displaying lobbies with userID:', userId);
         console.log('Total lobbies:', lobbies.length);
         
+        // Debug: log game types of lobbies
+        console.log('Game types of lobbies:');
+        lobbies.forEach(lobby => {
+            console.log(`Lobby "${lobby.name}" - gameType: ${lobby.gameType}, game: ${lobby.game}`);
+        });
+        
+        // Check if we have a game filter in the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameFilter = urlParams.get('game');
+        if (gameFilter) {
+            console.log(`Game filter from URL: ${gameFilter}`);
+            const matchingLobbies = lobbies.filter(lobby => 
+                lobby.gameType?.toLowerCase() === gameFilter.toLowerCase()
+            );
+            console.log(`Lobbies matching filter: ${matchingLobbies.length}`);
+            
+            // Show notification if no lobbies match the filter
+            if (lobbies.length === 0) {
+                this.showNotification(`No ${this.normalizeGameName(gameFilter)} lobbies found. Be the first to create one!`, 'info');
+                
+                // Add a create lobby button for this game
+                if (otherLobbiesContainer) {
+                    otherLobbiesContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-search"></i>
+                            <h3>No lobbies found for ${this.normalizeGameName(gameFilter)}</h3>
+                            <p>Be the first to create a lobby for this game!</p>
+                            <a href="create-lobby.html?game=${gameFilter}" class="btn btn-primary">
+                                <i class="fas fa-plus-circle"></i> Create ${this.normalizeGameName(gameFilter)} Lobby
+                            </a>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
         // Separate my lobbies and other lobbies
         const myLobbies = [];
         const otherLobbies = [];
@@ -1625,6 +1661,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     let shouldRefresh = urlParams.get('refresh') === 'true';
     
+    // Get game filter from URL if present
+    const gameFilter = urlParams.get('game');
+    console.log('URL game parameter:', gameFilter);
+    
     // Check if we just joined a lobby through an invitation
     const justJoinedLobby = localStorage.getItem('just_joined_lobby') === 'true';
     if (justJoinedLobby) {
@@ -1634,12 +1674,37 @@ document.addEventListener('DOMContentLoaded', function() {
         shouldRefresh = true;
     }
     
+    // Prepare filters based on URL parameters
+    const filters = {};
+    if (gameFilter) {
+        filters.game = gameFilter;
+        console.log('Setting initial game filter:', gameFilter);
+        
+        // Also update the filter UI if it exists
+        const gameFilterDropdown = document.querySelector('#gameFilter');
+        if (gameFilterDropdown) {
+            // Find the option that matches our game filter or use a case-insensitive approach
+            let found = false;
+            for (const option of gameFilterDropdown.options) {
+                if (option.value.toLowerCase() === gameFilter.toLowerCase()) {
+                    gameFilterDropdown.value = option.value;
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) {
+                console.log(`No exact match found for game: ${gameFilter}`);
+            }
+        }
+    }
+    
     // Load lobbies, clear cache if coming back from accepting an invite
     if (shouldRefresh) {
         console.log('Forcing refresh of lobby data');
         localStorage.removeItem('lobbies');
-        window.Lobby.loadLobbies();
+        window.Lobby.loadLobbies(filters);
     } else {
-        window.Lobby.loadLobbies();
+        window.Lobby.loadLobbies(filters);
     }
 });

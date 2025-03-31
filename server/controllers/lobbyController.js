@@ -57,9 +57,13 @@ const getLobbies = asyncHandler(async (req, res) => {
     }
     
     if (req.query.game) {
-      // Use case-insensitive regex for game type matching
-      filter.gameType = new RegExp('^' + req.query.game + '$', 'i');
+      // Create a more flexible, case-insensitive filter for the gameType
+      // This will match any lobby where the gameType contains the requested game
+      filter.gameType = new RegExp(req.query.game, 'i');
       console.log('Game filter:', filter.gameType);
+      
+      // Log some helpful debug information
+      console.log(`Filtering lobbies for game: ${req.query.game}`);
     }
     
     if (req.query.rank) {
@@ -91,9 +95,18 @@ const getLobbies = asyncHandler(async (req, res) => {
       console.log(`Total lobbies in database: ${totalCount}`);
       
       if (totalCount > 0) {
-        // Get a sample of gameType values to help debug
+        // Log the gameTypes of a few sample lobbies for debugging
         const sampleLobbies = await Lobby.find({}).limit(5).select('gameType');
         console.log('Sample game types in database:', sampleLobbies.map(l => l.gameType));
+        
+        // If we're filtering by game, show lobbies that might match partial text
+        if (req.query.game) {
+          console.log('Trying more relaxed game search...');
+          const partialMatches = await Lobby.find({gameType: {$regex: req.query.game.substring(0, 3), $options: 'i'}})
+            .select('name gameType')
+            .limit(5);
+          console.log('Partial matches found:', partialMatches);
+        }
       }
     }
     
