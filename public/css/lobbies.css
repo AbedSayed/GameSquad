@@ -1,13 +1,10 @@
-/* Lobbies Page Styles */
 
-/* Main container styles */
 .container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
 }
 
-/* Notifications container */
 .notifications-container {
     position: fixed;
     top: 70px;
@@ -64,7 +61,6 @@
     100% { transform: translateX(100%); opacity: 0; }
 }
 
-/* Lobbies header */
 .lobbies-header {
     display: flex;
     justify-content: space-between;
@@ -84,7 +80,6 @@
     gap: 10px;
 }
 
-/* Filters section */
 .filters-section {
     background-color: rgba(0, 0, 0, 0.2);
     border-radius: 8px;
@@ -161,7 +156,6 @@
     background-color: rgba(0, 0, 200, 0.5);
 }
 
-/* Lobbies section */
 .lobbies-section {
     margin-bottom: 30px;
 }
@@ -184,7 +178,6 @@
     letter-spacing: 1px;
 }
 
-/* Game cards container */
 .game-cards-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -192,7 +185,6 @@
     margin-bottom: 30px;
 }
 
-/* Game card */
 .game-card {
     position: relative;
     background-color: rgba(0, 0, 0, 0.3);
@@ -211,7 +203,6 @@
     box-shadow: 0 6px 12px rgba(0, 0, 150, 0.3);
 }
 
-/* Game card header with game logo and badges */
 .game-card-header {
     position: relative;
     height: 120px;
@@ -248,7 +239,6 @@
     right: 10px;
 }
 
-/* Badge styles */
 .badge {
     padding: 5px 10px;
     border-radius: 30px;
@@ -304,7 +294,6 @@
     background-color: rgba(243, 156, 18, 0.8);
 }
 
-/* Game card body */
 .game-card-body {
     padding: 15px;
     flex: 1;
@@ -358,7 +347,6 @@
     text-align: center;
 }
 
-/* Skill level display */
 .skill-level {
     display: flex;
     align-items: center;
@@ -389,7 +377,6 @@
     box-shadow: 0 0 5px rgba(52, 152, 219, 0.8);
 }
 
-/* Game card footer */
 .game-card-footer {
     padding: 15px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -402,7 +389,6 @@
     justify-content: center;
 }
 
-/* Loading state */
 .loading {
     display: flex;
     flex-direction: column;
@@ -421,7 +407,6 @@
     color: #3498db;
 }
 
-/* Empty state */
 .no-lobbies {
     display: flex;
     flex-direction: column;
@@ -454,7 +439,6 @@
     margin-top: 15px;
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
     .lobbies-header {
         flex-direction: column;
@@ -489,7 +473,6 @@
     }
 }
 
-/* Buttons */
 .btn {
     display: inline-flex;
     align-items: center;

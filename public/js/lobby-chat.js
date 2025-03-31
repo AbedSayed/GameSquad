@@ -1,4 +1,3 @@
-// Lobby Chat Module
 const LobbyChat = {
     socket: null,
     lobbyId: null,
@@ -12,18 +11,15 @@ const LobbyChat = {
     },
 
     setupSocketListeners() {
-        // Connection events
         this.socket.on('connect', () => {
             console.log('Connected to chat server');
             this.socket.emit('joinLobby', this.lobbyId);
         });
 
-        // Chat events
         this.socket.on('chatMessage', (message) => {
             this.addMessageToChat(message);
         });
 
-        // Player events
         this.socket.on('playerJoined', (data) => {
             this.addSystemMessage(`${data.player.username} has joined the lobby`);
             this.updatePlayersList(data.lobby.players);
@@ -50,7 +46,6 @@ const LobbyChat = {
 
         document.querySelector('.lobby-chat').appendChild(chatContainer);
 
-        // Setup event listeners
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendMessage');
 
@@ -127,5 +122,4 @@ const LobbyChat = {
     }
 };
 
-// Export the module
-window.LobbyChat = LobbyChat; 
+window.LobbyChat = LobbyChat;

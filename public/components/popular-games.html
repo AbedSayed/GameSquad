@@ -1,4 +1,3 @@
-<!-- Popular Games Section -->
 <section class="section popular-games">
     <div class="container">
         <h2 class="section-title neon-text">POPULAR GAMES</h2>
@@ -43,11 +42,9 @@
 </section>
 
 <script>
-// Make sure links are correct even when loaded as a component
 document.addEventListener('DOMContentLoaded', function() {
     const section = document.currentScript.parentElement;
     
-    // Fix the path in all join buttons in this component
     section.querySelectorAll('.join-btn').forEach(btn => {
         const href = btn.getAttribute('href');
         if (href && href.startsWith('../pages/')) {

@@ -1,4 +1,3 @@
-/* Landing Page Styles */
 :root {
   --primary-glow: rgba(126, 34, 206, 0.7);
   --secondary-glow: rgba(34, 211, 238, 0.7);
@@ -24,10 +23,10 @@ body.landing-page {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-top: 0; /* Remove default padding */
+  padding-top: 0;
 }
 
-/* Particle canvas */
+
 #particles-js {
   position: absolute;
   width: 100%;
@@ -287,7 +286,7 @@ body.landing-page {
   z-index: 10;
 }
 
-/* Gaming visual elements */
+
 .hexagon-grid {
   position: absolute;
   top: 0;
@@ -347,7 +346,6 @@ body.landing-page {
   animation: float 15s infinite ease-in-out;
 }
 
-/* Scroll down indicator */
 .scroll-down {
   position: absolute;
   bottom: 30px;
@@ -366,7 +364,6 @@ body.landing-page {
   margin-bottom: 5px;
 }
 
-/* Game logo showcase */
 .game-logos {
   display: flex;
   justify-content: center;
@@ -400,7 +397,6 @@ body.landing-page {
   box-shadow: 0 0 15px var(--primary-glow);
 }
 
-/* Split layout for larger screens */
 @media (min-width: 992px) {
   .landing-container {
     flex-direction: row;
@@ -437,7 +433,6 @@ body.landing-page {
   }
 }
 
-/* Mobile styles */
 @media (max-width: 768px) {
   .landing-content {
     margin-bottom: 40px;
@@ -482,7 +477,6 @@ body.landing-page {
   }
 }
 
-/* Animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -554,7 +548,6 @@ body.landing-page {
   }
 }
 
-/* Neon button effect */
 .neon-btn {
   position: relative;
   display: inline-block;

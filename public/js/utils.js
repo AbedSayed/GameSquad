@@ -1,4 +1,3 @@
-// Utility functions for GameSquad
 
 /**
  * Show a notification to the user
@@ -9,24 +8,19 @@
 function showNotification(title, message, type = 'info') {
     console.log(`[utils.js] Showing notification: ${title} - ${message}`);
     
-    // Global notification deduplication
     if (!window.recentNotifications) {
         window.recentNotifications = new Set();
     }
     
-    // Track notification counts for enhanced deduplication
     if (!window.notificationsMap) {
         window.notificationsMap = new Map();
     }
     
-    // Create a unique key for this notification
     const notificationKey = `${title}:${message}:${type}`;
     
-    // Check if we've shown this notification recently (last 5 seconds)
     if (window.recentNotifications.has(notificationKey)) {
         console.log(`🚫 DUPLICATE NOTIFICATION BLOCKED: "${title} - ${message}"`);
         
-        // Track number of duplicates for debugging
         const count = window.notificationsMap.get(notificationKey) || 0;
         window.notificationsMap.set(notificationKey, count + 1);
         console.log(`🔢 Duplicate count for "${title}": ${count + 1}`);
@@ -34,17 +28,14 @@ function showNotification(title, message, type = 'info') {
         return;
     }
     
-    // Add this notification to the recent set
     window.recentNotifications.add(notificationKey);
     window.notificationsMap.set(notificationKey, 1);
     
-    // Remove it after 5 seconds to allow future notifications
     setTimeout(() => {
         window.recentNotifications.delete(notificationKey);
         console.log(`🧹 Cleared deduplication for: "${title} - ${message}"`);
     }, 5000);
     
-    // Find notifications container
     const notificationsContainer = document.querySelector('.notifications-container');
     if (!notificationsContainer) {
         console.error('Notifications container not found');
@@ -52,7 +43,6 @@ function showNotification(title, message, type = 'info') {
         return showNotification(title, message, type); // Try again after creating container
     }
     
-    // Create notification element
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.innerHTML = `
@@ -63,10 +53,8 @@ function showNotification(title, message, type = 'info') {
         <button class="notification-close">&times;</button>
     `;
     
-    // Add notification to container
     notificationsContainer.appendChild(notification);
     
-    // Add close event listener
     const closeBtn = notification.querySelector('.notification-close');
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
@@ -79,7 +67,6 @@ function showNotification(title, message, type = 'info') {
         });
     }
     
-    // Auto-remove after 5 seconds
     setTimeout(() => {
         notification.classList.add('fade-out');
         setTimeout(() => {
@@ -204,7 +191,6 @@ function redirectIfLoggedIn() {
  * @returns {Promise} A promise that resolves to true if confirmed, false if canceled
  */
 function customConfirm(options) {
-    // Set default options
     const settings = {
         title: 'Confirmation',
         message: 'Are you sure you want to proceed?',
@@ -216,21 +202,17 @@ function customConfirm(options) {
     };
 
     return new Promise((resolve) => {
-        // Create overlay
         const overlay = document.createElement('div');
         overlay.className = 'custom-confirm-overlay';
         
-        // Create modal
         const modal = document.createElement('div');
         modal.className = 'custom-confirm-modal';
         
-        // Format message with highlight if provided
         let formattedMessage = settings.message;
         if (settings.highlight) {
             formattedMessage = settings.message.replace(settings.highlight, `<span class="highlight">${settings.highlight}</span>`);
         }
         
-        // Create modal content
         modal.innerHTML = `
             <div class="custom-confirm-header">
                 <i class="fas ${settings.icon}"></i>
@@ -249,22 +231,16 @@ function customConfirm(options) {
             </div>
         `;
         
-        // Add modal to overlay
         overlay.appendChild(modal);
         
-        // Add overlay to body
         document.body.appendChild(overlay);
         
-        // Prevent scrolling on body
         document.body.style.overflow = 'hidden';
         
-        // Function to close the modal
         const closeModal = (result) => {
-            // Add closing animations
             overlay.classList.add('closing');
             modal.classList.add('closing');
             
-            // Wait for animation to complete
             setTimeout(() => {
                 document.body.removeChild(overlay);
                 document.body.style.overflow = '';
@@ -272,14 +248,12 @@ function customConfirm(options) {
             }, 300);
         };
         
-        // Add event listeners
         const confirmBtn = modal.querySelector('.confirm-button');
         const cancelBtn = modal.querySelector('.cancel-button');
         
         confirmBtn.addEventListener('click', () => closeModal(true));
         cancelBtn.addEventListener('click', () => closeModal(false));
         
-        // Add escape key support
         document.addEventListener('keydown', function escHandler(e) {
             if (e.key === 'Escape') {
                 document.removeEventListener('keydown', escHandler);
@@ -287,12 +261,10 @@ function customConfirm(options) {
             }
         });
         
-        // Focus on cancel button by default for safety
         setTimeout(() => cancelBtn.focus(), 100);
     });
 }
 
-// Function to ensure notifications container exists
 function ensureNotificationsContainer() {
     if (!document.querySelector('.notifications-container')) {
         const container = document.createElement('div');
@@ -302,12 +274,10 @@ function ensureNotificationsContainer() {
     }
 }
 
-// Ensure the notifications container exists when the page loads
 document.addEventListener('DOMContentLoaded', function() {
     ensureNotificationsContainer();
 });
 
-// Export functions if using modules
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         showNotification,
@@ -323,6 +293,5 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-// Make customConfirm globally available
 window.customConfirm = customConfirm;
 window.ensureNotificationsContainer = ensureNotificationsContainer; 

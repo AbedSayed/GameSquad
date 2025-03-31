@@ -1,6 +1,4 @@
-/* GameSquad Gaming Styles - Specific components for gaming site */
 
-/* Game Cards with better hover effect */
 .game-card {
   position: relative;
   background-color: rgba(30, 30, 40, 0.7);
@@ -116,7 +114,6 @@
   font-size: 0.9rem;
 }
 
-/* Game badges for showing game type */
 .game-badge {
   display: inline-block;
   padding: 4px 10px;
@@ -160,7 +157,6 @@
   border-color: #8b5cf6;
 }
 
-/* Game level indicators */
 .skill-level {
   display: flex;
   gap: 3px;
@@ -182,7 +178,6 @@
   background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
 }
 
-/* Player cards for team building */
 .player-card {
   display: flex;
   align-items: center;
@@ -279,7 +274,6 @@
   gap: 10px;
 }
 
-/* Team slots for team building */
 .team-slots {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -321,7 +315,6 @@
   text-align: center;
 }
 
-/* Game server status indicator */
 .server-status {
   display: flex;
   align-items: center;
@@ -365,7 +358,6 @@
   color: var(--text-secondary);
 }
 
-/* Match history item */
 .match-history-item {
   display: flex;
   align-items: center;
@@ -428,7 +420,6 @@
   color: var(--text-muted);
 }
 
-/* Tournament brackets */
 .tournament-bracket {
   display: flex;
   overflow-x: auto;
@@ -505,7 +496,6 @@
   background-color: var(--border-color);
 }
 
-/* Achievement badges */
 .achievements-list {
   display: flex;
   flex-wrap: wrap;
@@ -617,7 +607,6 @@
   text-align: center;
 }
 
-/* Leaderboard styles */
 .leaderboard {
   border-radius: var(--border-radius-lg);
   overflow: hidden;
@@ -662,7 +651,7 @@
 }
 
 .leaderboard-row:nth-child(3) .leaderboard-rank {
-  color: #cd7f32; /* bronze */
+  color: #cd7f32;
 }
 
 .leaderboard-player {
@@ -707,7 +696,6 @@
   color: var(--text-muted);
 }
 
-/* Filter Styles */
 .filters-section {
   background-color: rgba(18, 18, 24, 0.85);
   border-radius: 12px;
@@ -777,7 +765,6 @@
   grid-column: 1 / -1;
 }
 
-/* Filter Tabs */
 .filter-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -808,7 +795,6 @@
   border-color: rgba(138, 43, 226, 0.8);
 }
 
-/* Game Section Headers */
 .section-title {
   font-size: 1.8rem;
   margin-bottom: 20px;
@@ -829,7 +815,6 @@
   border-radius: 3px;
 }
 
-/* Lobbies grid layout */
 .lobbies-grid {
     display: flex;
     flex-direction: column;
@@ -897,7 +882,6 @@
     display: inline-block;
 }
 
-/* Responsive layout */
 @media (min-width: 992px) {
     .lobbies-grid-section {
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -914,7 +898,6 @@
     }
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
   .game-card {
     max-width: 100%;

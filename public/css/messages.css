@@ -1,6 +1,4 @@
-/* Messages Page CSS - Updated */
- 
-/* Base structure for sidebar layout */
+
 .messages-container {
     display: flex;
     flex-direction: column;
@@ -110,7 +108,6 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Empty state styling */
 .empty-state {
     text-align: center;
     padding: 30px;
@@ -128,7 +125,6 @@
     color: #ef4444;
 }
 
-/* Notification Badge */
 .notification-badge, .invite-badge {
     display: inline-flex;
     align-items: center;
@@ -149,7 +145,6 @@
     opacity: 1;
 }
 
-/* Invite item styling */
 .invite-item {
     border: 1px solid rgba(126, 34, 206, 0.3);
     border-radius: 8px;
@@ -194,7 +189,6 @@
     gap: 10px;
 }
 
-/* Button styling */
 .btn {
     padding: 8px 16px;
     border-radius: 4px;
@@ -235,7 +229,6 @@
     box-shadow: none !important;
 }
 
-/* Notification system */
 .notifications-container {
     position: fixed;
     bottom: 20px;
@@ -322,7 +315,6 @@
     to { transform: translateX(100%); opacity: 0; }
 }
 
-/* Responsive styling */
 @media (max-width: 768px) {
     .messages-body {
         flex-direction: column;
@@ -367,7 +359,6 @@
     }
 }
 
-/* Friend Chat Styling */
 .friend-chat-container {
     position: fixed;
     bottom: 0;
@@ -385,7 +376,6 @@
     transition: all 0.3s ease;
 }
 
-/* Multiple chat windows positioning */
 .friend-chat-container:nth-of-type(2) {
     right: 350px;
 }

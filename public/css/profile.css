@@ -1,6 +1,4 @@
-/* Profile Page Styles */
 
-/* Match the players.html page styling */
 .page-title {
     color: var(--light-color);
     margin-bottom: 30px;
@@ -16,7 +14,6 @@
     text-shadow: 0 0 10px rgba(108, 92, 231, 0.4);
 }
 
-/* Profile Container */
 .profile-container {
     max-width: 1200px;
     margin: 40px auto;
@@ -31,7 +28,6 @@
     gap: 30px;
 }
 
-/* Profile Card */
 .profile-card {
     background-color: rgba(18, 18, 24, 0.95);
     border-radius: 10px;
@@ -55,7 +51,6 @@
     pointer-events: none;
 }
 
-/* Apply glow-effect class */
 .glow-effect {
     position: relative;
     box-shadow: 0 0 20px rgba(108, 92, 231, 0.3);
@@ -120,7 +115,6 @@
     font-size: 18px;
 }
 
-/* Highlight effect for form fields */
 .highlight-field {
     animation: pulse-highlight 2s ease;
     box-shadow: 0 0 15px rgba(108, 92, 231, 0.8);
@@ -186,7 +180,6 @@
     font-size: 0.9rem;
 }
 
-/* Profile Sections */
 .profile-section {
     background-color: rgba(18, 18, 24, 0.95);
     border-radius: 10px;
@@ -225,14 +218,12 @@
     color: var(--primary-color);
 }
 
-/* Stats Section */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 15px;
 }
 
-/* Stats Card */
 .stat-card {
     background-color: rgba(25, 25, 35, 0.5);
     border-radius: 10px;
@@ -282,14 +273,12 @@
     font-weight: 600;
 }
 
-/* Game Ranks Section */
 .game-ranks-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 15px;
 }
 
-/* Game Rank Card */
 .game-rank-card {
     background-color: rgba(25, 25, 35, 0.5);
     border-radius: 10px;
@@ -322,14 +311,12 @@
     box-shadow: 0 0 10px rgba(108, 92, 231, 0.3);
 }
 
-/* Preferences Section */
 .preferences-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 15px;
 }
 
-/* Preference Item */
 .preference-item {
     background-color: rgba(25, 25, 35, 0.5);
     border-radius: 10px;
@@ -356,7 +343,6 @@
     font-weight: 500;
 }
 
-/* Languages & Interests Section */
 .dual-section {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -391,14 +377,12 @@
     transform: translateY(-2px);
 }
 
-/* Friends Section */
 .friends-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 15px;
 }
 
-/* Friend Card */
 .friend-card {
     background-color: rgba(25, 25, 35, 0.5);
     border-radius: 10px;
@@ -466,7 +450,6 @@
     box-shadow: 0 0 15px rgba(108, 92, 231, 0.5);
 }
 
-/* Empty States */
 .empty-state {
     padding: 30px;
     text-align: center;
@@ -484,7 +467,6 @@
     font-size: 1rem;
 }
 
-/* Edit Profile Modal */
 .modal {
     display: none;
     position: fixed;
@@ -623,7 +605,6 @@
     z-index: 1;
 }
 
-/* Responsive Adjustments */
 @media screen and (max-width: 768px) {
     .profile-card {
         flex-direction: column;
@@ -673,7 +654,6 @@
     }
 }
 
-/* Animations */
 .fade-element {
     opacity: 0;
     transform: translateY(20px);
@@ -704,7 +684,6 @@
 .fade-stagger.appear > *:nth-child(7) { transition: opacity 0.6s ease 0.6s, transform 0.6s ease 0.6s; }
 .fade-stagger.appear > *:nth-child(8) { transition: opacity 0.6s ease 0.7s, transform 0.6s ease 0.7s; }
 
-/* Notification */
 .notification {
     position: relative;
     padding: 12px 20px;

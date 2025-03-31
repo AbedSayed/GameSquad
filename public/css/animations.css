@@ -1,6 +1,4 @@
-/* GameSquad Animations CSS */
 
-/* Fade in animation for elements */
 .fade-element {
   opacity: 0;
   transform: translateY(20px);
@@ -12,7 +10,6 @@
   transform: translateY(0);
 }
 
-/* Staggered animations for multiple elements */
 .fade-stagger > * {
   opacity: 0;
   transform: translateY(20px);
@@ -30,7 +27,6 @@
 .fade-stagger.appear > *:nth-child(5) { transition: opacity 0.6s ease 0.4s, transform 0.6s ease 0.4s; }
 .fade-stagger.appear > *:nth-child(6) { transition: opacity 0.6s ease 0.5s, transform 0.6s ease 0.5s; }
 
-/* Hexagon grid background effect */
 .hexagon-bg {
   position: relative;
   overflow: hidden;
@@ -61,7 +57,6 @@
   z-index: -1;
 }
 
-/* Neon text effect */
 .neon-text {
   color: #fff;
   text-shadow: 
@@ -87,7 +82,6 @@
   }
 }
 
-/* Secondary neon text (cyan) */
 .neon-text-secondary {
   color: #fff;
   text-shadow: 
@@ -113,7 +107,6 @@
   }
 }
 
-/* Glitch effect */
 .glitch {
   position: relative;
   animation: glitchText 3s infinite;
@@ -160,7 +153,6 @@
   100% { transform: translate(0) }
 }
 
-/* Floating animation */
 .float {
   animation: float 6s ease-in-out infinite;
 }
@@ -171,7 +163,6 @@
   100% { transform: translateY(0px); }
 }
 
-/* Pulsing glow effect for cards */
 .pulse-glow {
   animation: pulseGlow 3s infinite;
 }
@@ -188,7 +179,6 @@
   }
 }
 
-/* Cyberpunk grid effect */
 .cyber-grid {
   position: relative;
   overflow: hidden;
@@ -216,7 +206,6 @@
   }
 }
 
-/* Loading spinner with glow */
 .spinner {
   width: 40px;
   height: 40px;
@@ -231,7 +220,6 @@
   to { transform: rotate(360deg); }
 }
 
-/* Game card hover effect */
 .game-card {
   transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
@@ -274,7 +262,6 @@
   }
 }
 
-/* Button hover effects */
 .btn-hover-fx {
   position: relative;
   overflow: hidden;
@@ -302,7 +289,6 @@
   left: 100%;
 }
 
-/* Typewriter text effect */
 .typewriter {
   overflow: hidden;
   border-right: 0.15em solid var(--primary);
@@ -324,7 +310,6 @@
   50% { border-color: var(--primary) }
 }
 
-/* Glow hover effect */
 .glow-hover {
   transition: all 0.3s ease;
 }
@@ -333,7 +318,6 @@
   box-shadow: 0 0 15px rgba(126, 34, 206, 0.7);
 }
 
-/* Rotating border animation */
 .rotating-border {
   position: relative;
   border-radius: 10px;
@@ -375,7 +359,6 @@
   }
 }
 
-/* Sheen effect for headers */
 .sheen {
   position: relative;
   overflow: hidden;
@@ -410,7 +393,6 @@
   }
 }
 
-/* Reveal animation for text */
 .reveal {
   position: relative;
   overflow: hidden;
@@ -444,7 +426,6 @@
   }
 }
 
-/* 3D hover effect */
 .hover-3d {
   transition: all 0.3s ease;
   transform-style: preserve-3d;
@@ -454,7 +435,6 @@
   transform: perspective(500px) rotateX(10deg) rotateY(-10deg) translateZ(10px);
 }
 
-/* Power button glow */
 .power-button {
   position: relative;
   border-radius: 50%;

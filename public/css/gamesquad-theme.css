@@ -1,42 +1,39 @@
-/* GameSquad Unified Theme - Gaming Edition */
 
 :root {
-  /* Color Palette */
-  --primary: #7e22ce;  /* Purple */
+  --primary: #7e22ce;
   --primary-hover: #9333ea;
   --primary-dark: #581c87;
-  --secondary: #22d3ee; /* Cyan for accents */
+  --secondary: #22d3ee;
   --secondary-hover: #06b6d4;
   --neon-glow: 0 0 5px rgba(126, 34, 206, 0.5), 0 0 20px rgba(126, 34, 206, 0.3);
   --neon-glow-strong: 0 0 10px rgba(126, 34, 206, 0.7), 0 0 30px rgba(126, 34, 206, 0.5);
   --secondary-glow: 0 0 5px rgba(34, 211, 238, 0.5), 0 0 20px rgba(34, 211, 238, 0.3);
   
-  /* Background gradients */
+
   --bg-dark: #09090b;
   --bg-gradient: linear-gradient(135deg, #09090b 0%, #18181b 100%);
   --card-bg: #18181b;
   --card-bg-hover: #27272a;
-  
-  /* Text colors */
+
   --text-primary: #fafafa;
   --text-secondary: #a1a1aa;
   --text-muted: #52525b;
   
-  /* Border & Accent */
+
   --border-color: #3f3f46;
   --border-glow: 0 0 5px rgba(126, 34, 206, 0.3);
   --accent-success: #10b981;
   --accent-danger: #ef4444;
   --accent-warning: #f59e0b;
   
-  /* Spacing */
+
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
   --spacing-md: 1rem;
   --spacing-lg: 1.5rem;
   --spacing-xl: 2rem;
   
-  /* Layout */
+
   --border-radius-sm: 0.25rem;
   --border-radius-md: 0.5rem;
   --border-radius-lg: 0.75rem;
@@ -44,7 +41,7 @@
   --header-height: 70px;
 }
 
-/* Base Styles */
+
 * {
   margin: 0;
   padding: 0;
@@ -61,7 +58,7 @@ body {
   min-height: 100vh;
 }
 
-/* Typography */
+
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Rajdhani', 'Exo 2', sans-serif;
   font-weight: 700;
@@ -94,13 +91,13 @@ a:hover {
   color: var(--secondary-hover);
 }
 
-/* Special text effects */
+
 .text-glitch {
   position: relative;
   animation: textGlitch 2s infinite alternate;
 }
 
-/* Containers */
+
 .container {
   max-width: var(--container-width);
   margin: 0 auto;
@@ -111,7 +108,7 @@ a:hover {
   padding: var(--spacing-xl) 0;
 }
 
-/* Buttons */
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -193,7 +190,7 @@ a:hover {
   transform: translateY(-2px);
 }
 
-/* Cards */
+
 .card {
   background: var(--card-bg);
   border-radius: var(--border-radius-lg);
@@ -228,7 +225,7 @@ a:hover {
   opacity: 1;
 }
 
-/* Navbar & Header */
+
 header {
   background-color: var(--bg-dark);
   position: fixed;
@@ -327,7 +324,7 @@ header {
   color: var(--text-primary);
 }
 
-/* User profile dropdown */
+
 .user-profile {
   position: relative;
   display: flex;
@@ -397,7 +394,7 @@ header {
   transform: translateY(0);
 }
 
-/* Mobile menu */
+
 .hamburger {
   display: none;
   cursor: pointer;
@@ -430,7 +427,7 @@ header {
   bottom: 0;
 }
 
-/* Animations */
+
 @keyframes pulse {
   0% {
     background-position: 0% 0%;
@@ -472,7 +469,7 @@ header {
   }
 }
 
-/* Glowing text */
+
 .glow-text {
   animation: glowText 2s infinite alternate;
 }
@@ -486,7 +483,7 @@ header {
   }
 }
 
-/* Footer */
+
 footer {
   background-color: var(--bg-dark);
   border-top: 1px solid var(--border-color);
@@ -580,7 +577,7 @@ footer {
   color: var(--text-muted);
 }
 
-/* Responsive styles */
+
 @media (max-width: 992px) {
   .footer-content {
     grid-template-columns: 1fr;
@@ -641,7 +638,7 @@ footer {
   }
 }
 
-/* Special gaming styles - overlays, grids */
+
 .hero {
   position: relative;
   padding: var(--spacing-xl) 0;
@@ -718,7 +715,7 @@ footer {
   margin-top: var(--spacing-lg);
 }
 
-/* Status indicators and badges */
+
 .status-badge {
   display: inline-block;
   padding: 0.25rem 0.75rem;
@@ -752,7 +749,7 @@ footer {
   border: 1px solid var(--accent-danger);
 }
 
-/* Utility classes */
+
 .hidden {
   display: none !important;
 }
@@ -769,10 +766,9 @@ footer {
   color: var(--accent-warning);
 }
 
-/* Preload web fonts */
+
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&display=swap');
 
-/* Add this to ensure all select and input elements have the right styling */
 select, input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea {
     background-color: rgba(30, 30, 40, 0.7);
     border: 1px solid rgba(87, 70, 175, 0.3);
@@ -789,7 +785,6 @@ select:focus, input[type="text"]:focus, input[type="email"]:focus, input[type="p
     box-shadow: 0 0 0 2px rgba(138, 43, 226, 0.2);
 }
 
-/* Style for dropdowns in dark mode */
 select {
     appearance: none;
     -webkit-appearance: none;
@@ -801,7 +796,6 @@ select {
     padding-right: 35px;
 }
 
-/* Custom styling for checkboxes and radio buttons */
 input[type="checkbox"], input[type="radio"] {
     appearance: none;
     -webkit-appearance: none;
@@ -850,7 +844,6 @@ input[type="radio"]:checked::after {
     background-color: white;
 }
 
-/* Fix for Lobby Grid Cards */
 .game-card {
   position: relative;
   background-color: rgba(30, 30, 40, 0.7);
@@ -966,7 +959,6 @@ input[type="radio"]:checked::after {
   box-shadow: 0 0 8px #6c5ce7;
 }
 
-/* Lobby Grid Layout */
 .lobbies-grid {
   display: flex;
   flex-direction: column;
@@ -988,7 +980,6 @@ input[type="radio"]:checked::after {
   gap: 10px;
 }
 
-/* Loading state */
 .loading {
   text-align: center;
   padding: 2rem;
@@ -1008,7 +999,6 @@ input[type="radio"]:checked::after {
   to { transform: rotate(360deg); }
 }
 
-/* No lobbies state */
 .no-lobbies {
   text-align: center;
   padding: 2rem;
@@ -1024,7 +1014,6 @@ input[type="radio"]:checked::after {
   color: rgba(108, 92, 231, 0.6);
 }
 
-/* Section titles */
 .neon-text {
   color: #fff;
   text-shadow: 0 0 10px rgba(108, 92, 231, 0.7), 
@@ -1050,7 +1039,6 @@ input[type="radio"]:checked::after {
   text-shadow: 0 0 10px #6c5ce7;
 }
 
-/* Button styling */
 .btn-hover-fx {
   position: relative;
   overflow: hidden;
@@ -1083,7 +1071,6 @@ input[type="radio"]:checked::after {
   }
 }
 
-/* Fade stagger animation for cards */
 .fade-stagger > * {
   opacity: 0;
   transform: translateY(20px);
@@ -1097,7 +1084,6 @@ input[type="radio"]:checked::after {
   }
 }
 
-/* Add a stagger delay to each card */
 .fade-stagger > *:nth-child(1) { animation-delay: 0.1s; }
 .fade-stagger > *:nth-child(2) { animation-delay: 0.2s; }
 .fade-stagger > *:nth-child(3) { animation-delay: 0.3s; }

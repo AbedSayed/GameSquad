@@ -1,10 +1,6 @@
-// Authentication related JavaScript functions
 
-// Create the Auth namespace for global access
 window.Auth = window.Auth || {};
 
-// We'll access APP_CONFIG directly rather than declaring constants
-// to avoid redeclaration issues across multiple files
 
 if (!window.APP_CONFIG?.API_URL) {
     console.error('APP_CONFIG.API_URL is not defined. Make sure config.js is loaded first.');
@@ -19,42 +15,35 @@ window.Auth.registerUser = async function(userData) {
   try {
     console.log('Validating registration data');
     
-    // Basic validation
     if (!userData.email || !userData.password || !userData.username) {
       throw new Error('Email, password and username are required');
     }
     
-    // Check for valid email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(userData.email)) {
       throw new Error('Invalid email format');
     }
     
-    // Check for minimum password length
     if (userData.password.length < 6) {
       throw new Error('Password must be at least 6 characters');
     }
     
-    // Check for username requirements
     if (userData.username.length < 3) {
       throw new Error('Username must be at least 3 characters');
     }
     
-    // Prepare the request payload including profile data if available
     const requestData = {
       username: userData.username,
       email: userData.email,
       password: userData.password
     };
     
-    // Add profile data if provided
     if (userData.profile) {
       requestData.profile = userData.profile;
     }
     
     console.log('Sending registration data to server with profile:', requestData);
     
-    // Register with the API
     const response = await fetch(`${window.APP_CONFIG.API_URL}/users/register`, {
       method: 'POST',
       headers: {
@@ -69,7 +58,6 @@ window.Auth.registerUser = async function(userData) {
       throw new Error(data.message || 'Registration failed');
     }
     
-    // Store user data in localStorage
     localStorage.setItem('userInfo', JSON.stringify(data));
     localStorage.setItem('token', data.token);
     
@@ -90,23 +78,19 @@ window.Auth.loginUser = async function(email, password) {
     try {
         console.log('Validating login credentials');
         
-        // Basic validation
         if (!email || !password) {
             throw new Error('Email and password are required');
         }
         
-        // Check for valid email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             throw new Error('Invalid email format');
         }
         
-        // Check for minimum password length
         if (password.length < 6) {
             throw new Error('Password must be at least 6 characters');
         }
         
-        // Login with the API
         const response = await fetch(`${window.APP_CONFIG.API_URL}/users/login`, {
             method: 'POST',
             headers: {
@@ -121,7 +105,6 @@ window.Auth.loginUser = async function(email, password) {
             throw new Error(data.message || 'Login failed');
         }
         
-        // Store user data in localStorage
         localStorage.setItem('userInfo', JSON.stringify(data));
         localStorage.setItem('token', data.token);
         
@@ -136,11 +119,9 @@ window.Auth.loginUser = async function(email, password) {
  * Logout user
  */
 window.Auth.logoutUser = function() {
-  // Remove user data and token from localStorage
   localStorage.removeItem('userInfo');
   localStorage.removeItem('token');
   
-  // Redirect to home page
   window.location.href = '/index.html';
 }
 
@@ -157,7 +138,6 @@ function getCurrentUser() {
     }
     
     const userInfo = JSON.parse(userInfoString);
-    // Verify that the user info contains the expected data format
     if (!userInfo || !userInfo._id || !userInfo.username) {
       console.error('Invalid user info in localStorage:', userInfo);
       return null;
@@ -181,12 +161,10 @@ function isLoggedIn() {
     return false;
   }
   
-  // Check if token has expired (if it's a JWT)
   if (token.split('.').length === 3) {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       
-      // Check if token has expired
       if (payload.exp && payload.exp * 1000 < Date.now()) {
         clearAuthData();
         return false;
@@ -260,7 +238,6 @@ window.Auth.updateUserProfile = async function(profileData) {
       throw new Error(data.message || 'Failed to update profile');
     }
 
-    // Update stored user info
     const userInfo = JSON.parse(localStorage.getItem('userInfo'));
     const updatedUserInfo = { ...userInfo, ...data };
     localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo));
@@ -341,7 +318,6 @@ window.Auth.getUserById = async function(userId) {
  */
 window.Auth.searchUsers = async function(filters = {}) {
   try {
-    // Construct query string from filters
     const queryParams = new URLSearchParams();
     for (const [key, value] of Object.entries(filters)) {
       if (value) {
@@ -375,14 +351,12 @@ window.Auth.searchUsers = async function(filters = {}) {
  */
 function updateUserInfo(updatedUserInfo) {
   try {
-    // Get current user info first
     const currentUserInfo = getCurrentUser();
     if (!currentUserInfo) {
       console.error('No user info to update');
       return false;
     }
     
-    // Merge the updated info with existing info
     const mergedUserInfo = { ...currentUserInfo, ...updatedUserInfo };
     localStorage.setItem('userInfo', JSON.stringify(mergedUserInfo));
     return true;
@@ -402,26 +376,21 @@ function initSocketConnection(userId) {
     return;
   }
   
-  // Create or use existing socket connection
   if (!window.socket) {
     window.socket = io();
   }
   
-  // Authenticate the socket connection
   window.socket.emit('authenticate', { userId });
   
-  // Set up socket event listeners for friend-related events
   window.socket.on('new-friend-request', (data) => {
     showNotification(`${data.senderName} sent you a friend request!`, 'info');
     
-    // Update local data if needed
     refreshUserData();
   });
   
   window.socket.on('friend-request-accepted', (data) => {
     showNotification(`${data.acceptedByName} accepted your friend request!`, 'success');
     
-    // Update local data
     refreshUserData();
   });
 }
@@ -450,7 +419,6 @@ async function refreshUserData() {
       throw new Error(data.message || 'Failed to refresh user data');
     }
     
-    // Update localStorage with fresh data
     const userInfo = {
       _id: data._id,
       username: data.username,
@@ -473,7 +441,6 @@ async function refreshUserData() {
  * @param {string} type - Notification type ('success', 'error', 'info')
  */
 function showNotification(message, type = 'info') {
-  // Check if notification container exists, create if not
   let notificationContainer = document.getElementById('notification-container');
   if (!notificationContainer) {
     notificationContainer = document.createElement('div');
@@ -485,7 +452,6 @@ function showNotification(message, type = 'info') {
     document.body.appendChild(notificationContainer);
   }
   
-  // Create notification element
   const notification = document.createElement('div');
   notification.className = `notification ${type}`;
   notification.textContent = message;
@@ -497,10 +463,8 @@ function showNotification(message, type = 'info') {
   notification.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
   notification.style.transition = 'all 0.3s ease';
   
-  // Add to container
   notificationContainer.appendChild(notification);
   
-  // Remove after 5 seconds
   setTimeout(() => {
     notification.style.opacity = '0';
     setTimeout(() => {
@@ -511,10 +475,8 @@ function showNotification(message, type = 'info') {
   }, 5000);
 }
 
-// Add a console log to confirm the Auth namespace is properly initialized
 console.log('Auth module loaded and namespace initialized');
 
-// Export functions globally to make them accessible to other scripts
 window.getCurrentUser = getCurrentUser;
 window.isLoggedIn = isLoggedIn;
 window.AUTH = {
@@ -528,31 +490,28 @@ window.AUTH = {
   showNotification
 };
 
-// Get token from localStorage, checking both possible names for compatibility
 function getAuthToken() {
   return localStorage.getItem('authToken') || localStorage.getItem('token');
 }
 
-// Save token to localStorage, using both names for compatibility
 function saveAuthToken(token) {
   if (!token) return false;
   
-  // Remove Bearer prefix if present when storing
   const tokenValue = token.startsWith('Bearer ') ? token.substring(7) : token;
   
   localStorage.setItem('authToken', tokenValue);
-  localStorage.setItem('token', tokenValue); // For backward compatibility
+  localStorage.setItem('token', tokenValue);
   return true;
 }
 
-// Clear all authentication data
+
 function clearAuthData() {
   localStorage.removeItem('authToken');
   localStorage.removeItem('token');
   localStorage.removeItem('userInfo');
 }
 
-// Get user info from localStorage
+
 function getUserInfo() {
   const userInfoStr = localStorage.getItem('userInfo');
   
@@ -568,7 +527,7 @@ function getUserInfo() {
   }
 }
 
-// Save user info to localStorage
+
 function saveUserInfo(userInfo) {
   if (!userInfo) return false;
   
@@ -587,18 +546,18 @@ function saveUserInfo(userInfo) {
 async function handleLogin(e) {
     e.preventDefault();
     
-    // Get form data
+
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     
-    // Validate form data
+
     if (!email || !password) {
         showLoginError('Please enter both email and password');
         return;
     }
     
     try {
-        // Show loading state
+
         const loginBtn = document.querySelector('button[type="submit"]');
         if (loginBtn) {
             const originalBtnText = loginBtn.innerHTML;
@@ -606,24 +565,24 @@ async function handleLogin(e) {
             loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
         }
         
-        // Use the Auth.loginUser method for consistent behavior
+
         const user = await window.Auth.loginUser(email, password);
         
-        // Show success message
+
         if (window.showNotification) {
             window.showNotification('Login successful!', 'success');
         } else {
             alert('Login successful!');
         }
         
-        // Redirect after login
+
         redirectAfterLogin();
         
     } catch (error) {
         console.error('Login error:', error);
         showLoginError(error.message || 'Login failed. Please try again.');
         
-        // Reset button state
+
         const loginBtn = document.querySelector('button[type="submit"]');
         if (loginBtn) {
             loginBtn.disabled = false;
@@ -632,8 +591,5 @@ async function handleLogin(e) {
     }
 }
 
-// Function to determine if we're in demo mode (no API available)
-function isDemoMode() {
-    // Always return false to ensure strict validation
-    return false;
-}
+
+
